@@ -48,6 +48,18 @@ def test_tag_audio_file_mp3(
     assert mock_audio.save.called
 
 
+def test_tag_audio_file_dry_run(
+    mock_mp3: Path, sample_release: DiscogsRelease, mocker
+) -> None:
+    mock_mp3_class = mocker.patch("vinylkit.tagging.MP3")
+    mock_audio = mock_mp3_class.return_value
+
+    tag_audio_file(mock_mp3, sample_release, track_index=0, dry_run=True)
+
+    # Verify mutagen was NOT used to save
+    assert not mock_audio.save.called
+
+
 def test_scan_folder_finds_files(tmp_path: Path) -> None:
     from vinylkit.tagging import scan_folder
 

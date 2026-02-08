@@ -17,6 +17,13 @@ dependencies = [
 [project.scripts]
 vinylkit = "vinylkit.cli:main"
 
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [tool.ruff]
 target-version = "py312"
 line-length = 88

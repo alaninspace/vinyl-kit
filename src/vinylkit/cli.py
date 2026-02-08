@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import csv
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -109,6 +111,10 @@ def scan(config: AppConfig, paths: tuple[Path, ...]) -> None:
 )
 @click.option("--id", "release_id", type=int, help="Discogs Release ID.")
 @click.option("--search", "query", type=str, help="Search query for Discogs.")
+@click.option("--artist", type=str, help="Filter search by artist name.")
+@click.option("--album", type=str, help="Filter search by album/release title.")
+@click.option("--format", "fmt_filter", type=str, help="Filter search by format (e.g. Vinyl, CD).")
+@click.option("--auto-move", is_flag=True, help="Automatically move files without confirmation.")
 @click.option(
     "--dry-run", is_flag=True, help="Display changes without writing to files."
 )
@@ -136,6 +142,10 @@ def tag(
     paths: tuple[Path, ...],
     release_id: int | None,
     query: str | None,
+    artist: str | None,
+    album: str | None,
+    fmt_filter: str | None,
+    auto_move: bool,
     dry_run: bool,
     no_artwork: bool,
     do_rename: bool | None,
@@ -145,6 +155,12 @@ def tag(
     """Tag audio files in folders using metadata from Discogs."""
     lib_root = lib_root_override or config.library_root
     tag_mode = TagMode.MERGE if merge else config.tag_mode
+
+    # Handle multiple formats
+    if fmt_filter:
+        search_formats: list[str] = [f.strip() for f in fmt_filter.split(",")]
+    else:
+        search_formats = config.default_format
 
     # Use recordings_root if no paths provided
     if not paths:
@@ -162,7 +178,7 @@ def tag(
     if do_rename is None:
         do_rename = False
 
-    if not release_id and not query and len(paths) > 1:
+    if not release_id and not query and not artist and not album and len(paths) > 1:
         console.print(
             "[yellow]Batch mode: You will be prompted for each folder.[/yellow]"
         )
@@ -173,44 +189,124 @@ def tag(
         console.print(f"\n[bold blue]Processing folder:[/bold blue] {path}")
         current_release_id = release_id
         current_query = query
+        current_artist = artist
+        current_album = album
 
         try:
-            if not current_release_id and not current_query:
-                current_query = click.prompt(
-                    f"Enter search query or Release ID for {path.name}"
-                )
-                if current_query.isdigit():
-                    current_release_id = int(current_query)
-                    current_query = None
-
-            if current_query:
-                results = client.search_releases(current_query)
-                if not results:
-                    console.print(
-                        f"[yellow]No results found for query: {current_query}[/yellow]"
+            while True:  # Search/Retry loop for this folder
+                if (
+                    not current_release_id
+                    and not current_query
+                    and not current_artist
+                    and not current_album
+                ):
+                    current_query = click.prompt(
+                        f"Enter search query or Release ID for {path.name}"
                     )
-                    continue
+                    if current_query.isdigit():
+                        current_release_id = int(current_query)
+                        current_query = None
 
-                console.print(f"\n[bold]Search Results for {path.name}:[/bold]")
-                for i, res in enumerate(results[:10], 1):
-                    title = res.get("title", "Unknown")
-                    year = res.get("year", "N/A")
-                    country = res.get("country", "N/A")
-                    fmt = ", ".join(res.get("format", []))
-                    console.print(
-                        f"{i}. [cyan]{title}[/cyan] ({year}, {country}, {fmt})"
+                if current_release_id:
+                    break  # Have ID, proceed to fetch
+
+                if current_query or current_artist or current_album:
+                    # Paginated search logic
+                    all_results = client.search_releases(
+                        current_query,
+                        artist=current_artist,
+                        album=current_album,
+                        format=search_formats,
                     )
+                    if not all_results:
+                        console.print(
+                            f"[yellow]No results found for query/filters.[/yellow]"
+                        )
+                        current_query = None  # Reset to prompt again
+                        current_artist = None
+                        current_album = None
+                        continue
 
-                choice = click.prompt(
-                    "\nSelect a release (1-10) or 0 to skip", type=int, default=1
-                )
-                if choice == 0:
-                    continue
-                if not (1 <= choice <= len(results)):
-                    console.print("[red]Invalid selection. Skipping.[/red]")
-                    continue
+                    page_size = config.search_page_size
+                    offset = 0
+                    selected_release_id = None
+                    break_search_loop = False
 
-                current_release_id = results[choice - 1]["id"]
+                    while offset < len(all_results):
+                        page_results = all_results[offset : offset + page_size]
+                        table = Table(
+                            title=f"\nSearch Results for: [bold cyan]{current_query or current_artist or current_album}[/bold cyan] (Page {offset // page_size + 1})"
+                        )
+                        table.add_column("#", style="dim")
+                        table.add_column("ID", style="magenta")
+                        table.add_column("Title", style="cyan")
+                        table.add_column("Year", style="green")
+                        table.add_column("Country", style="yellow")
+                        table.add_column("Format", style="blue")
+                        table.add_column("Link", style="dim", no_wrap=True)
+
+                        for i, res in enumerate(page_results, offset + 1):
+                            title = res.get("title", "Unknown")
+                            year = str(res.get("year", "N/A"))
+                            country = res.get("country", "N/A")
+                            fmt = ", ".join(res.get("format", []))
+                            rid = str(res.get("id"))
+                            url = f"https://www.discogs.com/release/{rid}"
+                            table.add_row(str(i), rid, title, year, country, fmt, url)
+
+                        console.print(table)
+
+                        options = f"(1-{offset + len(page_results)})"
+                        prompt_msg = f"\nSelect a release {options}"
+                        if offset + page_size < len(all_results):
+                            prompt_msg += ", 'm' for more"
+                        prompt_msg += ", 'r' to re-search, '0' to skip, or 'q' to quit"
+
+                        choice = click.prompt(prompt_msg, type=str, default="1")
+
+                        if choice.lower() == "m":
+                            offset += page_size
+                            continue
+                        if choice.lower() == "q":
+                            console.print("[yellow]Aborting tag session.[/yellow]")
+                            return
+                        if choice.lower() == "r":
+                            current_query = None
+                            current_artist = None
+                            current_album = None
+                            break_search_loop = True
+                            break
+                        if choice == "0":
+                            break_search_loop = True
+                            break
+
+                        try:
+                            idx = int(choice)
+                            if 1 <= idx <= len(all_results):
+                                selected_release_id = all_results[idx - 1]["id"]
+                                break
+                            else:
+                                console.print("[red]Invalid selection.[/red]")
+                        except ValueError:
+                            console.print("[red]Invalid input.[/red]")
+
+                    if selected_release_id:
+                        current_release_id = selected_release_id
+                        break  # Proceed to fetch
+                    if break_search_loop and not current_query:
+                        # User skipped or wants to re-search
+                        if choice == "0":
+                            break  # Exit while True, goes to if not current_release_id
+                        continue  # Re-starts while True to prompt for query
+                    if offset >= len(all_results):
+                        # End of results, prompt again
+                        current_query = None
+                        current_artist = None
+                        current_album = None
+                        continue
+
+            if not current_release_id:
+                continue
 
             assert current_release_id is not None
             release = client.get_release(current_release_id)
@@ -395,7 +491,7 @@ def tag(
                         console.print(
                             "\n[bold yellow]Dry-run: Use without --dry-run to apply renaming.[/bold yellow]"
                         )
-                    elif click.confirm("\nProceed with moving files?"):
+                    elif auto_move or config.auto_move or click.confirm("\nProceed with moving files?"):
                         for src, dst in moves:
                             move_file(src, dst, dry_run=False)
                         for src, dst in dir_moves:
@@ -627,6 +723,79 @@ def identity(config: AppConfig) -> None:
 
 
 @cli.group()
+def collection() -> None:
+    """Manage your Discogs collection."""
+    pass
+
+
+@collection.command(name="download")
+@click.pass_obj
+def collection_download(config: AppConfig) -> None:
+    """Download your Discogs collection to a CSV file."""
+    client = get_client(config)
+    try:
+        with console.status("[bold green]Fetching identity..."):
+            identity = client.get_identity()
+            username = identity.get("username")
+
+        if not username:
+            console.print("[red]Error: Could not determine username.[/red]")
+            return
+
+        with console.status(f"[bold green]Downloading collection for {username}..."):
+            releases = client.get_collection_releases(username)
+
+        if not releases:
+            console.print("[yellow]No releases found in your collection.[/yellow]")
+            return
+
+        date_prefix = datetime.now().strftime("%Y-%m-%d")
+        filename = f"{date_prefix}_{username}_collection.csv"
+        filepath = Path.cwd() / filename
+
+        if filepath.exists():
+            if not click.confirm(
+                f"[yellow]Warning: {filename} already exists. Overwrite?[/yellow]",
+                default=False,
+            ):
+                console.print("[yellow]Download aborted.[/yellow]")
+                return
+
+        with open(filepath, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            # Header
+            writer.writerow(
+                ["release_id", "Catalog#", "Artist", "Title", "Label", "Format", "Released"]
+            )
+
+            for r in releases:
+                basic = r.get("basic_information", {})
+                release_id = r.get("id")
+                
+                # Extract fields safely
+                artists = ", ".join([a.get("name", "Unknown") for a in basic.get("artists", [])])
+                title = basic.get("title", "Unknown")
+                year = basic.get("year", "N/A")
+                
+                # Labels
+                labels = basic.get("labels", [])
+                label_name = labels[0].get("name", "N/A") if labels else "N/A"
+                catno = labels[0].get("catno", "N/A") if labels else "N/A"
+                
+                # Formats
+                formats = basic.get("formats", [])
+                fmt_str = formats[0].get("name", "N/A") if formats else "N/A"
+
+                writer.writerow([release_id, catno, artists, title, label_name, fmt_str, year])
+
+        console.print(f"[bold green]Success![/bold green] Collection saved to [cyan]{filename}[/cyan]")
+        console.print(f"Total releases: {len(releases)}")
+
+    except Exception as e:
+        console.print(f"[bold red]Failed to download collection:[/bold red] {e}")
+
+
+@cli.group()
 def config() -> None:
     """Manage configuration settings."""
     pass
@@ -656,7 +825,13 @@ def config_show(config_obj: AppConfig) -> None:
     console.print(f"[bold]Naming Pattern:[/bold] {config_obj.naming_pattern}")
     console.print(f"[bold]Info Filename:[/bold] {config_obj.info_filename}")
     console.print(f"[bold]Artwork Filename:[/bold] {config_obj.artwork_filename}")
+    console.print(f"[bold]Search Page Size:[/bold] {config_obj.search_page_size}")
+    console.print(
+        f"[bold]Default Format:[/bold] {', '.join(config_obj.default_format) if config_obj.default_format else 'None'}"
+    )
+    console.print(f"[bold]Auto Move:[/bold] {config_obj.auto_move}")
     console.print(f"[bold]Image Handling:[/bold] {config_obj.image_handling.value}")
+    
     console.print(f"[bold]Collect All Artwork:[/bold] {config_obj.collect_all_artwork}")
     console.print(f"[bold]Artwork Subdir:[/bold] {config_obj.artwork_subdir}")
     console.print(f"[bold]Backup Enabled:[/bold] {config_obj.backup_enabled}")
@@ -693,6 +868,9 @@ def config_set(config_obj: AppConfig, key: str, value: str) -> None:
         "backup_dir": config_obj.backup_dir,
         "info_filename": config_obj.info_filename,
         "artwork_filename": config_obj.artwork_filename,
+        "search_page_size": config_obj.search_page_size,
+        "default_format": config_obj.default_format,
+        "auto_move": config_obj.auto_move,
     }
 
     if key == "library_root":
@@ -704,8 +882,12 @@ def config_set(config_obj: AppConfig, key: str, value: str) -> None:
     elif key == "tag_mode":
         new_data["tag_mode"] = TagMode(value)
     elif key == "track_numbering":
+        from vinylkit.models import TrackNumbering
+
         new_data["track_numbering"] = TrackNumbering(value)
     elif key == "disc_mapping":
+        from vinylkit.models import DiscMapping
+
         new_data["disc_mapping"] = DiscMapping(value)
     elif key == "consumer_key":
         new_data["consumer_key"] = value
@@ -729,6 +911,15 @@ def config_set(config_obj: AppConfig, key: str, value: str) -> None:
         new_data["info_filename"] = value
     elif key == "artwork_filename":
         new_data["artwork_filename"] = value
+    elif key == "search_page_size":
+        new_data["search_page_size"] = int(value)
+    elif key == "default_format":
+        if value.lower() == "none":
+            new_data["default_format"] = []
+        else:
+            new_data["default_format"] = [v.strip() for v in value.split(",")]
+    elif key == "auto_move":
+        new_data["auto_move"] = value.lower() == "true"
     else:
         console.print(f"[red]Unknown configuration key: {key}[/red]")
         return

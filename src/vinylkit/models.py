@@ -144,3 +144,6 @@ class AppConfig:
     backup_dir: Path | None = None
     info_filename: str = "release_info.txt"
     artwork_filename: str = "folder.jpg"
+    search_page_size: int = 5
+    default_format: list[str] = field(default_factory=lambda: ["Vinyl"])
+    auto_move: bool = False

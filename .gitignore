@@ -66,3 +66,6 @@ Thumbs.db
 .specify/*
 !.specify/memory/
 !.specify/memory/constitution.md
+
+# Discogs collection
+*_collection.csv
