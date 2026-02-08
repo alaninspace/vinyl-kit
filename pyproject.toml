@@ -1,0 +1,67 @@
+[project]
+name = "vinylkit"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "authlib>=1.6.7",
+    "click>=8.3.1",
+    "httpx>=0.28.1",
+    "mutagen>=1.47.0",
+    "platformdirs>=4.5.1",
+    "rich>=14.3.2",
+    "tomli-w>=1.2.0",
+]
+
+[project.scripts]
+vinylkit = "vinylkit.cli:main"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",       # pycodestyle + pyflakes
+    "I",                  # isort
+    "N",                  # pep8-naming
+    "UP",                 # pyupgrade
+    "B",                  # flake8-bugbear
+    "A",                  # flake8-builtins
+    "SIM",                # flake8-simplify
+    "TCH",                # flake8-type-checking
+    "RUF",                # ruff-specific
+    "PT",                 # flake8-pytest-style
+    "RET",                # flake8-return
+    "ARG",                # flake8-unused-arguments
+    "PTH",                # flake8-use-pathlib
+    "PERF",               # perflint
+    "FURB",               # refurb
+]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+check_untyped_defs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["mutagen.*", "authlib.*"]
+ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
+    "respx>=0.22.0",
+    "ruff>=0.15.0",
+]
