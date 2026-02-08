@@ -8,7 +8,14 @@ import tomli_w
 from platformdirs import user_config_dir
 
 from vinylkit.exceptions import ConfigError
-from vinylkit.models import AppConfig, AuthMode, ImageHandling, TagMode
+from vinylkit.models import (
+    AppConfig,
+    AuthMode,
+    DiscMapping,
+    ImageHandling,
+    TagMode,
+    TrackNumbering,
+)
 
 APP_NAME = "vinylkit"
 
@@ -36,17 +43,27 @@ def load_config() -> AppConfig:
 
     return AppConfig(
         library_root=Path(data.get("library_root", Path.cwd())),
-        recordings_root=Path(data["recordings_root"]) if "recordings_root" in data else None,
+        recordings_root=Path(data["recordings_root"])
+        if "recordings_root" in data
+        else None,
         consumer_key=data.get("consumer_key"),
         consumer_secret=data.get("consumer_secret"),
         discogs_token=data.get("discogs_token"),
         discogs_secret=data.get("discogs_secret"),
         auth_mode=AuthMode(data.get("auth_mode", "auto")),
         tag_mode=TagMode(data.get("tag_mode", "replace")),
-        naming_pattern=data.get("naming_pattern", "{artist}/{album} ({year})/{track_number} - {title}"),
+        track_numbering=TrackNumbering(data.get("track_numbering", "numeric")),
+        disc_mapping=DiscMapping(data.get("disc_mapping", "physical")),
+        naming_pattern=data.get(
+            "naming_pattern", "{artist}/{year} - {album}/{track_number} - {title}"
+        ),
         image_handling=ImageHandling(data.get("image_handling", "both")),
+        collect_all_artwork=data.get("collect_all_artwork", False),
+        artwork_subdir=data.get("artwork_subdir", "Artwork"),
         backup_enabled=data.get("backup_enabled", False),
         backup_dir=Path(data["backup_dir"]) if "backup_dir" in data else None,
+        info_filename=data.get("info_filename", "release_info.txt"),
+        artwork_filename=data.get("artwork_filename", "folder.jpg"),
     )
 
 
@@ -59,9 +76,15 @@ def save_config(config: AppConfig) -> None:
         "library_root": str(config.library_root),
         "auth_mode": config.auth_mode.value,
         "tag_mode": config.tag_mode.value,
+        "track_numbering": config.track_numbering.value,
+        "disc_mapping": config.disc_mapping.value,
         "naming_pattern": config.naming_pattern,
         "image_handling": config.image_handling.value,
+        "collect_all_artwork": config.collect_all_artwork,
+        "artwork_subdir": config.artwork_subdir,
         "backup_enabled": config.backup_enabled,
+        "info_filename": config.info_filename,
+        "artwork_filename": config.artwork_filename,
     }
     if config.consumer_key:
         data["consumer_key"] = config.consumer_key

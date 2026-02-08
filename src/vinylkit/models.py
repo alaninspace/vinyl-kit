@@ -31,6 +31,19 @@ class TagMode(Enum):
     MERGE = "merge"
 
 
+class TrackNumbering(Enum):
+    NUMERIC = "numeric"  # 1, 2, 3...
+    ORIGINAL = "original"  # A1, B1...
+    PER_SIDE = "per_side"  # 1, 2, 1, 2...
+
+
+class DiscMapping(Enum):
+    SINGLE = "single"  # All on Disc 1
+    PER_SIDE = "per_side"  # Side A=1, B=2...
+    PHYSICAL = "physical"  # A,B=1, C,D=2... (Standard Vinyl)
+    ORIGINAL = "original"  # Uses Discogs physical count
+
+
 @dataclass(slots=True, frozen=True)
 class TrackInfo:
     position: str
@@ -47,6 +60,38 @@ class ImageInfo:
 
 
 @dataclass(slots=True, frozen=True)
+class LabelInfo:
+    name: str
+    catno: str | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class CompanyInfo:
+    name: str
+    entity_type_name: str
+
+
+@dataclass(slots=True, frozen=True)
+class FormatInfo:
+    name: str
+    qty: str
+    descriptions: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True, frozen=True)
+class IdentifierInfo:
+    type: str
+    value: str
+    description: str | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class ExtraArtistInfo:
+    name: str
+    role: str
+
+
+@dataclass(slots=True, frozen=True)
 class DiscogsRelease:
     id: int
     artists: list[str]
@@ -55,13 +100,18 @@ class DiscogsRelease:
     year: int | None = None
     released: str | None = None
     country: str | None = None
-    label: str | None = None
-    catno: str | None = None
+    label: str | None = None  # Primary label name
+    catno: str | None = None  # Primary catno
+    labels: list[LabelInfo] = field(default_factory=list)
+    companies: list[CompanyInfo] = field(default_factory=list)
+    formats: list[FormatInfo] = field(default_factory=list)
+    identifiers: list[IdentifierInfo] = field(default_factory=list)
+    extraartists: list[ExtraArtistInfo] = field(default_factory=list)
     genres: list[str] = field(default_factory=list)
     styles: list[str] = field(default_factory=list)
     notes: str | None = None
-    formats: list[str] = field(default_factory=list)
     images: list[ImageInfo] = field(default_factory=list)
+    uri: str | None = None
 
 
 @dataclass(slots=True, frozen=True)
@@ -84,7 +134,13 @@ class AppConfig:
     discogs_secret: str | None = None
     auth_mode: AuthMode = AuthMode.AUTO
     tag_mode: TagMode = TagMode.REPLACE
-    naming_pattern: str = "{artist}/{album} ({year})/{track_number} - {title}"
+    track_numbering: TrackNumbering = TrackNumbering.NUMERIC
+    disc_mapping: DiscMapping = DiscMapping.PHYSICAL
+    naming_pattern: str = "{artist}/{year} - {album}/{track_number} - {title}"
     image_handling: ImageHandling = ImageHandling.BOTH
+    collect_all_artwork: bool = False
+    artwork_subdir: str = "Artwork"
     backup_enabled: bool = False
     backup_dir: Path | None = None
+    info_filename: str = "release_info.txt"
+    artwork_filename: str = "folder.jpg"

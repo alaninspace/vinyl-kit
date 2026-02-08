@@ -58,11 +58,11 @@ As a user who wants a visually rich library, I want to embed album art into my f
 
 **Why this priority**: Artwork is essential for modern music players and many users prefer having external files for higher quality or compatibility.
 
-**Independent Test**: Can be tested by tagging an album with artwork enabled and verifying the presence of embedded images and local files (e.g., `cover.jpg`).
+**Independent Test**: Can be tested by tagging an album with artwork enabled and verifying the presence of embedded images and local files (e.g., `folder.jpg`).
 
 **Acceptance Scenarios**:
 
-1. **Given** a release with multiple images, **When** I tag the album with "embed and save" enabled, **Then** the primary image should be embedded in the files and saved as `cover.jpg` in the folder.
+1. **Given** a release with multiple images, **When** I tag the album with "embed and save" enabled, **Then** the primary image should be embedded in the files and saved as `folder.jpg` in the folder.
 
 ---
 

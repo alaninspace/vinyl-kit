@@ -53,6 +53,52 @@ See the [Authentication Guide](auth.md) for detailed steps.
 vinylkit config set discogs_token "YOUR_TOKEN"
 ```
 
+> [!TIP]
+> For a full list of all settings (backups, custom filenames, tagging modes), see the **[Configuration Guide](configuration.md)**.
+
+### 4. Advanced Artwork Collection
+By default, VinylKit only downloads the primary cover. You can enable full collection:
+
+```powershell
+# Download all images from the release
+vinylkit config set collect_all_artwork true
+
+# Customize the artwork subdirectory name
+vinylkit config set artwork_subdir "Scans"
+```
+
+### 5. Folder Structure & Naming
+You can control exactly how your library is organized and how deep the folders are by changing the `naming_pattern`.
+
+**Available Placeholders:**
+- `{artist}`, `{album}`, `{year}`
+- `{id}` (Discogs Release ID), `{discogs_id}`
+- `{track_number}`, `{title}`
+- `{label}`, `{catalogue_number}`, `{side}`
+- `{genre}`, `{style}`, `{country}`
+
+**Examples:**
+
+*   **Standard Chronological (Default):** `Artist / Year - Album / Track - Title`
+    ```powershell
+    vinylkit config set naming_pattern "{artist}/{year} - {album}/{track_number} - {title}"
+    ```
+
+*   **Deep Parentheses:** `Artist / Album (Year) / Track - Title`
+    ```powershell
+    vinylkit config set naming_pattern "{artist}/{album} ({year})/{track_number} - {title}"
+    ```
+
+*   **Flat Album Folders:** `Year - Artist - Album / Track - Title` (One folder per album)
+    ```powershell
+    vinylkit config set naming_pattern "{year} - {artist} - {album}/{track_number} - {title}"
+    ```
+
+*   **Completely Flat:** Everything in one folder
+    ```powershell
+    vinylkit config set naming_pattern "{year} - {id} - {artist} - {album} - {track_number} - {title}"
+    ```
+
 ---
 
 ## Example Scenarios (The Easy Way)
@@ -77,7 +123,7 @@ If you want to tag files in a *specific* folder instead of your default recordin
 
 **PowerShell:**
 ```powershell
-# Explicit path provided: --rename is NOT automatic, must be added
+# Explicit path provided: --rename is NOT automatic in this workflow, must be added
 vinylkit tag "C:\Some\Other\Folder" --id 123456 --rename
 ```
 
@@ -104,7 +150,17 @@ vinylkit tag --id 249504
 vinylkit tag "C:\Path\To\Album" --id 249504 --rename
 ```
 
-### 3. Interactive Search
+### 3. Rename and Organize (without tagging)
+If your files are already tagged and you just want to move them:
+```bash
+# Preview moves
+vinylkit rename --id 249504
+
+# Execute moves
+vinylkit rename --id 249504 --commit
+```
+
+### 4. Interactive Search
 ```bash
 vinylkit tag --search "Pink Floyd Dark Side"
 ```

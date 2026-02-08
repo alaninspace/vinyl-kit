@@ -11,7 +11,7 @@ VinylKit is a cross-platform CLI tool for managing digitized vinyl record audio 
 - **Metadata Export**: Automatically creates a `release_info.txt` file in every tagged album folder.
 - **Safe Operations**: Mandatory dry-runs, filename sanitization, and atomic file moves.
 - **Batch Processing**: Tag or rename multiple folders in one go.
-- **Artwork Management**: Embed album art directly into files and save cover images.
+- **Artwork Management**: Embed album art directly into audio files (retrieved from Discogs).
 - **Flexible Organization**: Use customizable naming templates to organize your library.
 
 ## Installation
@@ -63,21 +63,30 @@ Settings are stored in a platform-appropriate TOML file. You can view your curre
 vinylkit config show
 ```
 
-Key settings include:
-- `library_root`: Default path for scans and organization.
-- `naming_pattern`: Template for file paths (e.g., `{artist}/{album} ({year})/{track_number} - {title}`).
-- `backup_enabled`: Whether to backup files before modification.
+For a full list of all available settings and their meanings, see the **[Configuration Guide](docs/configuration.md)**.
 
 ## Development
 
-Run tests with `pytest`:
+VinylKit uses `uv` for development. Ensure you have it installed.
 
+### Run Tests
 ```bash
 uv run pytest
 ```
 
-Check code style with `ruff`:
-
+### Linting & Formatting
 ```bash
+# Check for linting errors
 uv run ruff check .
+
+# Fix linting errors automatically
+uv run ruff check . --fix
+
+# Format code
+uv run ruff format .
+```
+
+### Type Checking
+```bash
+uv run mypy .
 ```

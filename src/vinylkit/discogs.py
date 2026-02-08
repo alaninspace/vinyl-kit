@@ -12,7 +12,16 @@ from authlib.integrations.httpx_client import OAuth1Client
 from platformdirs import user_cache_dir
 
 from vinylkit.exceptions import AuthError, DiscogsAPIError
-from vinylkit.models import DiscogsRelease, TrackInfo, ImageInfo
+from vinylkit.models import (
+    CompanyInfo,
+    DiscogsRelease,
+    ExtraArtistInfo,
+    FormatInfo,
+    IdentifierInfo,
+    ImageInfo,
+    LabelInfo,
+    TrackInfo,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +57,9 @@ class DiscogsClient:
 
         # Initialize Default (None)
         self.mode = "none"
-        self.client: httpx.Client | OAuth1Client = httpx.Client(headers={"User-Agent": user_agent})
+        self.client: httpx.Client | OAuth1Client = httpx.Client(
+            headers={"User-Agent": user_agent}
+        )
 
         # 1. Try Full OAuth 1.0a
         if auth_mode in ("auto", "oauth"):
@@ -76,7 +87,11 @@ class DiscogsClient:
                 return
 
         # 3. Try Key/Secret (Discogs Auth or Login Prep)
-        if auth_mode in ("auto", "key_secret", "oauth"): # oauth falls back here if no token yet
+        if auth_mode in (
+            "auto",
+            "key_secret",
+            "oauth",
+        ):  # oauth falls back here if no token yet
             if consumer_key and consumer_secret:
                 self.mode = "key_secret"
                 self.client = OAuth1Client(
@@ -116,7 +131,9 @@ class DiscogsClient:
             time.sleep(RATE_LIMIT_DELAY - elapsed)
         self._last_request_time = time.time()
 
-    def _request_with_retry(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+    def _request_with_retry(
+        self, method: str, url: str, **kwargs: Any
+    ) -> httpx.Response:
         """Execute a request with rate limiting and basic retry logic."""
         for attempt in range(3):
             self._wait_for_rate_limit()
@@ -131,7 +148,9 @@ class DiscogsClient:
                 return resp
             except httpx.HTTPStatusError as e:
                 if e.response.status_code >= 500 and attempt < 2:
-                    logger.warning(f"Server error {e.response.status_code}. Retrying...")
+                    logger.warning(
+                        f"Server error {e.response.status_code}. Retrying..."
+                    )
                     time.sleep(2**attempt)
                     continue
                 raise DiscogsAPIError(f"Discogs API error: {e}") from e
@@ -146,21 +165,30 @@ class DiscogsClient:
     def get_authorize_url(self) -> tuple[str, str, str]:
         """Start the OAuth flow."""
         if not isinstance(self.client, OAuth1Client):
-            raise AuthError("OAuth client not initialized. Ensure consumer_key and consumer_secret are set.")
-        
+            raise AuthError(
+                "OAuth client not initialized. Ensure consumer_key and consumer_secret are set."
+            )
+
         try:
             token = self.client.fetch_request_token(REQUEST_TOKEN_URL)
-            url = self.client.create_authorization_url(AUTHORIZE_URL, token["oauth_token"])
+            url = self.client.create_authorization_url(
+                AUTHORIZE_URL, token["oauth_token"]
+            )
             return url, token["oauth_token"], token["oauth_token_secret"]
         except Exception as e:
             raise AuthError(f"Failed to fetch request token: {e}") from e
 
-    def complete_oauth(self, req_token: str, req_token_secret: str, verifier: str) -> tuple[str, str]:
+    def complete_oauth(
+        self, req_token: str, req_token_secret: str, verifier: str
+    ) -> tuple[str, str]:
         """Complete OAuth flow."""
         if not isinstance(self.client, OAuth1Client):
             raise AuthError("OAuth client not initialized.")
         try:
-            self.client.token = {"oauth_token": req_token, "oauth_token_secret": req_token_secret}
+            self.client.token = {
+                "oauth_token": req_token,
+                "oauth_token_secret": req_token_secret,
+            }
             token = self.client.fetch_access_token(ACCESS_TOKEN_URL, verifier=verifier)
             return token["oauth_token"], token["oauth_token_secret"]
         except Exception as e:
@@ -187,27 +215,77 @@ class DiscogsClient:
         try:
             data = self._get_cached_release(release_id)
             if not data:
-                resp = self._request_with_retry("GET", f"{DISCOGS_API_URL}/releases/{release_id}")
+                resp = self._request_with_retry(
+                    "GET", f"{DISCOGS_API_URL}/releases/{release_id}"
+                )
                 data = resp.json()
                 self._cache_release(release_id, data)
 
             tracklist = []
             for t in data.get("tracklist", []):
                 pos = t.get("position", "")
+                side = None
+                # Handle 1A, 2A prefix
+                disc_side_match = re.match(r"^(\d+)([A-Z]+)", pos)
+                # Handle A1, AA leading side
                 side_match = re.match(r"^([A-Z]+)", pos)
-                side = side_match.group(1) if side_match else None
-                tracklist.append(TrackInfo(
-                    position=pos,
-                    title=t.get("title", ""),
-                    artists=[a.get("name") for a in t.get("artists", [])] if t.get("artists") else [],
-                    side=side
-                ))
+
+                if disc_side_match:
+                    side = disc_side_match.group(2)
+                elif side_match:
+                    side = side_match.group(1)
+
+                tracklist.append(
+                    TrackInfo(
+                        position=pos,
+                        title=t.get("title", ""),
+                        artists=[a.get("name") for a in t.get("artists", [])]
+                        if t.get("artists")
+                        else [],
+                        side=side,
+                    )
+                )
             images = [
-                ImageInfo(uri=i.get("uri"), type=i.get("type"), resource_url=i.get("resource_url"))
+                ImageInfo(
+                    uri=i.get("uri"),
+                    type=i.get("type"),
+                    resource_url=i.get("resource_url"),
+                )
                 for i in data.get("images", [])
             ]
-            labels = data.get("labels", [{}])
-            primary_label = labels[0] if labels else {}
+            labels_data = [
+                LabelInfo(name=lbl.get("name"), catno=lbl.get("catno"))
+                for lbl in data.get("labels", [])
+            ]
+            companies_data = [
+                CompanyInfo(
+                    name=comp.get("name"), entity_type_name=comp.get("entity_type_name")
+                )
+                for comp in data.get("companies", [])
+            ]
+            formats_data = [
+                FormatInfo(
+                    name=f.get("name"),
+                    qty=f.get("qty"),
+                    descriptions=f.get("descriptions", []),
+                )
+                for f in data.get("formats", [])
+            ]
+            identifiers_data = [
+                IdentifierInfo(
+                    type=i.get("type"),
+                    value=i.get("value"),
+                    description=i.get("description"),
+                )
+                for i in data.get("identifiers", [])
+            ]
+            extraartists_data = [
+                ExtraArtistInfo(name=a.get("name"), role=a.get("role"))
+                for a in data.get("extraartists", [])
+            ]
+
+            primary_label = labels_data[0] if labels_data else LabelInfo(name="Unknown")
+
             return DiscogsRelease(
                 id=data["id"],
                 artists=[a.get("name") for a in data.get("artists", [])],
@@ -215,14 +293,19 @@ class DiscogsClient:
                 year=data.get("year"),
                 released=data.get("released"),
                 country=data.get("country"),
-                label=primary_label.get("name"),
-                catno=primary_label.get("catno"),
+                label=primary_label.name,
+                catno=primary_label.catno,
+                labels=labels_data,
+                companies=companies_data,
+                formats=formats_data,
+                identifiers=identifiers_data,
+                extraartists=extraartists_data,
                 genres=data.get("genres", []),
                 styles=data.get("styles", []),
                 notes=data.get("notes"),
-                formats=[f.get("name") for f in data.get("formats", [])] if data.get("formats") else [],
                 tracklist=tracklist,
-                images=images
+                images=images,
+                uri=data.get("uri"),
             )
         except DiscogsAPIError:
             raise
@@ -231,7 +314,11 @@ class DiscogsClient:
 
     def search_releases(self, query: str) -> list[dict[str, Any]]:
         """Search releases."""
-        resp = self._request_with_retry("GET", f"{DISCOGS_API_URL}/database/search", params={"q": query, "type": "release"})
+        resp = self._request_with_retry(
+            "GET",
+            f"{DISCOGS_API_URL}/database/search",
+            params={"q": query, "type": "release"},
+        )
         return resp.json().get("results", [])
 
     def download_image(self, url: str) -> bytes:

@@ -4,39 +4,81 @@
 
 ### DiscogsRelease
 Represents metadata fetched from the Discogs API.
-- **id**: int (Primary Key from Discogs)
-- **artists**: list[str]
-- **title**: str
-- **year**: int | None
-- **country**: str | None
-- **label**: str | None
-- **catno**: str | None
-- **format**: str (e.g., "LP", "7"", "12"")
-- **tracklist**: list[TrackInfo]
-- **images**: list[ImageInfo]
+- **id**: `int` (Primary Key from Discogs)
+- **artists**: `list[str]`
+- **title**: `str`
+- **tracklist**: `list[TrackInfo]`
+- **year**: `int | None`
+- **released**: `str | None`
+- **country**: `str | None`
+- **label**: `str | None` (Primary label name)
+- **catno**: `str | None` (Primary catalogue number)
+- **labels**: `list[LabelInfo]` (Full list of labels)
+- **companies**: `list[CompanyInfo]` (Companies involved)
+- **formats**: `list[FormatInfo]` (Physical formats)
+- **identifiers**: `list[IdentifierInfo]` (Barcodes, Matrix numbers)
+- **extraartists**: `list[ExtraArtistInfo]` (Credits like Producer, Design)
+- **genres**: `list[str]`
+- **styles**: `list[str]`
+- **notes**: `str | None`
+- **images**: `list[ImageInfo]`
+- **uri**: `str | None` (Discogs release URL)
+
+### LabelInfo
+- **name**: `str`
+- **catno**: `str | None`
+
+### CompanyInfo
+- **name**: `str`
+- **entity_type_name**: `str`
+
+### FormatInfo
+- **name**: `str`
+- **qty**: `str`
+- **descriptions**: `list[str]`
+
+### IdentifierInfo
+- **type**: `str`
+- **value**: `str`
+- **description**: `str | None`
+
+### ExtraArtistInfo
+- **name**: `str`
+- **role**: `str`
 
 ### TrackInfo
-- **position**: str (e.g., "A1", "B2")
-- **title**: str
-- **artists**: list[str] | None
-- **side**: str | None (Extracted from position, e.g., "A")
+- **position**: `str` (e.g., "A1", "B2")
+- **title**: `str`
+- **artists**: `list[str]` (Track-specific artists)
+- **side**: `str | None` (Extracted from position, e.g., "A")
 
 ### AudioFile
 Represents a physical file on the user's disk.
-- **path**: pathlib.Path
-- **extension**: str (mp3, flac)
-- **tag_status**: enum (UNTAGGED, PARTIAL, TAGGED)
-- **properties**: dict (sample_rate, bit_depth, duration)
+- **path**: `pathlib.Path`
+- **extension**: `str` (mp3, flac)
+- **tag_status**: `TagStatus` (UNTAGGED, PARTIAL, TAGGED)
+- **sample_rate**: `int | None`
+- **bit_depth**: `int | None`
+- **duration**: `float | None`
 
 ### AppConfig
 User settings stored in TOML.
-- **discogs_token**: str | None
-- **discogs_secret**: str | None (for OAuth)
-- **library_root**: pathlib.Path
-- **naming_pattern**: str
-- **image_handling**: enum (EMBED, SAVE, BOTH, NONE)
-- **backup_enabled**: bool
-- **backup_dir**: pathlib.Path | None
+- **library_root**: `pathlib.Path`
+- **recordings_root**: `pathlib.Path | None`
+- **consumer_key**: `str | None`
+- **consumer_secret**: `str | None`
+- **discogs_token**: `str | None`
+- **discogs_secret**: `str | None` (for OAuth)
+- **auth_mode**: `AuthMode` (AUTO, TOKEN, OAUTH, KEY_SECRET, NONE)
+- **tag_mode**: `TagMode` (REPLACE, MERGE)
+- **naming_pattern**: `str` (Default: `{artist}/{year} - {album}/{track_number} - {title}`)
+- **image_handling**: `ImageHandling` (EMBED, SAVE, BOTH, NONE)
+- **collect_all_artwork**: `bool` (Download all release images)
+- **artwork_subdir**: `str` (Subdirectory for additional images)
+- **backup_enabled**: `bool`
+- **backup_dir**: `pathlib.Path | None`
+- **info_filename**: `str` (Default: release_info.txt)
+- **artwork_filename**: `str` (Default: folder.jpg)
 
 ## State Transitions
 
