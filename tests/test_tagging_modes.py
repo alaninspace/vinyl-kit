@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path  # noqa: TC003
 
 import pytest
 from mutagen.id3 import ID3
-from mutagen.mp3 import MP3
 
 from vinylkit.models import DiscogsRelease, TagMode, TrackInfo
 from vinylkit.tagging import tag_audio_file
@@ -13,8 +12,7 @@ from vinylkit.tagging import tag_audio_file
 @pytest.fixture
 def mp3_with_tags(tmp_path: Path) -> Path:
     p = tmp_path / "test.mp3"
-    # Create a dummy MP3 with a tag
-    audio = MP3()  # This won't work without a real file structure, better mock
+    p.write_bytes(b"empty")
     return p
 
 

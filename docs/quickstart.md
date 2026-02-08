@@ -130,54 +130,26 @@ vinylkit tag "C:\Some\Other\Folder" --id 56903 --rename
 
 ---
 
-## Basic Usage Reference
+## Available Commands
 
-### 1. Scan
-See what's in a folder and its current tagging status:
-```bash
-# Scans recordings_root if set, else library_root
-vinylkit scan
+VinylKit provides the following commands:
 
-# Or scan a specific folder
-vinylkit scan "C:\Temp\ManualFolder"
-```
+- **`scan`** — View audio files and their tagging status.
+- **`tag`** — Tag files using a Discogs Release ID or interactive search, with optional rename/move.
+- **`rename`** — Move already-tagged files into your library structure (dry-run by default).
+- **`auth`** — Manage Discogs authentication (login, identity).
+- **`config`** — View and update persistent settings.
+- **`collection`** — Download your Discogs collection as CSV.
 
-### 2. Tag and Organize (ID-based)
-```bash
-# Simplest (uses recordings_root + auto-rename)
-vinylkit tag --id 19983
-
-# Manual path (requires --rename flag)
-vinylkit tag "C:\Path\To\Album" --id 19983 --rename
-```
-
-### 3. Rename and Organize (without tagging)
-If your files are already tagged and you just want to move them:
-```bash
-# Preview moves (Example: Underworld - Born Slippy)
-vinylkit rename --id 57745
-
-# Execute moves
-vinylkit rename --id 57745 --commit
-```
-
-### 4. Interactive Search
-Search Discogs for a release and choose from a formatted table of results.
-```bash
-# General search (Example: The Prodigy - Out Of Space)
-vinylkit tag --search "The Prodigy Out Of Space"
-
-# Filtered search (More precise)
-vinylkit tag --artist "Green Velvet" --album "Flash"
-```
-*Tip: Use quotes for multi-word searches!*
+For full syntax, options, and search tips, see the **[User Guide — Command Reference](user-guide.md#3-command-reference)**.
 
 ---
 
-> [!NOTE]
-> For more advanced command combinations and real-world scenarios, see the **[Examples Guide](examples.md)**.
+## Next Steps
 
----
+- **[User Guide](user-guide.md)** — In-depth command reference, tagging details, and workflows.
+- **[Examples Guide](examples.md)** — Real-world scenarios and command combinations.
+- **[Configuration Guide](configuration.md)** — Full list of all settings with defaults and examples.
 
 ## Where is my config?
 Your settings and keys are stored in a persistent location:

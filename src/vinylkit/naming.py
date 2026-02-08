@@ -3,10 +3,13 @@ from __future__ import annotations
 import logging
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from vinylkit.exceptions import FileOperationError
-from vinylkit.models import DiscogsRelease
 from vinylkit.utils import sanitize_filename
+
+if TYPE_CHECKING:
+    from vinylkit.models import DiscogsRelease
 
 logger = logging.getLogger(__name__)
 

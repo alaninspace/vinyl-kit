@@ -5,6 +5,10 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import click
 from rich.console import Console
@@ -13,8 +17,15 @@ from rich.table import Table
 
 from vinylkit.config import get_config_path, load_config, save_config
 from vinylkit.discogs import DiscogsClient
-from vinylkit.exceptions import VinylkitError
-from vinylkit.models import AppConfig, AuthMode, ImageHandling, TagMode
+from vinylkit.exceptions import DiscogsAPIError, VinylkitError
+from vinylkit.models import (
+    AppConfig,
+    AuthMode,
+    DiscMapping,
+    ImageHandling,
+    TagMode,
+    TrackNumbering,
+)
 from vinylkit.naming import generate_path, move_directory, move_file
 from vinylkit.tagging import (
     save_artwork,
@@ -49,6 +60,68 @@ def get_client(config: AppConfig) -> DiscogsClient:
         config.discogs_secret,
         auth_mode=config.auth_mode.value,
     )
+
+
+def _collect_audio_files(path: Path) -> list[Path]:
+    """Collect and sort supported audio files."""
+    return sorted(
+        p
+        for p in path.iterdir()
+        if p.is_file() and p.suffix.lower() in (".mp3", ".flac")
+    )
+
+
+def _display_relative(path: Path, root: Path) -> Path:
+    """Return path relative to root, or the full path if not under root."""
+    try:
+        return path.relative_to(root)
+    except ValueError:
+        return path
+
+
+def _plan_supplementary_moves(
+    path: Path,
+    target_dir: Path,
+    lib_root: Path,
+    config: AppConfig,
+    moves: list[tuple[Path, Path]],
+) -> list[tuple[Path, Path]]:
+    """Plan moves for info files, artwork files, and artwork subdirectories.
+
+    Returns a list of directory moves (artwork subdirs).
+    """
+    dir_moves: list[tuple[Path, Path]] = []
+
+    # Info file
+    info_file = path / config.info_filename
+    if info_file.exists():
+        info_target = target_dir / config.info_filename
+        if info_file != info_target:
+            moves.append((info_file, info_target))
+            rel = _display_relative(info_target, lib_root)
+            console.print(f"[cyan]{info_file.name}[/cyan] -> [green]{rel}[/green]")
+
+    # Artwork file
+    artwork_file = path / config.artwork_filename
+    if artwork_file.exists():
+        artwork_target = target_dir / config.artwork_filename
+        if artwork_file != artwork_target:
+            moves.append((artwork_file, artwork_target))
+            rel = _display_relative(artwork_target, lib_root)
+            console.print(f"[cyan]{artwork_file.name}[/cyan] -> [green]{rel}[/green]")
+
+    # Artwork subdirectory
+    artwork_subdir = path / config.artwork_subdir
+    if artwork_subdir.exists() and artwork_subdir.is_dir():
+        artwork_subdir_target = target_dir / config.artwork_subdir
+        if artwork_subdir != artwork_subdir_target:
+            dir_moves.append((artwork_subdir, artwork_subdir_target))
+            rel = _display_relative(artwork_subdir_target, lib_root)
+            console.print(
+                f"[cyan]{artwork_subdir.name}/[/cyan] -> [green]{rel}/[/green]"
+            )
+
+    return dir_moves
 
 
 @click.group()
@@ -92,11 +165,7 @@ def scan(config: AppConfig, paths: tuple[Path, ...]) -> None:
         table.add_column("Status", style="green")
 
         for f in files:
-            try:
-                display_name = f.path.relative_to(scan_path)
-            except ValueError:
-                display_name = f.path.name
-
+            display_name = _display_relative(f.path, scan_path)
             table.add_row(str(display_name), f.extension, f.tag_status.name)
 
         console.print(table)
@@ -113,8 +182,12 @@ def scan(config: AppConfig, paths: tuple[Path, ...]) -> None:
 @click.option("--search", "query", type=str, help="Search query for Discogs.")
 @click.option("--artist", type=str, help="Filter search by artist name.")
 @click.option("--album", type=str, help="Filter search by album/release title.")
-@click.option("--format", "fmt_filter", type=str, help="Filter search by format (e.g. Vinyl, CD).")
-@click.option("--auto-move", is_flag=True, help="Automatically move files without confirmation.")
+@click.option(
+    "--format", "fmt_filter", type=str, help="Filter search by format (e.g. Vinyl, CD)."
+)
+@click.option(
+    "--auto-move", is_flag=True, help="Automatically move files without confirmation."
+)
 @click.option(
     "--dry-run", is_flag=True, help="Display changes without writing to files."
 )
@@ -166,7 +239,8 @@ def tag(
     if not paths:
         if config.recordings_root:
             paths = (config.recordings_root,)
-            # If we are using the default recordings folder, assume we want to rename/move to library
+            # If we are using the default recordings folder,
+            # assume we want to rename/move to library
             if do_rename is None:
                 do_rename = True
         else:
@@ -220,7 +294,7 @@ def tag(
                     )
                     if not all_results:
                         console.print(
-                            f"[yellow]No results found for query/filters.[/yellow]"
+                            "[yellow]No results found for query/filters.[/yellow]"
                         )
                         current_query = None  # Reset to prompt again
                         current_artist = None
@@ -234,9 +308,14 @@ def tag(
 
                     while offset < len(all_results):
                         page_results = all_results[offset : offset + page_size]
-                        table = Table(
-                            title=f"\nSearch Results for: [bold cyan]{current_query or current_artist or current_album}[/bold cyan] (Page {offset // page_size + 1})"
+                        search_term = current_query or current_artist or current_album
+                        page_num = offset // page_size + 1
+                        table_title = (
+                            f"\nSearch Results for:"
+                            f" [bold cyan]{search_term}[/bold cyan]"
+                            f" (Page {page_num})"
                         )
+                        table = Table(title=table_title)
                         table.add_column("#", style="dim")
                         table.add_column("ID", style="magenta")
                         table.add_column("Title", style="cyan")
@@ -285,8 +364,7 @@ def tag(
                             if 1 <= idx <= len(all_results):
                                 selected_release_id = all_results[idx - 1]["id"]
                                 break
-                            else:
-                                console.print("[red]Invalid selection.[/red]")
+                            console.print("[red]Invalid selection.[/red]")
                         except ValueError:
                             console.print("[red]Invalid input.[/red]")
 
@@ -310,9 +388,13 @@ def tag(
 
             assert current_release_id is not None
             release = client.get_release(current_release_id)
-            console.print(
-                f"Loaded Release: [bold]{', '.join(release.artists)} - {release.title}[/bold] ({release.year})"
+            artist_str = ", ".join(release.artists)
+            release_display = (
+                f"Loaded Release: [bold]{artist_str}"
+                f" - {release.title}[/bold]"
+                f" ({release.year})"
             )
+            console.print(release_display)
 
             # Artwork handling
             artwork_data = None
@@ -333,40 +415,40 @@ def tag(
                                 try:
                                     img_data = client.download_image(img.resource_url)
                                     all_images_data.append(img_data)
-                                except Exception as e:
+                                except DiscogsAPIError as e:
                                     console.print(
-                                        f"[yellow]Warning: Failed to download additional artwork: {e}[/yellow]"
+                                        "[yellow]Warning: Failed"
+                                        " to download additional"
+                                        f" artwork: {e}[/yellow]"
                                     )
-                except Exception as e:
+                except DiscogsAPIError as e:
                     console.print(
                         f"[yellow]Warning: Failed to download artwork: {e}[/yellow]"
                     )
 
-            # Collect audio files
-            audio_files = sorted(
-                [
-                    p
-                    for p in path.iterdir()
-                    if p.is_file() and p.suffix.lower() in (".mp3", ".flac")
-                ]
-            )
+            audio_files = _collect_audio_files(path)
 
             if not audio_files:
                 console.print(
-                    f"[yellow]No supported audio files (MP3/FLAC) found in {path}.[/yellow]"
+                    f"[yellow]No supported audio files"
+                    f" (MP3/FLAC) found in {path}.[/yellow]"
                 )
                 continue
 
             if len(audio_files) != len(release.tracklist):
+                num_files = len(audio_files)
+                num_tracks = len(release.tracklist)
                 console.print(
-                    f"[yellow]Warning: Found {len(audio_files)} files but release has {len(release.tracklist)} tracks.[/yellow]"
+                    f"[yellow]Warning: Found {num_files}"
+                    f" files but release has"
+                    f" {num_tracks} tracks.[/yellow]"
                 )
                 if not click.confirm("Proceed anyway?"):
                     continue
 
             # Tagging execution
             tagged_paths = []
-            with console.status("[bold green]Tagging files...") as status:
+            with console.status("[bold green]Tagging files..."):
                 for i, file_path in enumerate(audio_files):
                     if i >= len(release.tracklist):
                         break
@@ -375,9 +457,11 @@ def tag(
                     if config.backup_enabled and config.backup_dir and not dry_run:
                         try:
                             backup_file(file_path, config.backup_dir)
-                        except Exception as e:
+                        except OSError as e:
                             console.print(
-                                f"[yellow]Warning: Failed to backup {file_path.name}: {e}[/yellow]"
+                                f"[yellow]Warning: Failed to"
+                                f" backup {file_path.name}:"
+                                f" {e}[/yellow]"
                             )
 
                     tag_audio_file(
@@ -411,11 +495,15 @@ def tag(
 
             if dry_run:
                 console.print(
-                    f"\n[bold yellow]Dry-run complete for {path.name}. No files were modified.[/bold yellow]"
+                    f"\n[bold yellow]Dry-run complete for"
+                    f" {path.name}. No files were"
+                    " modified.[/bold yellow]"
                 )
             else:
                 console.print(
-                    f"\n[bold green]Successfully tagged all files in {path.name}![/bold green]"
+                    f"\n[bold green]Successfully tagged"
+                    f" all files in {path.name}!"
+                    "[/bold green]"
                 )
 
                 # Optional Renaming
@@ -423,75 +511,27 @@ def tag(
                     console.print(
                         f"\n[bold blue]Renaming files in {path.name}...[/bold blue]"
                     )
-                    moves = []
-                    dir_moves = []
+                    moves: list[tuple[Path, Path]] = []
                     for i, source in enumerate(tagged_paths):
                         target = generate_path(
                             lib_root, config.naming_pattern, release, i, source.suffix
                         )
                         moves.append((source, target))
-
-                        try:
-                            display_target = target.relative_to(lib_root)
-                        except ValueError:
-                            display_target = target
+                        rel = _display_relative(target, lib_root)
                         console.print(
-                            f"[cyan]{source.name}[/cyan] -> [green]{display_target}[/green]"
+                            f"[cyan]{source.name}[/cyan] -> [green]{rel}[/green]"
                         )
 
-                    # Also move info file if it exists
-                    info_file = path / config.info_filename
-                    if info_file.exists() and moves:
-                        info_target = moves[0][1].parent / config.info_filename
-                        if info_file != info_target:
-                            moves.append((info_file, info_target))
-                            try:
-                                display_info_target = info_target.relative_to(lib_root)
-                            except ValueError:
-                                display_info_target = info_target
-                            console.print(
-                                f"[cyan]{info_file.name}[/cyan] -> [green]{display_info_target}[/green]"
-                            )
+                    target_dir = moves[0][1].parent if moves else path
+                    dir_moves = _plan_supplementary_moves(
+                        path, target_dir, lib_root, config, moves
+                    )
 
-                    # Also move artwork file if it exists
-                    artwork_file = path / config.artwork_filename
-                    if artwork_file.exists() and moves:
-                        artwork_target = moves[0][1].parent / config.artwork_filename
-                        if artwork_file != artwork_target:
-                            moves.append((artwork_file, artwork_target))
-                            try:
-                                display_artwork_target = artwork_target.relative_to(
-                                    lib_root
-                                )
-                            except ValueError:
-                                display_artwork_target = artwork_target
-                            console.print(
-                                f"[cyan]{artwork_file.name}[/cyan] -> [green]{display_artwork_target}[/green]"
-                            )
-
-                    # Also move artwork subdirectory if it exists
-                    artwork_subdir = path / config.artwork_subdir
-                    if artwork_subdir.exists() and artwork_subdir.is_dir() and moves:
-                        artwork_subdir_target = (
-                            moves[0][1].parent / config.artwork_subdir
-                        )
-                        if artwork_subdir != artwork_subdir_target:
-                            dir_moves.append((artwork_subdir, artwork_subdir_target))
-                            try:
-                                display_artwork_subdir_target = (
-                                    artwork_subdir_target.relative_to(lib_root)
-                                )
-                            except ValueError:
-                                display_artwork_subdir_target = artwork_subdir_target
-                            console.print(
-                                f"[cyan]{artwork_subdir.name}/[/cyan] -> [green]{display_artwork_subdir_target}/[/green]"
-                            )
-
-                    if dry_run:
-                        console.print(
-                            "\n[bold yellow]Dry-run: Use without --dry-run to apply renaming.[/bold yellow]"
-                        )
-                    elif auto_move or config.auto_move or click.confirm("\nProceed with moving files?"):
+                    if (
+                        auto_move
+                        or config.auto_move
+                        or click.confirm("\nProceed with moving files?")
+                    ):
                         for src, dst in moves:
                             move_file(src, dst, dry_run=False)
                         for src, dst in dir_moves:
@@ -553,19 +593,13 @@ def rename(
                 )
 
             release = client.get_release(current_release_id)
-            audio_files = sorted(
-                [
-                    p
-                    for p in path.iterdir()
-                    if p.is_file() and p.suffix.lower() in (".mp3", ".flac")
-                ]
-            )
+            audio_files = _collect_audio_files(path)
 
             if not audio_files:
                 console.print(f"[yellow]No audio files found in {path.name}.[/yellow]")
                 continue
 
-            moves = []
+            moves: list[tuple[Path, Path]] = []
             for i, source in enumerate(audio_files):
                 if i >= len(release.tracklist):
                     break
@@ -573,65 +607,20 @@ def rename(
                     lib_root, config.naming_pattern, release, i, source.suffix
                 )
                 moves.append((source, target))
+                rel = _display_relative(target, lib_root)
+                console.print(f"[cyan]{source.name}[/cyan] -> [green]{rel}[/green]")
 
-                # Show relative target path for readability
-                try:
-                    display_target = target.relative_to(lib_root)
-                except ValueError:
-                    display_target = target
-
-                console.print(
-                    f"[cyan]{source.name}[/cyan] -> [green]{display_target}[/green]"
-                )
-
-            # Also move info file if it exists
-            info_file = path / config.info_filename
-            if info_file.exists() and moves:
-                info_target = moves[0][1].parent / config.info_filename
-                if info_file != info_target:
-                    moves.append((info_file, info_target))
-                    try:
-                        display_info_target = info_target.relative_to(lib_root)
-                    except ValueError:
-                        display_info_target = info_target
-                    console.print(
-                        f"[cyan]{info_file.name}[/cyan] -> [green]{display_info_target}[/green]"
-                    )
-
-            # Also move artwork file if it exists
-            artwork_file = path / config.artwork_filename
-            if artwork_file.exists() and moves:
-                artwork_target = moves[0][1].parent / config.artwork_filename
-                if artwork_file != artwork_target:
-                    moves.append((artwork_file, artwork_target))
-                    try:
-                        display_artwork_target = artwork_target.relative_to(lib_root)
-                    except ValueError:
-                        display_artwork_target = artwork_target
-                    console.print(
-                        f"[cyan]{artwork_file.name}[/cyan] -> [green]{display_artwork_target}[/green]"
-                    )
-
-            # Also move artwork subdirectory if it exists
-            dir_moves = []
-            artwork_subdir = path / config.artwork_subdir
-            if artwork_subdir.exists() and artwork_subdir.is_dir() and moves:
-                artwork_subdir_target = moves[0][1].parent / config.artwork_subdir
-                if artwork_subdir != artwork_subdir_target:
-                    dir_moves.append((artwork_subdir, artwork_subdir_target))
-                    try:
-                        display_artwork_subdir_target = (
-                            artwork_subdir_target.relative_to(lib_root)
-                        )
-                    except ValueError:
-                        display_artwork_subdir_target = artwork_subdir_target
-                    console.print(
-                        f"[cyan]{artwork_subdir.name}/[/cyan] -> [green]{display_artwork_subdir_target}/[/green]"
-                    )
+            target_dir = moves[0][1].parent if moves else path
+            dir_moves = _plan_supplementary_moves(
+                path, target_dir, lib_root, config, moves
+            )
 
             if dry_run:
                 console.print(
-                    f"\n[bold yellow]Dry-run for {path.name}: Use --commit to apply these changes.[/bold yellow]"
+                    f"\n[bold yellow]Dry-run for"
+                    f" {path.name}: Use --commit to"
+                    " apply these changes."
+                    "[/bold yellow]"
                 )
                 continue
 
@@ -641,7 +630,8 @@ def rename(
                 for src, dst in dir_moves:
                     move_directory(src, dst, dry_run=False)
                 console.print(
-                    f"\n[bold green]Files in {path.name} moved successfully.[/bold green]"
+                    f"\n[bold green]Files in {path.name}"
+                    " moved successfully.[/bold green]"
                 )
 
         except VinylkitError as e:
@@ -660,7 +650,10 @@ def login(config: AppConfig) -> None:
     """Authenticate with Discogs using OAuth 1.0a."""
     if not config.consumer_key or config.consumer_key == DEFAULT_CONSUMER_KEY:
         console.print(
-            "[bold red]Error:[/bold red] You must set your own [bold]consumer_key[/bold] and [bold]consumer_secret[/bold] before logging in."
+            "[bold red]Error:[/bold red] You must set your own"
+            " [bold]consumer_key[/bold] and"
+            " [bold]consumer_secret[/bold]"
+            " before logging in."
         )
         console.print(
             "See the [bold]Authentication Guide (auth.md)[/bold] for instructions."
@@ -672,7 +665,8 @@ def login(config: AppConfig) -> None:
     try:
         url, req_token, req_token_secret = client.get_authorize_url()
         console.print(
-            f"\n1. Please visit this URL to authorize VinylKit:\n[link={url}]{url}[/link]\n"
+            "\n1. Please visit this URL to authorize"
+            f" VinylKit:\n[link={url}]{url}[/link]\n"
         )
         verifier = click.prompt("2. Enter the verifier code provided by Discogs")
 
@@ -753,45 +747,59 @@ def collection_download(config: AppConfig) -> None:
         filename = f"{date_prefix}_{username}_collection.csv"
         filepath = Path.cwd() / filename
 
-        if filepath.exists():
-            if not click.confirm(
-                f"[yellow]Warning: {filename} already exists. Overwrite?[/yellow]",
-                default=False,
-            ):
-                console.print("[yellow]Download aborted.[/yellow]")
-                return
+        if filepath.exists() and not click.confirm(
+            f"[yellow]Warning: {filename} already exists. Overwrite?[/yellow]",
+            default=False,
+        ):
+            console.print("[yellow]Download aborted.[/yellow]")
+            return
 
-        with open(filepath, "w", newline="", encoding="utf-8") as f:
+        with filepath.open("w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             # Header
             writer.writerow(
-                ["release_id", "Catalog#", "Artist", "Title", "Label", "Format", "Released"]
+                [
+                    "release_id",
+                    "Catalog#",
+                    "Artist",
+                    "Title",
+                    "Label",
+                    "Format",
+                    "Released",
+                ]
             )
 
             for r in releases:
                 basic = r.get("basic_information", {})
                 release_id = r.get("id")
-                
+
                 # Extract fields safely
-                artists = ", ".join([a.get("name", "Unknown") for a in basic.get("artists", [])])
+                artists = ", ".join(
+                    [a.get("name", "Unknown") for a in basic.get("artists", [])]
+                )
                 title = basic.get("title", "Unknown")
                 year = basic.get("year", "N/A")
-                
+
                 # Labels
                 labels = basic.get("labels", [])
                 label_name = labels[0].get("name", "N/A") if labels else "N/A"
                 catno = labels[0].get("catno", "N/A") if labels else "N/A"
-                
+
                 # Formats
                 formats = basic.get("formats", [])
                 fmt_str = formats[0].get("name", "N/A") if formats else "N/A"
 
-                writer.writerow([release_id, catno, artists, title, label_name, fmt_str, year])
+                writer.writerow(
+                    [release_id, catno, artists, title, label_name, fmt_str, year]
+                )
 
-        console.print(f"[bold green]Success![/bold green] Collection saved to [cyan]{filename}[/cyan]")
+        console.print(
+            "[bold green]Success![/bold green]"
+            f" Collection saved to [cyan]{filename}[/cyan]"
+        )
         console.print(f"Total releases: {len(releases)}")
 
-    except Exception as e:
+    except (VinylkitError, OSError) as e:
         console.print(f"[bold red]Failed to download collection:[/bold red] {e}")
 
 
@@ -818,28 +826,62 @@ def config_show(config_obj: AppConfig) -> None:
     console.print(f"[bold]Tag Mode:[/bold] {config_obj.tag_mode.value}")
     console.print(f"[bold]Track Numbering:[/bold] {config_obj.track_numbering.value}")
     console.print(f"[bold]Disc Mapping:[/bold] {config_obj.disc_mapping.value}")
-    console.print(
-        f"[bold]Consumer Key:[/bold] {'****' if config_obj.consumer_key else 'Not Set'}"
-    )
+    key_display = "****" if config_obj.consumer_key else "Not Set"
+    console.print(f"[bold]Consumer Key:[/bold] {key_display}")
 
     console.print(f"[bold]Naming Pattern:[/bold] {config_obj.naming_pattern}")
     console.print(f"[bold]Info Filename:[/bold] {config_obj.info_filename}")
     console.print(f"[bold]Artwork Filename:[/bold] {config_obj.artwork_filename}")
     console.print(f"[bold]Search Page Size:[/bold] {config_obj.search_page_size}")
-    console.print(
-        f"[bold]Default Format:[/bold] {', '.join(config_obj.default_format) if config_obj.default_format else 'None'}"
+    default_fmt = (
+        ", ".join(config_obj.default_format) if config_obj.default_format else "None"
     )
+    console.print(f"[bold]Default Format:[/bold] {default_fmt}")
     console.print(f"[bold]Auto Move:[/bold] {config_obj.auto_move}")
     console.print(f"[bold]Image Handling:[/bold] {config_obj.image_handling.value}")
-    
+
     console.print(f"[bold]Collect All Artwork:[/bold] {config_obj.collect_all_artwork}")
     console.print(f"[bold]Artwork Subdir:[/bold] {config_obj.artwork_subdir}")
     console.print(f"[bold]Backup Enabled:[/bold] {config_obj.backup_enabled}")
     if config_obj.backup_dir:
         console.print(f"[bold]Backup Dir:[/bold] {config_obj.backup_dir}")
-    console.print(
-        f"[bold]Discogs Token:[/bold] {'****' if config_obj.discogs_token else 'Not Set'}"
-    )
+    token_display = "****" if config_obj.discogs_token else "Not Set"
+    console.print(f"[bold]Discogs Token:[/bold] {token_display}")
+
+
+def _parse_bool(value: str) -> bool:
+    return value.lower() == "true"
+
+
+def _parse_format_list(value: str) -> list[str]:
+    if value.lower() == "none":
+        return []
+    return [v.strip() for v in value.split(",")]
+
+
+# Maps config keys to their type converter functions
+_CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
+    "library_root": Path,
+    "recordings_root": Path,
+    "auth_mode": AuthMode,
+    "tag_mode": TagMode,
+    "track_numbering": TrackNumbering,
+    "disc_mapping": DiscMapping,
+    "consumer_key": str,
+    "consumer_secret": str,
+    "discogs_token": str,
+    "naming_pattern": str,
+    "image_handling": ImageHandling,
+    "collect_all_artwork": _parse_bool,
+    "artwork_subdir": str,
+    "backup_enabled": _parse_bool,
+    "backup_dir": Path,
+    "info_filename": str,
+    "artwork_filename": str,
+    "search_page_size": int,
+    "default_format": _parse_format_list,
+    "auto_move": _parse_bool,
+}
 
 
 @config.command(name="set")
@@ -848,81 +890,15 @@ def config_show(config_obj: AppConfig) -> None:
 @click.pass_obj
 def config_set(config_obj: AppConfig, key: str, value: str) -> None:
     """Set a configuration value."""
-    # Convert types as needed
-    new_data = {
-        "library_root": config_obj.library_root,
-        "recordings_root": config_obj.recordings_root,
-        "consumer_key": config_obj.consumer_key,
-        "consumer_secret": config_obj.consumer_secret,
-        "discogs_token": config_obj.discogs_token,
-        "discogs_secret": config_obj.discogs_secret,
-        "auth_mode": config_obj.auth_mode,
-        "tag_mode": config_obj.tag_mode,
-        "track_numbering": config_obj.track_numbering,
-        "disc_mapping": config_obj.disc_mapping,
-        "naming_pattern": config_obj.naming_pattern,
-        "image_handling": config_obj.image_handling,
-        "collect_all_artwork": config_obj.collect_all_artwork,
-        "artwork_subdir": config_obj.artwork_subdir,
-        "backup_enabled": config_obj.backup_enabled,
-        "backup_dir": config_obj.backup_dir,
-        "info_filename": config_obj.info_filename,
-        "artwork_filename": config_obj.artwork_filename,
-        "search_page_size": config_obj.search_page_size,
-        "default_format": config_obj.default_format,
-        "auto_move": config_obj.auto_move,
-    }
-
-    if key == "library_root":
-        new_data["library_root"] = Path(value)
-    elif key == "recordings_root":
-        new_data["recordings_root"] = Path(value)
-    elif key == "auth_mode":
-        new_data["auth_mode"] = AuthMode(value)
-    elif key == "tag_mode":
-        new_data["tag_mode"] = TagMode(value)
-    elif key == "track_numbering":
-        from vinylkit.models import TrackNumbering
-
-        new_data["track_numbering"] = TrackNumbering(value)
-    elif key == "disc_mapping":
-        from vinylkit.models import DiscMapping
-
-        new_data["disc_mapping"] = DiscMapping(value)
-    elif key == "consumer_key":
-        new_data["consumer_key"] = value
-    elif key == "consumer_secret":
-        new_data["consumer_secret"] = value
-    elif key == "discogs_token":
-        new_data["discogs_token"] = value
-    elif key == "naming_pattern":
-        new_data["naming_pattern"] = value
-    elif key == "image_handling":
-        new_data["image_handling"] = ImageHandling(value)
-    elif key == "collect_all_artwork":
-        new_data["collect_all_artwork"] = value.lower() == "true"
-    elif key == "artwork_subdir":
-        new_data["artwork_subdir"] = value
-    elif key == "backup_enabled":
-        new_data["backup_enabled"] = value.lower() == "true"
-    elif key == "backup_dir":
-        new_data["backup_dir"] = Path(value)
-    elif key == "info_filename":
-        new_data["info_filename"] = value
-    elif key == "artwork_filename":
-        new_data["artwork_filename"] = value
-    elif key == "search_page_size":
-        new_data["search_page_size"] = int(value)
-    elif key == "default_format":
-        if value.lower() == "none":
-            new_data["default_format"] = []
-        else:
-            new_data["default_format"] = [v.strip() for v in value.split(",")]
-    elif key == "auto_move":
-        new_data["auto_move"] = value.lower() == "true"
-    else:
+    if key not in _CONFIG_CONVERTERS:
         console.print(f"[red]Unknown configuration key: {key}[/red]")
         return
+
+    converter = _CONFIG_CONVERTERS[key]
+    new_data = {
+        field: getattr(config_obj, field) for field in AppConfig.__dataclass_fields__
+    }
+    new_data[key] = converter(value)
 
     new_config = AppConfig(**new_data)
     save_config(new_config)

@@ -5,7 +5,7 @@ import logging
 import re
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 from authlib.integrations.httpx_client import OAuth1Client
@@ -62,44 +62,47 @@ class DiscogsClient:
         )
 
         # 1. Try Full OAuth 1.0a
-        if auth_mode in ("auto", "oauth"):
-            if token and secret and consumer_key and consumer_secret:
-                self.mode = "oauth"
-                self.client = OAuth1Client(
-                    client_id=consumer_key,
-                    client_secret=consumer_secret,
-                    token=token,
-                    token_secret=secret,
-                    headers={"User-Agent": user_agent},
-                )
-                return
+        if (
+            auth_mode in ("auto", "oauth")
+            and token
+            and secret
+            and consumer_key
+            and consumer_secret
+        ):
+            self.mode = "oauth"
+            self.client = OAuth1Client(
+                client_id=consumer_key,
+                client_secret=consumer_secret,
+                token=token,
+                token_secret=secret,
+                headers={"User-Agent": user_agent},
+            )
+            return
 
         # 2. Try Personal Access Token
-        if auth_mode in ("auto", "token"):
-            if token:
-                self.mode = "token"
-                self.client = httpx.Client(
-                    headers={
-                        "Authorization": f"Discogs token={token}",
-                        "User-Agent": user_agent,
-                    }
-                )
-                return
+        if auth_mode in ("auto", "token") and token:
+            self.mode = "token"
+            self.client = httpx.Client(
+                headers={
+                    "Authorization": f"Discogs token={token}",
+                    "User-Agent": user_agent,
+                }
+            )
+            return
 
         # 3. Try Key/Secret (Discogs Auth or Login Prep)
-        if auth_mode in (
-            "auto",
-            "key_secret",
-            "oauth",
-        ):  # oauth falls back here if no token yet
-            if consumer_key and consumer_secret:
-                self.mode = "key_secret"
-                self.client = OAuth1Client(
-                    client_id=consumer_key,
-                    client_secret=consumer_secret,
-                    headers={"User-Agent": user_agent},
-                )
-                return
+        if (
+            auth_mode in ("auto", "key_secret", "oauth")
+            and consumer_key
+            and consumer_secret
+        ):
+            self.mode = "key_secret"
+            self.client = OAuth1Client(
+                client_id=consumer_key,
+                client_secret=consumer_secret,
+                headers={"User-Agent": user_agent},
+            )
+            return
 
     def _get_cache_path(self, release_id: int) -> Path:
         return self.cache_dir / f"release_{release_id}.json"
@@ -110,8 +113,8 @@ class DiscogsClient:
         path = self._get_cache_path(release_id)
         if path.exists():
             try:
-                return json.loads(path.read_text())
-            except Exception as e:
+                return cast("dict[str, Any]", json.loads(path.read_text()))
+            except (OSError, json.JSONDecodeError) as e:
                 logger.warning(f"Failed to read cache for release {release_id}: {e}")
         return None
 
@@ -121,7 +124,7 @@ class DiscogsClient:
         path = self._get_cache_path(release_id)
         try:
             path.write_text(json.dumps(data))
-        except Exception as e:
+        except OSError as e:
             logger.warning(f"Failed to write cache for release {release_id}: {e}")
 
     def _wait_for_rate_limit(self) -> None:
@@ -166,7 +169,8 @@ class DiscogsClient:
         """Start the OAuth flow."""
         if not isinstance(self.client, OAuth1Client):
             raise AuthError(
-                "OAuth client not initialized. Ensure consumer_key and consumer_secret are set."
+                "OAuth client not initialized."
+                " Ensure consumer_key and consumer_secret are set."
             )
 
         try:
@@ -197,7 +201,7 @@ class DiscogsClient:
     def get_identity(self) -> dict[str, Any]:
         """Get the authenticated user's full profile identity."""
         resp = self._request_with_retry("GET", IDENTITY_URL)
-        identity_data = resp.json()
+        identity_data: dict[str, Any] = resp.json()
         username = identity_data.get("username")
 
         if username:
@@ -205,7 +209,7 @@ class DiscogsClient:
                 profile_url = f"{DISCOGS_API_URL}/users/{username}"
                 profile_resp = self._request_with_retry("GET", profile_url)
                 identity_data.update(profile_resp.json())
-            except Exception as e:
+            except DiscogsAPIError as e:
                 logger.warning(f"Could not fetch full profile for {username}: {e}")
 
         return identity_data
@@ -328,8 +332,7 @@ class DiscogsClient:
             if value is None:
                 continue
             if isinstance(value, list):
-                for v in value:
-                    params.append((key, v))
+                params.extend((key, v) for v in value)
             else:
                 params.append((key, value))
 
@@ -338,7 +341,7 @@ class DiscogsClient:
             f"{DISCOGS_API_URL}/database/search",
             params=params,
         )
-        return resp.json().get("results", [])
+        return cast("list[dict[str, Any]]", resp.json().get("results", []))
 
     def download_image(self, url: str) -> bytes:
         """Download image."""
@@ -354,7 +357,10 @@ class DiscogsClient:
         per_page = 100
 
         while True:
-            url = f"{DISCOGS_API_URL}/users/{username}/collection/folders/{folder_id}/releases"
+            url = (
+                f"{DISCOGS_API_URL}/users/{username}"
+                f"/collection/folders/{folder_id}/releases"
+            )
             resp = self._request_with_retry(
                 "GET", url, params={"page": page, "per_page": per_page}
             )

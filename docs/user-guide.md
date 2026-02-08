@@ -15,11 +15,6 @@ A comprehensive guide to managing your digitized vinyl collection with VinylKit.
     - [auth](#auth)
     - [config](#config)
 4. [Configuration Options](#4-configuration-options)
-    - [General Settings](#general-settings)
-    - [Tagging & Numbering](#tagging--numbering)
-    - [Naming & Organization](#naming--organization)
-    - [Artwork & Metadata Files](#artwork--metadata-files)
-    - [Safety & Backups](#safety--backups)
 5. [Naming Patterns & Placeholders](#5-naming-patterns--placeholders)
 6. [Tagging Details](#6-tagging-details)
     - [MP3 (ID3v2.4)](#mp3-id3v24)
@@ -91,6 +86,9 @@ Manages your connection to Discogs.
 - `auth login`: Starts the OAuth process in your browser.
 - `auth identity`: Displays the currently logged-in user.
 
+> [!IMPORTANT]
+> `auth login` requires `consumer_key` and `consumer_secret` to be configured first. For most users, setting a personal access token via `vinylkit config set discogs_token <TOKEN>` is simpler. See the **[Authentication Guide](auth.md)** for details.
+
 ### `config`
 Manages your persistent settings.
 
@@ -134,38 +132,16 @@ When viewing results, you can use the following commands:
 
 ## 4. Configuration Options
 
-### General Settings
-- `library_root`: Absolute path to your music library.
-- `recordings_root`: Absolute path to your recordings inbox.
-- `auto_move`: `true` to skip move confirmation.
-- `auth_mode`: `auto`, `token`, `oauth`, or `key_secret`.
+VinylKit's settings are grouped into the following categories:
 
-### Tagging & Numbering
-- `tag_mode`: 
-    - `replace`: (Default) Wipes all existing tags before writing.
-    - `merge`: Keeps existing tags.
-- `track_numbering`:
-    - `numeric`: Sequential integers (1, 2, 3).
-    - `original`: Discogs positions (A1, B1).
-    - `per_side`: Resets count for each vinyl side.
-- `disc_mapping`:
-    - `physical`: Groups sides into discs (A/B=1, C/D=2).
-    - `single`: Everything is Disc 1.
-    - `per_side`: Each side is its own Disc.
+- **General** — `library_root`, `recordings_root`, `auto_move`, `auth_mode`
+- **Tagging & Numbering** — `tag_mode`, `track_numbering`, `disc_mapping`
+- **Naming & Organization** — `naming_pattern`
+- **Artwork & Metadata** — `image_handling`, `artwork_filename`, `collect_all_artwork`, `artwork_subdir`, `info_filename`
+- **Search & Discovery** — `search_page_size`, `default_format`
+- **Safety & Backups** — `backup_enabled`, `backup_dir`
 
-### Naming & Organization
-- `naming_pattern`: The template for your file paths. Default: `{artist}/{year} - {album}/{track_number} - {title}`
-
-### Artwork & Metadata Files
-- `image_handling`: `embed`, `save`, `both`, or `none`.
-- `artwork_filename`: Name of the saved image file. Default: `folder.jpg`.
-- `collect_all_artwork`: `true` to download all images from the release.
-- `artwork_subdir`: Folder for additional images. Default: `Artwork`.
-- `info_filename`: Name of the text summary file. Default: `release_info.txt`.
-
-### Safety & Backups
-- `backup_enabled`: `true` to copy files before tagging.
-- `backup_dir`: Path where backups are stored.
+For defaults, allowed values, and examples for every setting, see the **[Configuration Guide](configuration.md)**.
 
 ---
 

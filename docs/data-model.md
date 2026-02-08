@@ -79,6 +79,11 @@ User settings stored in TOML.
 - **backup_dir**: `pathlib.Path | None`
 - **info_filename**: `str` (Default: release_info.txt)
 - **artwork_filename**: `str` (Default: folder.jpg)
+- **track_numbering**: `TrackNumbering` (NUMERIC, ORIGINAL, PER_SIDE)
+- **disc_mapping**: `DiscMapping` (PHYSICAL, SINGLE, PER_SIDE, ORIGINAL)
+- **search_page_size**: `int` (Default: 5)
+- **default_format**: `list[str]` (Default: ["Vinyl"])
+- **auto_move**: `bool` (Default: false)
 
 ## State Transitions
 

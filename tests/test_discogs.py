@@ -77,12 +77,13 @@ def test_search_releases_with_filters() -> None:
         return_value=Response(200, json=mock_data)
     )
 
-    results = client.search_releases(artist="Green Velvet", album="Flash", format=["Vinyl", "CD"])
+    results = client.search_releases(
+        artist="Green Velvet", album="Flash", format=["Vinyl", "CD"]
+    )
 
     assert len(results) == 1
-    # Check that the call included the mapped release_title and multiple format filters
-    query_params = route.calls.last.request.url.params
-    # When multiple params with same key exist, httpx might return them as a list or we check string
+    # Check the call included mapped release_title and format filters
+    # When multiple params with same key exist, check URL string
     url_str = str(route.calls.last.request.url)
     assert "format=Vinyl" in url_str
     assert "format=CD" in url_str
@@ -109,14 +110,14 @@ def test_get_collection_releases_pagination() -> None:
     # Mock page 1
     respx.get(f"{DISCOGS_API_URL}/users/{username}/collection/folders/0/releases").mock(
         side_effect=[
-            Response(200, json={
-                "releases": [{"id": 1}],
-                "pagination": {"pages": 2, "page": 1}
-            }),
-            Response(200, json={
-                "releases": [{"id": 2}],
-                "pagination": {"pages": 2, "page": 2}
-            })
+            Response(
+                200,
+                json={"releases": [{"id": 1}], "pagination": {"pages": 2, "page": 1}},
+            ),
+            Response(
+                200,
+                json={"releases": [{"id": 2}], "pagination": {"pages": 2, "page": 2}},
+            ),
         ]
     )
 

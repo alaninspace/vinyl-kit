@@ -36,27 +36,29 @@ uv tool install . --force --no-cache
 
 ## Quick Start
 
-1. **Authenticate with Discogs**:
+1. **Set your library location** (where tagged music ends up):
    ```bash
-   vinylkit auth login
+   vinylkit config set library_root "/path/to/VinylLibrary"
    ```
 
-2. **Scan a folder**:
+2. **Set your recordings inbox** (where fresh vinyl rips land):
    ```bash
-   vinylkit scan /path/to/music
+   vinylkit config set recordings_root "/path/to/RecordedVinyl"
    ```
 
-3. **Tag and Organize an album by ID**:
+3. **Set your Discogs token** ([generate one here](https://www.discogs.com/settings/developers)):
    ```bash
-   # Green Velvet - Flash (Remixes)
-   vinylkit tag /path/to/album --id 19983 --rename
+   vinylkit config set discogs_token "YOUR_TOKEN"
    ```
 
-4. **Tag using Search**:
+4. **Scan and tag**:
    ```bash
-   # The Prodigy - Out Of Space
-   vinylkit tag /path/to/album --search "The Prodigy Out Of Space" --rename
+   vinylkit scan
+   vinylkit tag --id 19983
    ```
+
+> [!TIP]
+> For OAuth setup, naming patterns, and advanced configuration see the **[Quickstart Guide](docs/quickstart.md)**.
 
 ## Configuration
 
@@ -74,7 +76,7 @@ For detailed guides, see:
 
 ## Development
 
-VinylKit uses `uv` for development. Ensure you have it installed.
+VinylKit uses `uv` for development. Ensure you have it installed. See the **[Developer Guide](docs/developer-guide.md)** for full setup, architecture, and contribution details.
 
 ### Run Tests
 ```bash

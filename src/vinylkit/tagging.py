@@ -1,10 +1,24 @@
 from __future__ import annotations
 
+import hashlib
 import logging
-from pathlib import Path
+import re
+from pathlib import Path  # noqa: TC003
 
 from mutagen.flac import FLAC, Picture
-from mutagen.id3 import APIC, ID3, TALB, TCON, TDRC, TIT2, TPE1, TPUB, TRCK, TXXX
+from mutagen.id3 import (
+    APIC,
+    ID3,
+    TALB,
+    TCON,
+    TDRC,
+    TIT2,
+    TPE1,
+    TPOS,
+    TPUB,
+    TRCK,
+    TXXX,
+)
 from mutagen.mp3 import MP3
 
 from vinylkit.exceptions import TaggingError
@@ -19,17 +33,13 @@ from vinylkit.models import (
 
 logger = logging.getLogger(__name__)
 
+FRONT_COVER_TYPE = 3  # ID3/FLAC picture type for front cover
+
 
 def write_release_info(
     path: Path, release: DiscogsRelease, filename: str = "release_info.txt"
 ) -> Path:
-    """
-
-
-    Write a release information file (info.txt) to the folder.
-
-
-    """
+    """Write a release information file (info.txt) to the folder."""
 
     target = path / filename
 
@@ -75,8 +85,7 @@ def write_release_info(
         ]
     )
 
-    for t in release.tracklist:
-        lines.append(f"{t.position:<5} {t.title}")
+    lines.extend(f"{t.position:<5} {t.title}" for t in release.tracklist)
 
     if release.companies:
         lines.extend(
@@ -87,8 +96,7 @@ def write_release_info(
             ]
         )
 
-        for c in release.companies:
-            lines.append(f"  {c.entity_type_name}: {c.name}")
+        lines.extend(f"  {c.entity_type_name}: {c.name}" for c in release.companies)
 
     if release.extraartists:
         lines.extend(
@@ -99,8 +107,7 @@ def write_release_info(
             ]
         )
 
-        for a in release.extraartists:
-            lines.append(f"  {a.role}: {a.name}")
+        lines.extend(f"  {a.role}: {a.name}" for a in release.extraartists)
 
     if release.identifiers:
         lines.extend(
@@ -124,7 +131,7 @@ def write_release_info(
 
         logger.info(f"Created info file: {target.name}")
 
-    except Exception as e:
+    except OSError as e:
         logger.warning(f"Failed to create info file: {e}")
 
     return target
@@ -146,16 +153,13 @@ def save_artwork(
     else:
         artwork_dir = path / subdir
         artwork_dir.mkdir(parents=True, exist_ok=True)
-        # Use a hash or a count for secondary images if URI is not available
-        import hashlib
-
         name_hash = hashlib.md5(artwork_data).hexdigest()[:8]
         target = artwork_dir / f"image_{name_hash}.jpg"
 
     try:
         target.write_bytes(artwork_data)
         logger.info(f"Saved artwork: {target.name}")
-    except Exception as e:
+    except OSError as e:
         logger.warning(f"Failed to save artwork: {e}")
     return target
 
@@ -164,19 +168,15 @@ def scan_folder(path: Path) -> list[AudioFile]:
     """
     Recursively scan a folder for supported audio files.
     """
-    results = []
-    for p in path.rglob("*"):
-        if p.is_file() and p.suffix.lower() in (".mp3", ".flac"):
-            # For MVP, we just detect files.
-            # Deep tag analysis would happen here.
-            results.append(
-                AudioFile(
-                    path=p,
-                    extension=p.suffix.lower(),
-                    tag_status=TagStatus.UNTAGGED,  # Default for now
-                )
-            )
-    return results
+    return [
+        AudioFile(
+            path=p,
+            extension=p.suffix.lower(),
+            tag_status=TagStatus.UNTAGGED,
+        )
+        for p in path.rglob("*")
+        if p.is_file() and p.suffix.lower() in (".mp3", ".flac")
+    ]
 
 
 def tag_audio_file(
@@ -212,7 +212,9 @@ def tag_audio_file(
 
     if dry_run:
         logger.info(
-            f"[DRY-RUN] Tagging {path.name} as {track.position} - {track.title} ({tag_mode.value})"
+            f"[DRY-RUN] Tagging {path.name} as"
+            f" {track.position} - {track.title}"
+            f" ({tag_mode.value})"
         )
         if artwork_data:
             logger.info(f"[DRY-RUN] Embedding artwork ({len(artwork_data)} bytes)")
@@ -264,12 +266,10 @@ def _calculate_track_and_disc(
         # A=1, B=2, C=3...
         if track.side:
             # Map A->1, B->2...
-            disc_num = str(ord(track.side[0].upper()) - 64)
+            disc_num = str(ord(track.side[0].upper()) - ord("A") + 1)
     elif disc_mapping == DiscMapping.PHYSICAL:
         # Standard Vinyl: A,B=1, C,D=2, E,F=3...
         # Also check for explicit 1A, 2A prefix
-        import re
-
         disc_prefix_match = re.match(r"^(\d+)", track.position)
         if disc_prefix_match:
             disc_num = disc_prefix_match.group(1)
@@ -278,8 +278,9 @@ def _calculate_track_and_disc(
             side_val = ord(track.side[0].upper()) - ord("A")
             disc_num = str((side_val // 2) + 1)
     elif disc_mapping == DiscMapping.ORIGINAL:
-        # Discogs usually doesn't have a clear numeric disc count in simple API responses
-        # for single releases, but we'll default to 1 for now or check formats
+        # Discogs usually doesn't have a clear numeric disc count
+        # in simple API responses for single releases,
+        # but we'll default to 1 for now or check formats
         disc_num = "1"
 
     # 2. Calculate Track Number
@@ -324,8 +325,6 @@ def _tag_mp3(
     track_num, disc_num = _calculate_track_and_disc(
         release, track_index, track_numbering, disc_mapping
     )
-
-    from mutagen.id3 import TPOS
 
     # Standard frames
     tags.add(TPE1(encoding=3, text=", ".join(release.artists)))
@@ -386,13 +385,14 @@ def _tag_mp3(
 
     if artwork_data:
         # In replace mode, we already deleted all APIC frames.
-        # In merge mode, we might want to preserve them, but usually we want to replace the cover.
+        # In merge mode, we might want to preserve them,
+        # but usually we want to replace the cover.
         # mutagen tags.add replaces existing frames of same type/desc.
         tags.add(
             APIC(
                 encoding=3,
                 mime="image/jpeg",
-                type=3,  # Front cover
+                type=FRONT_COVER_TYPE,
                 desc="Cover",
                 data=artwork_data,
             )
@@ -477,11 +477,12 @@ def _tag_flac(
             audio["barcode"] = barcodes
 
     if artwork_data:
-        # For FLAC, delete existing pictures if in REPLACE mode (already done by audio.delete())
+        # For FLAC, delete existing pictures if in REPLACE mode
+        # (already done by audio.delete()).
         # Or if we just want one primary picture.
         pic = Picture()
         pic.data = artwork_data
-        pic.type = 3  # Front cover
+        pic.type = FRONT_COVER_TYPE
         pic.mime = "image/jpeg"
         pic.desc = "Cover"
         audio.add_picture(pic)
