@@ -62,11 +62,12 @@ docs/                  # Documentation (spec, auth, quickstart, configuration)
 ## Development Conventions
 
 - **Safety First**: Destructive operations (renaming, moving) should default to dry-run or require explicit confirmation.
+- **Documentation**: ANY changes or new features MUST include updates to the relevant documentation (README, user-guide, etc.).
 - **Strict Typing**: All new code must be fully type-hinted and pass `mypy --strict`.
 - **Code Style**: Follow PEP 8 via `ruff`. Line length is 88 characters.
 - **Async/Sync**: Current architecture is synchronous for CLI simplicity, using `httpx` SyncClient.
 - **Error Handling**: Use custom exceptions from `vinylkit.exceptions` for user-facing errors. Avoid leaking raw API or library exceptions to the CLI.
-- **Testing**: Every new feature or bug fix should include corresponding tests in the `tests/` directory.
+- **Testing**: Every new feature or bug fix should include corresponding tests in the `tests/` directory. Each change must be accompanied by at least one test case.
 
 ## Recent Changes
 

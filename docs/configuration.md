@@ -73,8 +73,8 @@ Controls where the primary album cover is placed.
 
 ### `artwork_filename`
 The filename used for the primary cover image.
-- **Default:** `cover.jpg`
-- **Example:** `vinylkit config set artwork_filename "folder.jpg"`
+- **Default:** `folder.jpg`
+- **Example:** `vinylkit config set artwork_filename "cover.jpg"`
 
 ### `collect_all_artwork`
 Whether to download all images associated with a Discogs release.
