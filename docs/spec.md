@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-vinylkit-cli-manager`  
 **Created**: 2026-02-07  
-**Status**: Draft  
+**Status**: Implemented
 **Input**: User description: "Build \"vinylkit\" — a cross-platform CLI tool for managing digitised vinyl record audio files using metadata from Discogs..."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -79,7 +79,7 @@ As a user who wants a visually rich library, I want to embed album art into my f
 
 - **FR-001**: System MUST fetch metadata from Discogs API using Release ID or Search.
 - **FR-002**: System MUST support Discogs Personal Access Token and OAuth 1.0a authentication.
-- **FR-003**: System MUST write metadata to MP3 (ID3v2.3/2.4) and FLAC (Vorbis comments).
+- **FR-003**: System MUST write metadata to MP3 (ID3v2.4) and FLAC (Vorbis comments).
 - **FR-004**: System MUST support customizable naming templates for file reorganization.
 - **FR-005**: System MUST provide a mandatory dry-run mode or clear preview before writing changes.
 - **FR-006**: System MUST scan folders and report on tag status, format, and audio properties.
@@ -92,11 +92,19 @@ As a user who wants a visually rich library, I want to embed album art into my f
 
 ## Scope Boundaries
 
+### In Scope (Added Post-Launch)
+
+- **Collection export**: Read-only download of a user's Discogs collection as CSV (`collection download`).
+- **Search filters**: Filtered search by `--artist`, `--album`, `--format` in addition to free-text `--search`.
+- **Merge tagging**: Preserve existing tags while adding Discogs metadata (`--merge` / `tag_mode merge`).
+- **Track numbering & disc mapping**: Configurable strategies for vinyl-to-digital number conversion.
+- **Metadata export**: Auto-generated `release_info.txt` per album folder.
+
 ### Out of Scope
 
 - Audio recording or digitization workflow.
 - Audio fingerprinting or automatic identification (e.g., AcoustID).
-- Synchronization with personal Discogs collections/wantlists.
+- Bidirectional synchronization with Discogs collections/wantlists (read-only export is in scope).
 - Graphical User Interface (GUI) or web-based interface.
 - Support for proprietary/closed audio formats without open-source tagging libraries.
 
@@ -127,3 +135,20 @@ As a user who wants a visually rich library, I want to embed album art into my f
 - **SC-003**: No files are lost or accidentally deleted during renaming or tagging operations.
 - **SC-004**: Filenames generated on one OS (e.g., Linux) are valid and accessible if the library is moved to another OS (e.g., Windows).
 - **SC-005**: The tool respects Discogs rate limits, ensuring no 429 errors occur during normal batch operations.
+
+## Future Enhancements (Low-Hanging Fruit)
+
+### `vinylkit info` — Display Existing Tags
+Read and display the current tags from a file or folder in a formatted table. The scanning/reading infrastructure already exists in `tagging.py`; this just needs a new Click command that presents the data instead of writing it. Useful for verifying tags without opening a separate editor.
+
+### Wantlist Export
+Same pattern as `collection download` but hitting the Discogs wantlist API endpoint. The HTTP client, CSV export logic, and pagination handling are already in place — this is essentially a second route on the same infrastructure.
+
+### Undo Last Tag Operation
+The backup system (`backup_enabled` / `backup_dir`) already copies files before tagging. A `vinylkit undo` command could restore from the most recent backup. The backup directory and file-copy logic exist; the missing piece is a manifest file recording what was backed up and where it came from.
+
+### ID3v2.3 Output Option
+Some older car stereos and portable players only support ID3v2.3. Mutagen supports writing v2.3 via the `v2_version` parameter on `save()`. A `id3_version` config key (`"2.3"` or `"2.4"`) would feed into a single parameter change in `tagging.py`.
+
+### Scan Output Formats
+Export `scan` results as CSV or JSON instead of only the Rich table. Useful for piping into other tools or generating reports. The scan data is already structured as `AudioFile` dataclasses — serialization would be straightforward.
