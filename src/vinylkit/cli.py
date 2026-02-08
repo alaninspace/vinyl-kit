@@ -79,6 +79,37 @@ def _display_relative(path: Path, root: Path) -> Path:
         return path
 
 
+def _check_collisions(
+    moves: list[tuple[Path, Path]], dir_moves: list[tuple[Path, Path]]
+) -> bool:
+    """Check if any destination files or directories already exist.
+
+    Returns True if it's safe to proceed (no collisions or user confirmed).
+    """
+    collisions: list[Path] = []
+    for src, dst in moves:
+        if src != dst and dst.exists():
+            collisions.append(dst)
+
+    for src, dst in dir_moves:
+        if src != dst and dst.exists():
+            collisions.append(dst)
+
+    if not collisions:
+        return True
+
+    console.print(
+        f"\n[bold yellow]Warning: {len(collisions)} destination"
+        " file(s)/folder(s) already exist:[/bold yellow]"
+    )
+    for c in collisions[:10]:
+        console.print(f"  [yellow]! {c}[/yellow]")
+    if len(collisions) > 10:
+        console.print(f"  [yellow]... and {len(collisions) - 10} more[/yellow]")
+
+    return click.confirm("\nOverwrite existing files/folders?", default=False)
+
+
 def _plan_supplementary_moves(
     path: Path,
     target_dir: Path,
@@ -305,6 +336,7 @@ def tag(
                     offset = 0
                     selected_release_id = None
                     break_search_loop = False
+                    choice = ""
 
                     while offset < len(all_results):
                         page_results = all_results[offset : offset + page_size]
@@ -532,13 +564,16 @@ def tag(
                         or config.auto_move
                         or click.confirm("\nProceed with moving files?")
                     ):
-                        for src, dst in moves:
-                            move_file(src, dst, dry_run=False)
-                        for src, dst in dir_moves:
-                            move_directory(src, dst, dry_run=False)
-                        console.print(
-                            "\n[bold green]Files moved successfully.[/bold green]"
-                        )
+                        if _check_collisions(moves, dir_moves):
+                            for src, dst in moves:
+                                move_file(src, dst, dry_run=False)
+                            for src, dst in dir_moves:
+                                move_directory(src, dst, dry_run=False)
+                            console.print(
+                                "\n[bold green]Files moved successfully.[/bold green]"
+                            )
+                        else:
+                            console.print("\n[yellow]Move aborted by user.[/yellow]")
 
         except VinylkitError as e:
             console.print(f"[bold red]Tagging failed for {path.name}:[/bold red] {e}")
@@ -625,14 +660,17 @@ def rename(
                 continue
 
             if click.confirm(f"\nProceed with moving files in {path.name}?"):
-                for src, dst in moves:
-                    move_file(src, dst, dry_run=False)
-                for src, dst in dir_moves:
-                    move_directory(src, dst, dry_run=False)
-                console.print(
-                    f"\n[bold green]Files in {path.name}"
-                    " moved successfully.[/bold green]"
-                )
+                if _check_collisions(moves, dir_moves):
+                    for src, dst in moves:
+                        move_file(src, dst, dry_run=False)
+                    for src, dst in dir_moves:
+                        move_directory(src, dst, dry_run=False)
+                    console.print(
+                        f"\n[bold green]Files in {path.name}"
+                        " moved successfully.[/bold green]"
+                    )
+                else:
+                    console.print("\n[yellow]Move aborted by user.[/yellow]")
 
         except VinylkitError as e:
             console.print(f"[bold red]Rename failed for {path.name}:[/bold red] {e}")

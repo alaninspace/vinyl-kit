@@ -40,6 +40,12 @@ The `library_root` is the final destination for your music. When VinylKit rename
 ### The Recordings Root (The Inbox)
 The `recordings_root` is an optional but highly recommended "inbox". By pointing this to the folder where your recording software exports files, you can run `vinylkit scan` or `vinylkit tag` without specifying a path.
 
+### Safety & Overwrite Protection
+VinylKit prioritizes the safety of your existing music library. Before performing any move or rename operation:
+1. **Dry Run Support**: Every destructive command supports a `--dry-run` or defaults to one (in `rename`) to show you exactly what will happen.
+2. **Collision Detection**: If the generated destination path already contains a file or folder, VinylKit will halt and display a warning list of all affected items.
+3. **User Confirmation**: You will be prompted to explicitly confirm if you want to overwrite existing files. If you decline, the entire move operation for that folder is aborted, keeping your library and your original files intact.
+
 ---
 
 ## 3. Command Reference

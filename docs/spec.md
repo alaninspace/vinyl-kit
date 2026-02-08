@@ -72,6 +72,7 @@ As a user who wants a visually rich library, I want to embed album art into my f
 - **Rate Limiting**: What happens if the Discogs API limit is reached during a batch operation? (System MUST pause and retry with backoff).
 - **Missing Side/Track Mapping**: What if the number of files doesn't match the tracklist on Discogs? (System MUST warn the user and require manual confirmation or skip).
 - **Partial Tagging**: What if a file is already partially tagged? (System SHOULD have a setting to overwrite or skip).
+- **Existing Destination Paths**: What if the destination path for a rename/move operation already contains files? (System MUST detect collisions and require explicit user confirmation before overwriting).
 
 ## Requirements *(mandatory)*
 
@@ -89,6 +90,7 @@ As a user who wants a visually rich library, I want to embed album art into my f
 - **FR-010**: System MUST backup original files if configured.
 - **FR-011**: System MUST NOT delete files; only move them.
 - **FR-012**: System MUST store configuration in a platform-appropriate TOML file.
+- **FR-013**: System MUST detect destination collisions and prompt for confirmation before overwriting existing files or directories.
 
 ## Scope Boundaries
 
@@ -135,6 +137,7 @@ As a user who wants a visually rich library, I want to embed album art into my f
 - **SC-003**: No files are lost or accidentally deleted during renaming or tagging operations.
 - **SC-004**: Filenames generated on one OS (e.g., Linux) are valid and accessible if the library is moved to another OS (e.g., Windows).
 - **SC-005**: The tool respects Discogs rate limits, ensuring no 429 errors occur during normal batch operations.
+- **SC-006**: Zero accidental overwrites: 100% of destination collisions result in a user warning and require explicit confirmation.
 
 ## Future Enhancements (Low-Hanging Fruit)
 

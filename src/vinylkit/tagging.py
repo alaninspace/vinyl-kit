@@ -6,9 +6,9 @@ import re
 from pathlib import Path  # noqa: TC003
 
 from mutagen.flac import FLAC, Picture
-from mutagen.id3 import (
+from mutagen.id3 import ID3
+from mutagen.id3._frames import (
     APIC,
-    ID3,
     TALB,
     TCON,
     TDRC,

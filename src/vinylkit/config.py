@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,9 @@ APP_NAME = "vinylkit"
 
 def get_config_path() -> Path:
     """Get the platform-appropriate path for the config file."""
+    env_path = os.environ.get("VINYLKIT_CONFIG")
+    if env_path:
+        return Path(env_path)
     return Path(user_config_dir(APP_NAME)) / "config.toml"
 
 

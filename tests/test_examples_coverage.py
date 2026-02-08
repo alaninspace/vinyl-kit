@@ -10,7 +10,9 @@ from vinylkit.models import AppConfig, DiscogsRelease, TrackInfo
 
 
 @pytest.fixture
-def runner() -> CliRunner:
+def runner(tmp_path, monkeypatch) -> CliRunner:
+    config_path = tmp_path / "config.toml"
+    monkeypatch.setenv("VINYLKIT_CONFIG", str(config_path))
     return CliRunner()
 
 
