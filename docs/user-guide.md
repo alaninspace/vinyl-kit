@@ -30,6 +30,9 @@ A comprehensive guide to managing your digitized vinyl collection with VinylKit.
 
 ---
 
+> [!TIP]
+> For a collection of real-world scenarios and command combinations using electronic music examples, see the **[Examples Guide](examples.md)**.
+
 ## 1. Introduction
 
 VinylKit is designed to bridge the gap between high-quality vinyl digitizations and organized digital music libraries. By leveraging the Discogs API, it automates the tedious process of tagging files with accurate metadata, downloading artwork, and organizing them into a clean folder structure.
@@ -58,7 +61,11 @@ The primary command for applying metadata to your files.
 - **Usage**: `vinylkit tag [PATHS]... [OPTIONS]`
 - **Options**:
     - `--id <INTEGER>`: Direct Discogs Release ID.
-    - `--search <TEXT>`: Search query for interactive selection.
+    - `--search <TEXT>`: Global search query for interactive selection.
+    - `--artist <TEXT>`: Filter search by artist name.
+    - `--album <TEXT>`: Filter search by album/release title.
+    - `--format <TEXT>`: Filter search by media format (e.g., Vinyl, CD).
+    - `--auto-move`: Automatically move files without confirmation.
     - `--dry-run`: Preview changes without writing tags or moving files.
     - `--no-artwork`: Skip downloading and embedding artwork.
     - `--rename / --no-rename`: Enable or disable the move-to-library step. (Defaults to true if using `recordings_root`).
@@ -73,6 +80,11 @@ Organizes already-tagged files into the library structure without re-tagging.
     - `--id <INTEGER>`: Required to know the metadata for path generation.
     - `--commit`: Required to actually move files (defaults to dry-run).
 
+### `collection`
+Manages your Discogs collection data.
+
+- `collection download`: Fetches your entire collection from Discogs and saves it as a date-prefixed CSV file (e.g., `2026-02-08_auzziehood_collection.csv`). Warns if the file already exists.
+
 ### `auth`
 Manages your connection to Discogs.
 
@@ -86,10 +98,37 @@ Manages your persistent settings.
 - `config set <KEY> <VALUE>`: Updates a setting.
 
 ### Interactive Search
-If you don't have a Release ID, you can search Discogs directly. **Note: Multi-word searches must be wrapped in quotes.**
+If you don't have a Release ID, you can search Discogs using one of two methods:
 
-- **Usage**: `vinylkit tag --search "Artist Name Album Title"`
-- **Example**: `vinylkit tag --search "Green Velvet Destination Unknown"`
+#### 1. Global Search (`--search`)
+This is a "catch-all" search. Discogs tries to find your terms anywhere in the release metadata (artist, title, label, etc.).
+- **Usage**: `vinylkit tag --search "Green Velvet Flash Remixes"`
+- **Best for**: Quick searches when you only have a fragment of information.
+
+#### 2. Filtered Search (`--artist`, `--album`, `--format`)
+This is the **recommended** method for precision. It tells Discogs exactly which fields to match, which drastically reduces irrelevant results.
+- **Usage**: `vinylkit tag --artist "Faithless" --album "Insomnia"`
+- **Best for**: Common artist names or finding specific pressings.
+
+#### The Search Interface
+When you search, VinylKit presents a formatted table with:
+- **ID**: The Discogs Release ID.
+- **Title**: Artist and Album name.
+- **Year/Country/Format**: Essential metadata to help you identify the correct pressing.
+- **Link**: A direct web link to the Discogs page for that release.
+
+#### Pagination & Navigation
+When viewing results, you can use the following commands:
+- `m`: See more results (next page).
+- `r`: **Re-search**. Discard current results and enter a new query for this folder.
+- `0`: **Skip** this folder and move to the next one in the batch.
+- `q`: **Quit** the entire tagging session and exit.
+- `<NUMBER>`: Select the release by its row number (e.g., `1`).
+
+#### Tips for Best Results
+- **Use Filters First**: Always prefer `--artist` and `--album` over a general `--search` for faster, cleaner results.
+- **Use the Catalog Number**: Searching for the ID on the vinyl spine (e.g., `vinylkit tag --search "RR001"`) is often the most accurate way to find your exact pressing.
+- **Format Filtering**: By default, VinylKit filters for "Vinyl". To override this, use `--format "CD"` or `--format "File"`.
 
 ---
 
@@ -98,6 +137,7 @@ If you don't have a Release ID, you can search Discogs directly. **Note: Multi-w
 ### General Settings
 - `library_root`: Absolute path to your music library.
 - `recordings_root`: Absolute path to your recordings inbox.
+- `auto_move`: `true` to skip move confirmation.
 - `auth_mode`: `auto`, `token`, `oauth`, or `key_secret`.
 
 ### Tagging & Numbering

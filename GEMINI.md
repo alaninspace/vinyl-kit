@@ -62,7 +62,7 @@ docs/                  # Documentation (spec, auth, quickstart, configuration)
 ## Development Conventions
 
 - **Safety First**: Destructive operations (renaming, moving) should default to dry-run or require explicit confirmation.
-- **Documentation**: ANY changes or new features MUST include updates to the relevant documentation (README, user-guide, etc.).
+- **Documentation**: ANY changes or new features MUST include updates to the relevant documentation (README, user-guide, etc.). ANY new examples added to `docs/examples.md` MUST have a corresponding test case in `tests/test_examples_coverage.py`.
 - **Strict Typing**: All new code must be fully type-hinted and pass `mypy --strict`.
 - **Code Style**: Follow PEP 8 via `ruff`. Line length is 88 characters.
 - **Async/Sync**: Current architecture is synchronous for CLI simplicity, using `httpx` SyncClient.

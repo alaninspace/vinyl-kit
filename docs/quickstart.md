@@ -114,8 +114,8 @@ You just finished recording an album and the files are in `C:\Temp\RecordedVinyl
 vinylkit scan
 
 # 2. Tag, Create release_info.txt, and Rename/Move to library in one go
-# (When no path is given, it uses recordings_root and defaults to --rename)
-vinylkit tag --id 249504
+# (Example: Jeff Mills - Kat Moda EP)
+vinylkit tag --id 165
 ```
 
 ### Scenario: Overriding the defaults
@@ -124,7 +124,8 @@ If you want to tag files in a *specific* folder instead of your default recordin
 **PowerShell:**
 ```powershell
 # Explicit path provided: --rename is NOT automatic in this workflow, must be added
-vinylkit tag "C:\Some\Other\Folder" --id 123456 --rename
+# (Example: Krafty Kuts - Lost Plates E.P.)
+vinylkit tag "C:\Some\Other\Folder" --id 56903 --rename
 ```
 
 ---
@@ -144,26 +145,37 @@ vinylkit scan "C:\Temp\ManualFolder"
 ### 2. Tag and Organize (ID-based)
 ```bash
 # Simplest (uses recordings_root + auto-rename)
-vinylkit tag --id 249504
+vinylkit tag --id 19983
 
 # Manual path (requires --rename flag)
-vinylkit tag "C:\Path\To\Album" --id 249504 --rename
+vinylkit tag "C:\Path\To\Album" --id 19983 --rename
 ```
 
 ### 3. Rename and Organize (without tagging)
 If your files are already tagged and you just want to move them:
 ```bash
-# Preview moves
-vinylkit rename --id 249504
+# Preview moves (Example: Underworld - Born Slippy)
+vinylkit rename --id 57745
 
 # Execute moves
-vinylkit rename --id 249504 --commit
+vinylkit rename --id 57745 --commit
 ```
 
 ### 4. Interactive Search
+Search Discogs for a release and choose from a formatted table of results.
 ```bash
-vinylkit tag --search "Pink Floyd Dark Side"
+# General search (Example: The Prodigy - Out Of Space)
+vinylkit tag --search "The Prodigy Out Of Space"
+
+# Filtered search (More precise)
+vinylkit tag --artist "Green Velvet" --album "Flash"
 ```
+*Tip: Use quotes for multi-word searches!*
+
+---
+
+> [!NOTE]
+> For more advanced command combinations and real-world scenarios, see the **[Examples Guide](examples.md)**.
 
 ---
 

@@ -13,6 +13,7 @@ VinylKit is a cross-platform CLI tool for managing digitized vinyl record audio 
 - **Batch Processing**: Tag or rename multiple folders in one go.
 - **Artwork Management**: Embed album art directly into audio files (retrieved from Discogs).
 - **Flexible Organization**: Use customizable naming templates to organize your library.
+- **Collection Export**: Download your entire Discogs collection to a local CSV file.
 
 ## Installation
 
@@ -47,12 +48,14 @@ uv tool install . --force --no-cache
 
 3. **Tag and Organize an album by ID**:
    ```bash
-   vinylkit tag /path/to/album --id 249504 --rename
+   # Green Velvet - Flash (Remixes)
+   vinylkit tag /path/to/album --id 19983 --rename
    ```
 
 4. **Tag using Search**:
    ```bash
-   vinylkit tag /path/to/album --search "Pink Floyd Dark Side" --rename
+   # The Prodigy - Out Of Space
+   vinylkit tag /path/to/album --search "The Prodigy Out Of Space" --rename
    ```
 
 ## Configuration
@@ -63,8 +66,11 @@ Settings are stored in a platform-appropriate TOML file. You can view your curre
 vinylkit config show
 ```
 
-For a full list of all available settings and their meanings, see the **[Configuration Guide](docs/configuration.md)**.
-For a detailed guide on workflows and commands, see the **[User Guide](docs/user-guide.md)**.
+For detailed guides, see:
+- **[Quick Start](docs/quickstart.md)**: Setup and basic workflow.
+- **[User Guide](docs/user-guide.md)**: In-depth command and feature reference.
+- **[Examples](docs/examples.md)**: Real-world command combinations.
+- **[Configuration Guide](docs/configuration.md)**: Full list of all settings.
 
 ## Development
 

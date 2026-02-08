@@ -23,6 +23,11 @@ The final destination for your organized music library.
 The "Inbox" folder where you put fresh vinyl rips. If set, commands like `scan` and `tag` will default to this path if no other path is provided.
 - **Example:** `vinylkit config set recordings_root "C:\Temp\RecordedVinyl"`
 
+### `auto_move`
+Automatically move files to your library after successful tagging and renaming without asking for confirmation.
+- **Default:** `false`
+- **Example:** `vinylkit config set auto_move true`
+
 ---
 
 ## Metadata & Tagging
@@ -100,6 +105,20 @@ Automatically creates a copy of your audio files before modification.
 ### `backup_dir`
 The directory where backups are stored. Required if `backup_enabled` is true.
 - **Example:** `vinylkit config set backup_dir "C:\Backups\VinylKit"`
+
+---
+
+## Search & Discovery
+
+### `search_page_size`
+Controls how many results are shown per page during interactive search.
+- **Default:** `5`
+- **Example:** `vinylkit config set search_page_size 10`
+
+### `default_format`
+The default media format filter(s) applied to all searches. Multiple formats can be provided as a comma-separated list. Set to `none` to disable filtering.
+- **Default:** `Vinyl`
+- **Example:** `vinylkit config set default_format "Vinyl, CD"`
 
 ---
 

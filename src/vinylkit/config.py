@@ -64,6 +64,9 @@ def load_config() -> AppConfig:
         backup_dir=Path(data["backup_dir"]) if "backup_dir" in data else None,
         info_filename=data.get("info_filename", "release_info.txt"),
         artwork_filename=data.get("artwork_filename", "folder.jpg"),
+        search_page_size=data.get("search_page_size", 5),
+        default_format=data.get("default_format", ["Vinyl"]),
+        auto_move=data.get("auto_move", False),
     )
 
 
@@ -85,6 +88,9 @@ def save_config(config: AppConfig) -> None:
         "backup_enabled": config.backup_enabled,
         "info_filename": config.info_filename,
         "artwork_filename": config.artwork_filename,
+        "search_page_size": config.search_page_size,
+        "default_format": config.default_format,
+        "auto_move": config.auto_move,
     }
     if config.consumer_key:
         data["consumer_key"] = config.consumer_key

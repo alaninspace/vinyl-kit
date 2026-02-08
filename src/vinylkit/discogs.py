@@ -312,12 +312,31 @@ class DiscogsClient:
         except Exception as e:
             raise DiscogsAPIError(f"Error mapping release data: {e}") from e
 
-    def search_releases(self, query: str) -> list[dict[str, Any]]:
-        """Search releases."""
+    def search_releases(
+        self, query: str | None = None, **filters: Any
+    ) -> list[dict[str, Any]]:
+        """Search releases with optional filters (artist, release_title, etc.)."""
+        params: list[tuple[str, Any]] = [("type", "release")]
+        if query:
+            params.append(("q", query))
+
+        # Map 'album' to 'release_title' if provided
+        if "album" in filters:
+            filters["release_title"] = filters.pop("album")
+
+        for key, value in filters.items():
+            if value is None:
+                continue
+            if isinstance(value, list):
+                for v in value:
+                    params.append((key, v))
+            else:
+                params.append((key, value))
+
         resp = self._request_with_retry(
             "GET",
             f"{DISCOGS_API_URL}/database/search",
-            params={"q": query, "type": "release"},
+            params=params,
         )
         return resp.json().get("results", [])
 
@@ -325,3 +344,26 @@ class DiscogsClient:
         """Download image."""
         resp = self._request_with_retry("GET", url)
         return resp.content
+
+    def get_collection_releases(
+        self, username: str, folder_id: int = 0
+    ) -> list[dict[str, Any]]:
+        """Fetch all releases in a user's collection folder."""
+        releases = []
+        page = 1
+        per_page = 100
+
+        while True:
+            url = f"{DISCOGS_API_URL}/users/{username}/collection/folders/{folder_id}/releases"
+            resp = self._request_with_retry(
+                "GET", url, params={"page": page, "per_page": per_page}
+            )
+            data = resp.json()
+            releases.extend(data.get("releases", []))
+
+            pagination = data.get("pagination", {})
+            if page >= pagination.get("pages", 1):
+                break
+            page += 1
+
+        return releases
