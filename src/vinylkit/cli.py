@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import csv
 import logging
+import re
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +30,9 @@ from vinylkit.models import (
 )
 from vinylkit.naming import generate_path, move_directory, move_file
 from vinylkit.tagging import (
+    calculate_track_and_disc,
+    clear_audio_tags,
+    get_track_number,
     save_artwork,
     scan_folder,
     tag_audio_file,
@@ -676,6 +681,277 @@ def rename(
             console.print(f"[bold red]Rename failed for {path.name}:[/bold red] {e}")
 
 
+def _extract_id(folder_name: str) -> int | None:
+    """Extract Discogs ID from folder name pattern like '... [12345]'."""
+    match = re.search(r"\[(\d+)\]$", folder_name)
+    if match:
+        return int(match.group(1))
+    return None
+
+
+@cli.command()
+@click.argument(
+    "source",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+)
+@click.argument(
+    "destination",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+)
+@click.option(
+    "--delete", is_flag=True, help="Delete source folders after successful migration."
+)
+@click.option(
+    "--replace-artwork",
+    is_flag=True,
+    default=None,
+    help="Replace existing artwork in tags (default uses config).",
+)
+@click.option(
+    "--id", "filter_ids", type=str, help="Only migrate specific Discogs IDs (comma-separated)."
+)
+@click.option(
+    "--dry-run", is_flag=True, help="Display changes without performing migration."
+)
+@click.pass_obj
+def migrate(
+    config: AppConfig,
+    source: Path,
+    destination: Path,
+    delete: bool,
+    replace_artwork: bool | None,
+    filter_ids: str | None,
+    dry_run: bool,
+) -> None:
+    """Migrate an existing library to the new structure."""
+    do_delete = delete or config.delete_after_migration
+    do_replace_art = (
+        replace_artwork
+        if replace_artwork is not None
+        else config.replace_artwork_on_migration
+    )
+
+    # Parse filter IDs if provided
+    target_ids: list[int] = []
+    if filter_ids:
+        try:
+            target_ids = [int(i.strip()) for i in filter_ids.split(",")]
+        except ValueError:
+            raise click.UsageError("Invalid format for --id. Use comma-separated numbers.")
+
+    client = get_client(config)
+    log_file = destination / "00-Migration-Results.txt"
+    log_entries: list[str] = [
+        f"Migration Log - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"Source: {source}",
+        f"Destination: {destination}",
+        f"Delete After: {do_delete}",
+        f"Replace Artwork: {do_replace_art}",
+        "================================================================================",
+        "",
+    ]
+
+    # Process folders in alphabetical order
+    folders = sorted([f for f in source.iterdir() if f.is_dir()])
+
+    if not folders:
+        console.print("[yellow]No folders found to migrate.[/yellow]")
+        return
+
+    for folder in folders:
+        console.print(f"\n[bold blue]Migrating:[/bold blue] {folder.name}")
+        rid = _extract_id(folder.name)
+
+        # Apply filtering if enabled
+        if target_ids and rid is not None and rid not in target_ids:
+            console.print(f"[yellow]Skipping {folder.name} (ID {rid} not in filter list)[/yellow]")
+            continue
+
+        while rid is None:
+            choice = click.prompt(
+                f"No ID found for '{folder.name}'. Enter Discogs ID, 's' to skip, or 'q' to quit",
+                type=str,
+            )
+            if choice.lower() == "q":
+                console.print("[yellow]Migration cancelled.[/yellow]")
+                return
+            if choice.lower() == "s":
+                log_entries.append(f"SKIPPED: {folder.name} (User skipped)")
+                break
+            if choice.isdigit():
+                rid = int(choice)
+            else:
+                console.print("[red]Invalid input.[/red]")
+
+        if rid is None:
+            continue
+
+        try:
+            release = client.get_release(rid)
+            audio_files = _collect_audio_files(folder)
+
+            if not audio_files:
+                console.print(f"[yellow]No audio files found in {folder.name}[/yellow]")
+                log_entries.append(f"SKIPPED: {folder.name} (No audio files)")
+                continue
+
+            # Mapping logic
+            mapping: list[tuple[Path, int]] = []  # (Source Path, Track Index)
+            
+            # Create a lookup for release track positions and numbers
+            pos_map: dict[str, int] = {}
+            num_map: dict[str, int] = {}
+            for i, t in enumerate(release.tracklist):
+                pos_map[t.position.lower()] = i
+                # Also calculate what the numeric track number WOULD be
+                tn, _ = calculate_track_and_disc(
+                    release, i, config.track_numbering, config.disc_mapping
+                )
+                num_map[tn] = i
+                # Add normalized (no leading zero) versions if numeric
+                if tn.isdigit():
+                    num_map[str(int(tn))] = i
+
+            tagged_map: dict[int, Path] = {}
+            unmatched_tags: list[tuple[str, str]] = []  # (Filename, Tag)
+
+            for f in audio_files:
+                tn = get_track_number(f)
+                if tn:
+                    # Try exact match, normalized numeric match, and position match
+                    tn_norm = str(int(tn)) if tn.isdigit() else tn
+                    tn_lower = tn.lower()
+                    
+                    if tn_lower in pos_map:
+                        tagged_map[pos_map[tn_lower]] = f
+                    elif tn in num_map:
+                        tagged_map[num_map[tn]] = f
+                    elif tn_norm in num_map:
+                        tagged_map[num_map[tn_norm]] = f
+                    else:
+                        unmatched_tags.append((f.name, tn))
+                else:
+                    unmatched_tags.append((f.name, "None"))
+
+            if len(tagged_map) == len(audio_files):
+                for idx in sorted(tagged_map.keys()):
+                    mapping.append((tagged_map[idx], idx))
+            else:
+                # Provide detailed feedback on why auto-mapping failed
+                console.print(f"\n[yellow]Automatic mapping failed for {folder.name}:[/yellow]")
+                console.print(f"  Source files: {len(audio_files)}")
+                console.print(f"  Discogs tracks: {len(release.tracklist)}")
+                if unmatched_tags:
+                    console.print("  Unmatched or missing tags in source:")
+                    for fname, tag in unmatched_tags[:5]:
+                        console.print(f"    - {fname} (Tag: '{tag}')")
+                
+                # Use alphabetical if counts match
+                if len(audio_files) == len(release.tracklist):
+                    prompt = (
+                        f"\nFile counts match ({len(audio_files)}). "
+                        "Map files alphabetically to Discogs tracklist?"
+                    )
+                    if dry_run or click.confirm(prompt):
+                        for i, f in enumerate(audio_files):
+                            mapping.append((f, i))
+                    else:
+                        msg = "User refused alphabetical mapping after auto-match failed"
+                        log_entries.append(f"SKIPPED: {folder.name} ({msg})")
+                        continue
+                else:
+                    msg = (
+                        f"File count ({len(audio_files)}) mismatch with "
+                        f"Discogs tracks ({len(release.tracklist)})"
+                    )
+                    console.print(f"[yellow]{msg}[/yellow]")
+                    log_entries.append(f"SKIPPED: {folder.name} ({msg})")
+                    continue
+
+            # Execution
+            log_entries.append(f"PROCESSING: {folder.name} (ID: {rid})")
+            log_entries.append(f"  Release: {', '.join(release.artists)} - {release.title}")
+
+            # Planned moves for logging
+            planned_moves: list[tuple[Path, Path, int]] = []
+            for src, idx in mapping:
+                track_num, _ = calculate_track_and_disc(
+                    release, idx, config.track_numbering, config.disc_mapping
+                )
+                dst = generate_path(
+                    destination, config.naming_pattern, release, idx, src.suffix
+                )
+                planned_moves.append((src, dst, idx))
+                # Use str(Path) to get platform-specific separators in log
+                rel_dst = dst.relative_to(destination)
+                log_entries.append(f"    {src.name} -> {rel_dst}")
+
+            if dry_run:
+                console.print("[yellow]Dry-run: Migration steps logged to memory.[/yellow]")
+                log_entries.append("  (Dry-run: No files were moved or modified)")
+                log_entries.append("")
+                continue
+
+            # Real implementation
+            with console.status(f"[green]Migrating {folder.name}..."):
+                # 1. Download artwork if needed
+                artwork_data = None
+                if do_replace_art or config.image_handling != ImageHandling.NONE:
+                    if release.images:
+                        primary = next(
+                            (i for i in release.images if i.type == "primary"),
+                            release.images[0],
+                        )
+                        try:
+                            artwork_data = client.download_image(primary.resource_url)
+                        except DiscogsAPIError:
+                            pass
+
+                # 2. Copy and tag
+                for src, dst, idx in planned_moves:
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src, dst)
+                    
+                    # Clear and re-tag
+                    clear_audio_tags(dst, preserve_artwork=not do_replace_art)
+                    tag_audio_file(
+                        dst,
+                        release,
+                        idx,
+                        artwork_data=artwork_data if do_replace_art else None,
+                        tag_mode=TagMode.REPLACE,
+                        track_numbering=config.track_numbering,
+                        disc_mapping=config.disc_mapping,
+                    )
+
+                # 3. Supplementary files
+                write_release_info(dst.parent, release, filename=config.info_filename)
+                if artwork_data and config.image_handling in (ImageHandling.SAVE, ImageHandling.BOTH):
+                    save_artwork(dst.parent, artwork_data, filename=config.artwork_filename)
+
+            if do_delete:
+                shutil.rmtree(folder)
+                console.print(f"[green]Migrated and deleted: {folder.name}[/green]")
+            else:
+                console.print(f"[green]Migrated: {folder.name}[/green]")
+            
+            log_entries.append("  STATUS: Success")
+            log_entries.append("")
+
+        except Exception as e:
+            console.print(f"[red]Failed to migrate {folder.name}: {e}[/red]")
+            log_entries.append(f"FAILED: {folder.name} ({e})")
+            log_entries.append("")
+
+    # Write log file
+    if not dry_run:
+        destination.mkdir(parents=True, exist_ok=True)
+        log_file.write_text("\n".join(log_entries), encoding="utf-8")
+        console.print(f"\n[bold green]Migration complete![/bold green] Results in {log_file.name}")
+    else:
+        console.print("\n[bold yellow]Dry-run complete.[/bold yellow] Migration log would have been saved.")
+
+
 @cli.group()
 def auth() -> None:
     """Manage Discogs authentication."""
@@ -881,6 +1157,12 @@ def config_show(config_obj: AppConfig) -> None:
     console.print(f"[bold]Collect All Artwork:[/bold] {config_obj.collect_all_artwork}")
     console.print(f"[bold]Artwork Subdir:[/bold] {config_obj.artwork_subdir}")
     console.print(f"[bold]Backup Enabled:[/bold] {config_obj.backup_enabled}")
+    console.print(
+        f"[bold]Delete After Migration:[/bold] {config_obj.delete_after_migration}"
+    )
+    console.print(
+        f"[bold]Replace Artwork On Migration:[/bold] {config_obj.replace_artwork_on_migration}"
+    )
     if config_obj.backup_dir:
         console.print(f"[bold]Backup Dir:[/bold] {config_obj.backup_dir}")
     token_display = "****" if config_obj.discogs_token else "Not Set"
@@ -919,6 +1201,8 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "search_page_size": int,
     "default_format": _parse_format_list,
     "auto_move": _parse_bool,
+    "delete_after_migration": _parse_bool,
+    "replace_artwork_on_migration": _parse_bool,
 }
 
 

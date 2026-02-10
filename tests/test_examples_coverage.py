@@ -24,6 +24,7 @@ def mock_discogs(mocker):
 
     # Mock tagging and utility functions to avoid side effects
     mocker.patch("vinylkit.cli.tag_audio_file")
+    mocker.patch("vinylkit.cli.clear_audio_tags")
     mocker.patch("vinylkit.cli.write_release_info")
     mocker.patch("vinylkit.cli.move_file")
     mocker.patch("vinylkit.cli.move_directory")
@@ -396,3 +397,40 @@ def test_ex_7_1_collection_download(runner, mock_discogs):
         # Test overwrite abort (Input 'n')
         result_abort = runner.invoke(cli, ["collection", "download"], input="n\n")
         assert "Download aborted" in result_abort.output
+
+
+## 8. Library Migration
+
+
+def test_ex_8_1_basic_migration(runner, tmp_path, mock_discogs, mocker):
+    """Covers: vinylkit migrate ..."""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "Jondi & Spesh [49135]"
+    album_dir.mkdir()
+    (album_dir / "track.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+    mock_discogs.get_release.return_value = create_mock_release(49135, "J&S", "T")
+    mocker.patch("vinylkit.cli.get_track_number", return_value="1")
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)], input="y\n")
+    assert result.exit_code == 0
+    assert "Migration complete!" in result.output
+
+
+def test_ex_8_2_migration_with_delete(runner, tmp_path, mock_discogs, mocker):
+    """Covers: vinylkit migrate ... --delete"""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "Peace Division [33511]"
+    album_dir.mkdir()
+    (album_dir / "track.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+    mock_discogs.get_release.return_value = create_mock_release(33511, "PD", "T")
+    mocker.patch("vinylkit.cli.get_track_number", return_value="1")
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest), "--delete"], input="y\n")
+    assert result.exit_code == 0
+    assert not album_dir.exists()

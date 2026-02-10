@@ -73,9 +73,9 @@ def test_scan_folder_finds_files(tmp_path: Path) -> None:
     assert any(f.extension == ".flac" for f in files)
 
 
-def test_calculate_track_and_disc_logic():
+def testcalculate_track_and_disc_logic():
     from vinylkit.models import DiscMapping, TrackNumbering
-    from vinylkit.tagging import _calculate_track_and_disc
+    from vinylkit.tagging import calculate_track_and_disc
 
     release = DiscogsRelease(
         id=1,
@@ -89,21 +89,21 @@ def test_calculate_track_and_disc_logic():
     )
 
     # 1. Default: Numeric tracks, single disc
-    t, d = _calculate_track_and_disc(
+    t, d = calculate_track_and_disc(
         release, 2, TrackNumbering.NUMERIC, DiscMapping.SINGLE
     )
     assert t == "3"
     assert d == "1"
 
     # 2. Per Side: Numeric resets, Discs 1, 2...
-    t, d = _calculate_track_and_disc(
+    t, d = calculate_track_and_disc(
         release, 2, TrackNumbering.PER_SIDE, DiscMapping.PER_SIDE
     )
     assert t == "1"  # B1 is the 1st track on side B
     assert d == "2"  # Side B is disc 2
 
     # 3. Original: Keep A1
-    t, d = _calculate_track_and_disc(
+    t, d = calculate_track_and_disc(
         release, 0, TrackNumbering.ORIGINAL, DiscMapping.SINGLE
     )
     assert t == "A1"
@@ -111,12 +111,12 @@ def test_calculate_track_and_disc_logic():
 
     # 4. Physical: A,B=1, C,D=2
     # Test Side A
-    t, d = _calculate_track_and_disc(
+    t, d = calculate_track_and_disc(
         release, 1, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL
     )
     assert d == "1"  # A2 -> Disc 1
     # Test Side B
-    t, d = _calculate_track_and_disc(
+    t, d = calculate_track_and_disc(
         release, 2, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL
     )
     assert d == "1"  # B1 -> Disc 1
@@ -128,7 +128,7 @@ def test_calculate_track_and_disc_logic():
         title="T",
         tracklist=[TrackInfo(position="C1", title="T3", side="C")],
     )
-    t, d = _calculate_track_and_disc(
+    t, d = calculate_track_and_disc(
         release_2lp, 0, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL
     )
     assert d == "2"  # C1 -> Disc 2
@@ -140,7 +140,7 @@ def test_calculate_track_and_disc_logic():
         title="T",
         tracklist=[TrackInfo(position="1A", title="T1", side="A")],
     )
-    t, d = _calculate_track_and_disc(
+    t, d = calculate_track_and_disc(
         release_prefix, 0, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL
     )
     assert d == "1"

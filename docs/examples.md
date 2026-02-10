@@ -107,6 +107,9 @@ Change how folders are nested.
 ```bash
 # Example: Artist / Label / [Year] Title
 vinylkit config set naming_pattern "{artist}/{label}/[{year}] {album}/{track_number} - {title}"
+
+# Example: with label in square brackets
+vinylkit config set naming_pattern "{artist}/{year} - {album} [{label}]/{track_number} - {title}"
 ```
 
 ---
@@ -135,4 +138,38 @@ vinylkit tag --id 28203 --merge
 Export your entire Discogs collection to a local CSV file.
 ```bash
 vinylkit collection download
+```
+
+---
+
+## 8. Library Migration
+
+Move an entire existing library into the VinylKit structure.
+
+### Basic Library Migration
+Processes all folders in the source, extracting IDs from `[ID]` suffixes.
+```bash
+# Example: Migrating a folder containing "Jondi & Spesh - Mysteries [49135]"
+vinylkit migrate "C:\Music\Source" "C:\Music\Organized"
+```
+
+### Migration with Clean-up
+Migrate and delete original files once successfully copied and tagged.
+```bash
+# Example: Migrating "Peace Division - Droppin' Deep EP [33511]"
+vinylkit migrate "C:\Music\Old" "C:\Music\New" --delete
+```
+
+### Migrate Specific IDs
+Only process folders that match specific Discogs Release IDs.
+```bash
+# Example: Only migrate IDs 49135 and 37623
+vinylkit migrate "C:\Music\Source" "C:\Music\Organized" --id "49135,37623"
+```
+
+### Dry-run Migration
+Preview the entire migration process, including file mapping and naming, without touching any files.
+```bash
+# Example: Preview migration for "Peace Division [33511]"
+vinylkit migrate "C:\Music\Old" "C:\Music\New" --dry-run
 ```

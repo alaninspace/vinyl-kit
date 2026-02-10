@@ -179,6 +179,65 @@ def scan_folder(path: Path) -> list[AudioFile]:
     ]
 
 
+def clear_audio_tags(path: Path, preserve_artwork: bool = False) -> None:
+    """Clear all tags from an audio file, optionally preserving artwork."""
+    ext = path.suffix.lower()
+    if ext == ".mp3":
+        audio = MP3(path)
+        if audio.tags is None:
+            return
+
+        if preserve_artwork:
+            # Keep only APIC frames
+            pics = audio.tags.getall("APIC")
+            audio.delete()
+            audio.save()
+            # Restore pics
+            audio = MP3(path)
+            if audio.tags is None:
+                audio.add_tags()
+            for p in pics:
+                audio.tags.add(p)
+            audio.save()
+        else:
+            audio.delete()
+            audio.save()
+    elif ext == ".flac":
+        audio = FLAC(path)
+        if preserve_artwork:
+            pics = audio.pictures
+            audio.delete()
+            audio.save()
+            # Restore pics
+            audio = FLAC(path)
+            for p in pics:
+                audio.add_picture(p)
+            audio.save()
+        else:
+            audio.delete()
+            audio.save()
+
+
+def get_track_number(path: Path) -> str | None:
+    """Extract track number from file tags."""
+    ext = path.suffix.lower()
+    try:
+        if ext == ".mp3":
+            audio = MP3(path)
+            if audio.tags and "TRCK" in audio.tags:
+                # TRCK can be "1", "1/10", etc.
+                val = str(audio.tags["TRCK"])
+                return val.split("/")[0]
+        elif ext == ".flac":
+            audio = FLAC(path)
+            if "tracknumber" in audio:
+                val = str(audio["tracknumber"][0])
+                return val.split("/")[0]
+    except Exception:
+        pass
+    return None
+
+
 def tag_audio_file(
     path: Path,
     release: DiscogsRelease,
@@ -249,7 +308,7 @@ def tag_audio_file(
         raise TaggingError(f"Failed to tag {path}: {e}") from e
 
 
-def _calculate_track_and_disc(
+def calculate_track_and_disc(
     release: DiscogsRelease,
     track_index: int,
     track_numbering: TrackNumbering,
@@ -322,7 +381,7 @@ def _tag_mp3(
     assert isinstance(tags, ID3)
 
     track = release.tracklist[track_index]
-    track_num, disc_num = _calculate_track_and_disc(
+    track_num, disc_num = calculate_track_and_disc(
         release, track_index, track_numbering, disc_mapping
     )
 
@@ -419,7 +478,7 @@ def _tag_flac(
         audio = FLAC(path)
 
     track = release.tracklist[track_index]
-    track_num, disc_num = _calculate_track_and_disc(
+    track_num, disc_num = calculate_track_and_disc(
         release, track_index, track_numbering, disc_mapping
     )
 

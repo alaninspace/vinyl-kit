@@ -71,6 +71,8 @@ def load_config() -> AppConfig:
         search_page_size=data.get("search_page_size", 5),
         default_format=data.get("default_format", ["Vinyl"]),
         auto_move=data.get("auto_move", False),
+        delete_after_migration=data.get("delete_after_migration", False),
+        replace_artwork_on_migration=data.get("replace_artwork_on_migration", True),
     )
 
 
@@ -95,6 +97,8 @@ def save_config(config: AppConfig) -> None:
         "search_page_size": config.search_page_size,
         "default_format": config.default_format,
         "auto_move": config.auto_move,
+        "delete_after_migration": config.delete_after_migration,
+        "replace_artwork_on_migration": config.replace_artwork_on_migration,
     }
     if config.consumer_key:
         data["consumer_key"] = config.consumer_key

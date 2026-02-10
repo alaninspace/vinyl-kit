@@ -66,6 +66,22 @@ As a user who wants a visually rich library, I want to embed album art into my f
 
 ---
 
+### User Story 5 - Library Migration (Priority: P2)
+
+As a user with an existing digital library, I want to migrate my files into the VinylKit structure while preserving my original files and tracking the changes.
+
+**Why this priority**: Helps onboard users with large existing collections.
+
+**Independent Test**: Can be tested by migrating a folder with a `[ID]` suffix, verifying the new structure is created, tags are cleaned/replaced, and a migration log is generated.
+
+**Acceptance Scenarios**:
+
+1. **Given** a source folder with subdirectories like `Artist - Title [123]`, **When** I run the migrate command, **Then** a new library structure should be created in the destination, files should be copied and tagged, and a `00-Migration-Results.txt` log should be created.
+2. **Given** a folder without an ID, **When** I run migrate, **Then** the system should prompt for an ID and allow skipping.
+3. **Given** a migration with `--delete`, **When** the operation for a folder succeeds, **Then** the source folder should be removed.
+
+---
+
 ### Edge Cases
 
 - **Sanitization**: How does the system handle artists like "AC/DC" or titles with `:` on Windows? (System MUST sanitize filenames for the target OS).
@@ -91,6 +107,9 @@ As a user who wants a visually rich library, I want to embed album art into my f
 - **FR-011**: System MUST NOT delete files; only move them.
 - **FR-012**: System MUST store configuration in a platform-appropriate TOML file.
 - **FR-013**: System MUST detect destination collisions and prompt for confirmation before overwriting existing files or directories.
+- **FR-014**: System MUST support library migration from existing folders using `[ID]` name patterns.
+- **FR-015**: System MUST generate a `00-Migration-Results.txt` log documenting all mapping changes.
+- **FR-016**: System MUST support optional deletion of source files after successful migration.
 
 ## Scope Boundaries
 
@@ -101,6 +120,7 @@ As a user who wants a visually rich library, I want to embed album art into my f
 - **Merge tagging**: Preserve existing tags while adding Discogs metadata (`--merge` / `tag_mode merge`).
 - **Track numbering & disc mapping**: Configurable strategies for vinyl-to-digital number conversion.
 - **Metadata export**: Auto-generated `release_info.txt` per album folder.
+- **Library Migration**: Command to batch-process existing libraries based on ID-labeled folders.
 
 ### Out of Scope
 
@@ -138,6 +158,7 @@ As a user who wants a visually rich library, I want to embed album art into my f
 - **SC-004**: Filenames generated on one OS (e.g., Linux) are valid and accessible if the library is moved to another OS (e.g., Windows).
 - **SC-005**: The tool respects Discogs rate limits, ensuring no 429 errors occur during normal batch operations.
 - **SC-006**: Zero accidental overwrites: 100% of destination collisions result in a user warning and require explicit confirmation.
+- **SC-007**: Migration Traceability: Every migrated file is logged with its original and new paths in the migration results file.
 
 ## Future Enhancements (Low-Hanging Fruit)
 

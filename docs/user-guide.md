@@ -12,6 +12,7 @@ A comprehensive guide to managing your digitized vinyl collection with VinylKit.
     - [scan](#scan)
     - [tag](#tag)
     - [rename](#rename)
+    - [migrate](#migrate)
     - [auth](#auth)
     - [config](#config)
 4. [Configuration Options](#4-configuration-options)
@@ -80,6 +81,23 @@ Organizes already-tagged files into the library structure without re-tagging.
 - **Options**:
     - `--id <INTEGER>`: Required to know the metadata for path generation.
     - `--commit`: Required to actually move files (defaults to dry-run).
+
+### `migrate`
+Migrates an existing library to the new structure.
+
+- **Usage**: `vinylkit migrate <SOURCE_DIR> <DEST_DIR> [OPTIONS]`
+- **Behavior**:
+    - Processes folders in alphabetical order.
+    - Extracts Discogs IDs from folder names matching the pattern `... [ID]` (e.g., `Album Name [12345]`).
+    - Prompts for ID if not found in the name.
+    - Maps files to Discogs tracklists using existing tags (track numbers) or alphabetical order.
+    - Non-destructive by default (copies files).
+    - Generates a detailed log file `00-Migration-Results.txt` in the destination directory.
+- **Options**:
+    - `--delete`: Delete source folders after successful migration (Default: False).
+    - `--replace-artwork`: Replace existing artwork in tags with fresh downloads (Default: True).
+    - `--id <TEXT>`: Only migrate specific Discogs IDs (comma-separated list).
+    - `--dry-run`: Preview the migration and mapping without touching any files.
 
 ### `collection`
 Manages your Discogs collection data.

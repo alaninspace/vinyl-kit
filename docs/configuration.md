@@ -122,6 +122,22 @@ The default media format filter(s) applied to all searches. Multiple formats can
 
 ---
 
+## Library Migration
+
+These settings apply to the `vinylkit migrate` command.
+
+### `delete_after_migration`
+Automatically delete the source folders after a successful migration.
+- **Default:** `false`
+- **Example:** `vinylkit config set delete_after_migration true`
+
+### `replace_artwork_on_migration`
+Whether to replace existing embedded artwork during migration with fresh high-quality images from Discogs.
+- **Default:** `true`
+- **Example:** `vinylkit config set replace_artwork_on_migration false`
+
+---
+
 ## Authentication
 
 See the [Authentication Guide](auth.md) for a detailed walkthrough of these settings.
