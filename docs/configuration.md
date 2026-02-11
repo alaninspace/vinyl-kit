@@ -3,11 +3,13 @@
 VinylKit settings are stored in a TOML file. You can view your current configuration at any time with:
 
 ```bash
+# Bash / PowerShell
 vinylkit config show
 ```
 
 To update a setting, use the `set` command:
 ```bash
+# Bash / PowerShell
 vinylkit config set <KEY> <VALUE>
 ```
 
@@ -17,10 +19,20 @@ vinylkit config set <KEY> <VALUE>
 
 ### `library_root`
 The final destination for your organized music library.
+
+**Bash:**
+- **Example:** `vinylkit config set library_root ~/Music/VinylLibrary`
+
+**PowerShell:**
 - **Example:** `vinylkit config set library_root "D:\Music\VinylLibrary"`
 
 ### `recordings_root`
 The "Inbox" folder where you put fresh vinyl rips. If set, commands like `scan` and `tag` will default to this path if no other path is provided.
+
+**Bash:**
+- **Example:** `vinylkit config set recordings_root ~/Recordings/Vinyl`
+
+**PowerShell:**
 - **Example:** `vinylkit config set recordings_root "C:\Temp\RecordedVinyl"`
 
 ### `auto_move`
@@ -104,6 +116,11 @@ Automatically creates a copy of your audio files before modification.
 
 ### `backup_dir`
 The directory where backups are stored. Required if `backup_enabled` is true.
+
+**Bash:**
+- **Example:** `vinylkit config set backup_dir ~/Backups/VinylKit`
+
+**PowerShell:**
 - **Example:** `vinylkit config set backup_dir "C:\Backups\VinylKit"`
 
 ---
