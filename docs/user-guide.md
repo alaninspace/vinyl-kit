@@ -221,7 +221,14 @@ VinylKit writes the following tags:
 3. Run `vinylkit tag --id 12345` to tag and move the album to your library in one step.
 
 ### Manual Processing
-1. Run `vinylkit tag "/path/to/folder" --search "Artist Name"`
+
+**Bash:**
+1. Run `vinylkit tag ~/path/to/folder --search "Artist Name"`
+2. Follow the interactive prompts to select the correct release.
+3. Use `--rename` if you want VinylKit to move the files for you.
+
+**PowerShell:**
+1. Run `vinylkit tag "C:\Path\To\Folder" --search "Artist Name"`
 2. Follow the interactive prompts to select the correct release.
 3. Use `--rename` if you want VinylKit to move the files for you.
 
@@ -236,4 +243,9 @@ Always wrap multi-word search queries in quotes. Without quotes, the CLI will tr
 
 ### Path order
 If you are providing a specific path AND a search query, the path usually comes after the options or before them depending on your shell, but the safest way is:
-`vinylkit tag "/path/to/music" --search "Query"`
+
+**Bash:**
+`vinylkit tag ~/path/to/music --search "Query"`
+
+**PowerShell:**
+`vinylkit tag "C:\Path\To\Music" --search "Query"`

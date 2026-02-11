@@ -11,12 +11,14 @@ This guide covers everything you need to set up a development environment, run t
 
 Install `uv` if you haven't already:
 
+**Bash (macOS / Linux):**
 ```bash
-# Windows (PowerShell)
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# macOS / Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**PowerShell (Windows):**
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
 ---
@@ -26,6 +28,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ### Clone and Install Dependencies
 
 ```bash
+# Bash / PowerShell
 git clone https://github.com/alaninspace/vinyl-man.git
 cd vinyl-man
 uv sync          # installs all dependencies, including the dev group
@@ -36,12 +39,14 @@ uv sync          # installs all dependencies, including the dev group
 Use `uv run` to execute the CLI directly from source without installing:
 
 ```bash
+# Bash / PowerShell
 uv run vinylkit [COMMAND]
 ```
 
 ### Installing as a Global Tool
 
 ```bash
+# Bash / PowerShell
 uv tool install . --force
 ```
 
@@ -50,11 +55,12 @@ After installing globally, the `vinylkit` command is available everywhere in you
 ### Rebuilding After Changes
 
 ```bash
+# Bash / PowerShell
 uv tool install . --force --no-cache
 ```
 
 > [!NOTE]
-> Your configuration file persists across reinstalls. It lives in a platform-specific location managed by `platformdirs` (e.g. `%LOCALAPPDATA%\vinylkit\config.toml` on Windows), not inside the repo.
+> Your configuration file persists across reinstalls. It lives in a platform-specific location managed by `platformdirs` (e.g. `%LOCALAPPDATA%\vinylkit\config.toml` on Windows, `~/.config/vinylkit/config.toml` on macOS/Linux), not inside the repo.
 
 ---
 
@@ -136,6 +142,8 @@ CLI command (click)
 VinylKit uses **pytest** as its test runner.
 
 ```bash
+# Bash / PowerShell
+
 # Run all tests
 uv run pytest
 
@@ -174,6 +182,8 @@ uv run pytest -k "test_name"
 ### Ruff (Lint + Format)
 
 ```bash
+# Bash / PowerShell
+
 # Check for linting errors
 uv run ruff check .
 
@@ -189,6 +199,7 @@ uv run ruff format .
 ### mypy (Type Checking)
 
 ```bash
+# Bash / PowerShell
 uv run mypy src/
 ```
 

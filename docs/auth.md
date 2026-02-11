@@ -11,6 +11,7 @@ This is the fastest way to get started. It doesn't require a browser-based login
 3.  Copy the token.
 4.  Configure VinylKit to use it:
     ```bash
+    # Bash / PowerShell
     vinylkit config set discogs_token <YOUR_TOKEN>
     ```
 
@@ -30,6 +31,7 @@ If you prefer to use the interactive login flow, you must first create a "Discog
 Since VinylKit is a local tool, you need to provide these credentials once:
 
 ```bash
+# Bash / PowerShell
 vinylkit config set consumer_key <YOUR_KEY>
 vinylkit config set consumer_secret <YOUR_SECRET>
 ```
@@ -38,6 +40,7 @@ vinylkit config set consumer_secret <YOUR_SECRET>
 Now you can perform the interactive login:
 
 ```bash
+# Bash / PowerShell
 vinylkit auth login
 ```
 
@@ -63,6 +66,8 @@ By default, `auth_mode` is set to `auto`. VinylKit will look for credentials and
 You can force VinylKit to use a specific method even if others are configured:
 
 ```bash
+# Bash / PowerShell
+
 # Force use of your Personal Access Token
 vinylkit config set auth_mode token
 
@@ -87,6 +92,7 @@ vinylkit config set auth_mode auto
 To check which mode is active and if your credentials are valid:
 
 ```bash
+# Bash / PowerShell
 vinylkit config show
 vinylkit auth identity
 ```
