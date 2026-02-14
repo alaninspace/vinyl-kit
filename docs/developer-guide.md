@@ -78,14 +78,22 @@ src/
     ├── tagging.py      # Mutagen-based MP3 (ID3v2) and FLAC tagging
     └── utils.py        # Backup helpers and filename sanitization
 tests/
-    ├── test_cli.py               # CLI command tests (CliRunner)
-    ├── test_discogs.py           # Discogs API client tests (respx)
-    ├── test_naming.py            # Naming and path generation tests
-    ├── test_tagging.py           # Tagging logic tests
-    ├── test_tagging_modes.py     # Tag mode (replace/merge) tests
-    ├── test_expanded_metadata.py # Expanded metadata field tests
-    ├── test_auth_logic.py        # Authentication priority chain tests
-    └── test_examples_coverage.py # Ensures every doc example has a test
+    ├── conftest.py                # Shared fixtures (runner, mock_discogs, mp3_file, flac_file)
+    ├── test_auth_logic.py         # Authentication priority chain tests
+    ├── test_cli.py                # Core CLI interaction tests (CliRunner)
+    ├── test_cli_commands.py       # rename, scan, auth, config command tests
+    ├── test_collisions.py         # File collision detection and overwrite tests
+    ├── test_config_roundtrip.py   # Config set → show round-trip verification
+    ├── test_discogs.py            # Discogs API client tests (respx)
+    ├── test_edge_cases.py         # Unicode, empty tracklist, missing fields
+    ├── test_examples_coverage.py  # Ensures every doc example has a test
+    ├── test_expanded_metadata.py  # Expanded metadata field tests
+    ├── test_migrate.py            # Library migration command tests
+    ├── test_naming.py             # Naming and path generation tests
+    ├── test_tagging.py            # Tagging logic and scan tests
+    ├── test_tagging_integration.py # Real MP3/FLAC tag round-trip tests
+    ├── test_tagging_modes.py      # Tag mode (replace/merge) behavior tests
+    └── test_utils.py              # backup_file, sanitize_filename, ensure_absolute
 docs/
     ├── quickstart.md       # Setup and basic workflow
     ├── user-guide.md       # In-depth command and feature reference
@@ -172,7 +180,11 @@ uv run pytest -k "test_name"
 
 ### Test Conventions
 
-- **No shared `conftest.py`** — fixtures are defined per test file.
+- **Shared `conftest.py`** — common fixtures live in `tests/conftest.py`:
+  - `runner` — `CliRunner` with config isolated via `VINYLKIT_CONFIG` env var (prevents reading/writing real user config).
+  - `mock_discogs` — patches `get_client`, `tag_audio_file`, `clear_audio_tags`, `write_release_info`, and `save_artwork`. Does **not** mock `move_file`/`move_directory` — tests that need file movement suppressed should patch those locally.
+  - `mp3_file` / `flac_file` — minimal valid audio files for real tagging round-trip tests.
+  - `create_mock_release()` — helper function (not a fixture) for building `DiscogsRelease` objects with sensible defaults.
 - **Docs/examples parity** — every example in [`docs/examples.md`](examples.md) must have a corresponding test in `tests/test_examples_coverage.py`. If you add an example, add a test.
 
 ---
@@ -230,17 +242,14 @@ def my_command(config: AppConfig, path: str) -> None:
 
 2. **Use `@click.pass_obj`** to access the `AppConfig` instance.
 3. **Raise custom exceptions** from `vinylkit.exceptions` for user-facing errors — the `main()` wrapper catches `VinylkitError` and prints it cleanly.
-4. **Add tests** using `CliRunner` and `isolated_filesystem`:
+4. **Add tests** using the shared `runner` fixture from `conftest.py`:
 
 ```python
-from click.testing import CliRunner
 from vinylkit.cli import cli
 
-def test_my_command() -> None:
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        result = runner.invoke(cli, ["my-command", "."])
-        assert result.exit_code == 0
+def test_my_command(runner, tmp_path) -> None:
+    result = runner.invoke(cli, ["my-command", str(tmp_path)])
+    assert result.exit_code == 0
 ```
 
 ---

@@ -522,10 +522,18 @@ def tag(
                 ):
                     save_artwork(path, artwork_data, filename=config.artwork_filename)
                     if config.collect_all_artwork:
-                        for img_data in all_images_data:
+                        save_artwork(
+                            path,
+                            artwork_data,
+                            filename="primary_01.jpg",
+                            is_primary=False,
+                            subdir=config.artwork_subdir,
+                        )
+                        for idx, img_data in enumerate(all_images_data, start=1):
                             save_artwork(
                                 path,
                                 img_data,
+                                filename=f"secondary_{idx:02d}.jpg",
                                 is_primary=False,
                                 subdir=config.artwork_subdir,
                             )
@@ -896,6 +904,7 @@ def migrate(
             with console.status(f"[green]Migrating {folder.name}..."):
                 # 1. Download artwork if needed
                 artwork_data = None
+                all_images_data: list[bytes] = []
                 if do_replace_art or config.image_handling != ImageHandling.NONE:
                     if release.images:
                         primary = next(
@@ -904,6 +913,18 @@ def migrate(
                         )
                         try:
                             artwork_data = client.download_image(primary.resource_url)
+
+                            if config.collect_all_artwork and len(release.images) > 1:
+                                for img in release.images:
+                                    if img.resource_url == primary.resource_url:
+                                        continue
+                                    try:
+                                        img_data = client.download_image(
+                                            img.resource_url
+                                        )
+                                        all_images_data.append(img_data)
+                                    except DiscogsAPIError:
+                                        pass
                         except DiscogsAPIError:
                             pass
 
@@ -928,6 +949,22 @@ def migrate(
                 write_release_info(dst.parent, release, filename=config.info_filename)
                 if artwork_data and config.image_handling in (ImageHandling.SAVE, ImageHandling.BOTH):
                     save_artwork(dst.parent, artwork_data, filename=config.artwork_filename)
+                    if config.collect_all_artwork:
+                        save_artwork(
+                            dst.parent,
+                            artwork_data,
+                            filename="primary_01.jpg",
+                            is_primary=False,
+                            subdir=config.artwork_subdir,
+                        )
+                        for idx, img_data in enumerate(all_images_data, start=1):
+                            save_artwork(
+                                dst.parent,
+                                img_data,
+                                filename=f"secondary_{idx:02d}.jpg",
+                                is_primary=False,
+                                subdir=config.artwork_subdir,
+                            )
 
             if do_delete:
                 shutil.rmtree(folder)
@@ -1131,42 +1168,92 @@ def config_show(config_obj: AppConfig) -> None:
     if not path.exists():
         console.print("[yellow]Config file does not exist. Showing defaults.[/yellow]")
 
-    console.print(f"[bold]Config Path:[/bold] {path}")
-    console.print(f"[bold]Library Root:[/bold] {config_obj.library_root}")
-    console.print(
-        f"[bold]Recordings Root:[/bold] {config_obj.recordings_root or 'Not Set'}"
-    )
-    console.print(f"[bold]Auth Mode:[/bold] {config_obj.auth_mode.value}")
-    console.print(f"[bold]Tag Mode:[/bold] {config_obj.tag_mode.value}")
-    console.print(f"[bold]Track Numbering:[/bold] {config_obj.track_numbering.value}")
-    console.print(f"[bold]Disc Mapping:[/bold] {config_obj.disc_mapping.value}")
-    key_display = "****" if config_obj.consumer_key else "Not Set"
-    console.print(f"[bold]Consumer Key:[/bold] {key_display}")
+    console.print(f"[bold]Config Path:[/bold] {path}\n")
 
-    console.print(f"[bold]Naming Pattern:[/bold] {config_obj.naming_pattern}")
-    console.print(f"[bold]Info Filename:[/bold] {config_obj.info_filename}")
-    console.print(f"[bold]Artwork Filename:[/bold] {config_obj.artwork_filename}")
-    console.print(f"[bold]Search Page Size:[/bold] {config_obj.search_page_size}")
     default_fmt = (
         ", ".join(config_obj.default_format) if config_obj.default_format else "None"
     )
-    console.print(f"[bold]Default Format:[/bold] {default_fmt}")
-    console.print(f"[bold]Auto Move:[/bold] {config_obj.auto_move}")
-    console.print(f"[bold]Image Handling:[/bold] {config_obj.image_handling.value}")
-
-    console.print(f"[bold]Collect All Artwork:[/bold] {config_obj.collect_all_artwork}")
-    console.print(f"[bold]Artwork Subdir:[/bold] {config_obj.artwork_subdir}")
-    console.print(f"[bold]Backup Enabled:[/bold] {config_obj.backup_enabled}")
-    console.print(
-        f"[bold]Delete After Migration:[/bold] {config_obj.delete_after_migration}"
-    )
-    console.print(
-        f"[bold]Replace Artwork On Migration:[/bold] {config_obj.replace_artwork_on_migration}"
-    )
-    if config_obj.backup_dir:
-        console.print(f"[bold]Backup Dir:[/bold] {config_obj.backup_dir}")
+    key_display = "****" if config_obj.consumer_key else "Not Set"
     token_display = "****" if config_obj.discogs_token else "Not Set"
-    console.print(f"[bold]Discogs Token:[/bold] {token_display}")
+
+    sections: list[tuple[str, list[tuple[str, str]]]] = [
+        (
+            "General",
+            [
+                ("library_root", str(config_obj.library_root)),
+                ("recordings_root", str(config_obj.recordings_root or "Not Set")),
+                ("auto_move", str(config_obj.auto_move)),
+            ],
+        ),
+        (
+            "Metadata & Tagging",
+            [
+                ("naming_pattern", config_obj.naming_pattern),
+                ("tag_mode", config_obj.tag_mode.value),
+                ("track_numbering", config_obj.track_numbering.value),
+                ("disc_mapping", config_obj.disc_mapping.value),
+                ("info_filename", config_obj.info_filename),
+            ],
+        ),
+        (
+            "Artwork",
+            [
+                ("image_handling", config_obj.image_handling.value),
+                ("artwork_filename", config_obj.artwork_filename),
+                ("collect_all_artwork", str(config_obj.collect_all_artwork)),
+                ("artwork_subdir", config_obj.artwork_subdir),
+            ],
+        ),
+        (
+            "Safety & Backups",
+            [
+                ("backup_enabled", str(config_obj.backup_enabled)),
+                ("backup_dir", str(config_obj.backup_dir or "Not Set")),
+            ],
+        ),
+        (
+            "Search & Discovery",
+            [
+                ("search_page_size", str(config_obj.search_page_size)),
+                ("default_format", default_fmt),
+            ],
+        ),
+        (
+            "Library Migration",
+            [
+                (
+                    "delete_after_migration",
+                    str(config_obj.delete_after_migration),
+                ),
+                (
+                    "replace_artwork_on_migration",
+                    str(config_obj.replace_artwork_on_migration),
+                ),
+            ],
+        ),
+        (
+            "Authentication",
+            [
+                ("auth_mode", config_obj.auth_mode.value),
+                ("discogs_token", token_display),
+                ("consumer_key", key_display),
+            ],
+        ),
+    ]
+
+    table = Table(show_header=True, show_lines=False, pad_edge=False)
+    table.add_column("Setting", style="bold cyan", no_wrap=True)
+    table.add_column("Value", overflow="fold")
+
+    for i, (section_title, rows) in enumerate(sections):
+        if i > 0:
+            table.add_row("", "")
+        table.add_section()
+        table.add_row(f"[bold magenta]{section_title}[/bold magenta]", "")
+        for key, value in rows:
+            table.add_row(f"  {key}", value)
+
+    console.print(table)
 
 
 def _parse_bool(value: str) -> bool:

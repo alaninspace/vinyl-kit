@@ -52,9 +52,10 @@ def test_save_artwork_multiple(tmp_path: Path):
 
     # Save secondary
     secondary_path = save_artwork(
-        tmp_path, secondary_data, is_primary=False, subdir="Artwork"
+        tmp_path, secondary_data, filename="secondary_01.jpg", is_primary=False, subdir="Artwork"
     )
     assert secondary_path.parent.name == "Artwork"
+    assert secondary_path.name == "secondary_01.jpg"
     assert secondary_path.read_bytes() == secondary_data
     assert (tmp_path / "Artwork").exists()
     assert (tmp_path / "Artwork").is_dir()

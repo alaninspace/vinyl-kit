@@ -3,53 +3,24 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
+from conftest import create_mock_release
 
 from vinylkit.cli import cli
-from vinylkit.models import AppConfig, DiscogsRelease, TrackInfo
-
-
-@pytest.fixture
-def runner(tmp_path, monkeypatch) -> CliRunner:
-    config_path = tmp_path / "config.toml"
-    monkeypatch.setenv("VINYLKIT_CONFIG", str(config_path))
-    return CliRunner()
+from vinylkit.models import AppConfig
 
 
 @pytest.fixture
 def mock_discogs(mocker):
-    """Setup a standard mock for Discogs interactions."""
+    """Override shared mock_discogs to also suppress file movement."""
     mock_get_client = mocker.patch("vinylkit.cli.get_client")
     mock_client = mock_get_client.return_value
-
-    # Mock tagging and utility functions to avoid side effects
     mocker.patch("vinylkit.cli.tag_audio_file")
     mocker.patch("vinylkit.cli.clear_audio_tags")
     mocker.patch("vinylkit.cli.write_release_info")
+    mocker.patch("vinylkit.cli.save_artwork")
     mocker.patch("vinylkit.cli.move_file")
     mocker.patch("vinylkit.cli.move_directory")
-
     return mock_client
-
-
-def create_mock_release(rid: int, artist: str, title: str) -> DiscogsRelease:
-    return DiscogsRelease(
-        id=rid,
-        artists=[artist],
-        title=title,
-        year=2000,
-        tracklist=[TrackInfo(position="A1", title="Track 1")],
-        labels=[],
-        companies=[],
-        formats=[],
-        identifiers=[],
-        extraartists=[],
-        genres=[],
-        styles=[],
-        notes="",
-        images=[],
-        uri="",
-    )
 
 
 ## 1. Direct Tagging Examples
@@ -291,7 +262,8 @@ def test_ex_5_1_config_auto_move(runner):
     with runner.isolated_filesystem():
         runner.invoke(cli, ["config", "set", "auto_move", "true"])
         result = runner.invoke(cli, ["config", "show"])
-        assert "Auto Move: True" in result.output
+        assert "auto_move" in result.output
+        assert "True" in result.output
 
 
 def test_ex_5_2_config_page_size(runner):
@@ -299,7 +271,8 @@ def test_ex_5_2_config_page_size(runner):
     with runner.isolated_filesystem():
         runner.invoke(cli, ["config", "set", "search_page_size", "10"])
         result = runner.invoke(cli, ["config", "show"])
-        assert "Search Page Size: 10" in result.output
+        assert "search_page_size" in result.output
+        assert "10" in result.output
 
 
 def test_ex_5_3_config_naming_pattern(runner):
@@ -308,7 +281,10 @@ def test_ex_5_3_config_naming_pattern(runner):
     with runner.isolated_filesystem():
         runner.invoke(cli, ["config", "set", "naming_pattern", pattern])
         result = runner.invoke(cli, ["config", "show"])
-        assert f"Naming Pattern: {pattern}" in result.output
+        assert "naming_pattern" in result.output
+        # Strip table formatting — Rich wraps long values across rows
+        clean = result.output.replace("\u2502", "").replace("\n", "").replace(" ", "")
+        assert pattern.replace(" ", "") in clean
 
 
 ## 6. Advanced Overrides

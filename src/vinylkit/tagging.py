@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import logging
 import re
 from pathlib import Path  # noqa: TC003
@@ -146,15 +145,14 @@ def save_artwork(
 ) -> Path:
     """
     Save the artwork data to a file in the specified folder.
-    If is_primary is False, it saves into a subdirectory.
+    If is_primary is False, it saves into a subdirectory using *filename*.
     """
     if is_primary:
         target = path / filename
     else:
         artwork_dir = path / subdir
         artwork_dir.mkdir(parents=True, exist_ok=True)
-        name_hash = hashlib.md5(artwork_data).hexdigest()[:8]
-        target = artwork_dir / f"image_{name_hash}.jpg"
+        target = artwork_dir / filename
 
     try:
         target.write_bytes(artwork_data)
@@ -400,47 +398,47 @@ def _tag_mp3(
         tags.add(TCON(encoding=3, text=", ".join(release.genres)))
 
     if release.styles:
-        tags.add(TXXX(encoding=3, description="STYLE", text=", ".join(release.styles)))
+        tags.add(TXXX(encoding=3, desc="STYLE", text=", ".join(release.styles)))
 
     # Custom vinyl frames
-    tags.add(TXXX(encoding=3, description="DISCOGS_POSITION", text=track.position))
+    tags.add(TXXX(encoding=3, desc="DISCOGS_POSITION", text=track.position))
     if release.catno:
-        tags.add(TXXX(encoding=3, description="CATALOGNUMBER", text=release.catno))
+        tags.add(TXXX(encoding=3, desc="CATALOGNUMBER", text=release.catno))
     if track.side:
-        tags.add(TXXX(encoding=3, description="SIDE", text=track.side))
+        tags.add(TXXX(encoding=3, desc="SIDE", text=track.side))
 
     # Extended Discogs Tags
     if release.uri:
-        tags.add(TXXX(encoding=3, description="DISCOGS_RELEASE_URL", text=release.uri))
+        tags.add(TXXX(encoding=3, desc="DISCOGS_RELEASE_URL", text=release.uri))
 
     if release.labels:
         labels_str = ", ".join(lbl.name for lbl in release.labels)
-        tags.add(TXXX(encoding=3, description="LABEL", text=labels_str))
+        tags.add(TXXX(encoding=3, desc="LABEL", text=labels_str))
         catnos_str = ", ".join(lbl.catno for lbl in release.labels if lbl.catno)
         if catnos_str:
-            tags.add(TXXX(encoding=3, description="CATALOGNUMBER", text=catnos_str))
+            tags.add(TXXX(encoding=3, desc="CATALOGNUMBER", text=catnos_str))
 
     if release.formats:
         fmt_strs = []
         for f in release.formats:
             desc = f" ({', '.join(f.descriptions)})" if f.descriptions else ""
             fmt_strs.append(f"{f.qty}x {f.name}{desc}")
-        tags.add(TXXX(encoding=3, description="FORMAT", text=", ".join(fmt_strs)))
+        tags.add(TXXX(encoding=3, desc="FORMAT", text=", ".join(fmt_strs)))
 
     if release.companies:
         comp_str = ", ".join(
             f"{c.entity_type_name}: {c.name}" for c in release.companies
         )
-        tags.add(TXXX(encoding=3, description="COMPANIES", text=comp_str))
+        tags.add(TXXX(encoding=3, desc="COMPANIES", text=comp_str))
 
     if release.extraartists:
         credits_str = ", ".join(f"{a.role}: {a.name}" for a in release.extraartists)
-        tags.add(TXXX(encoding=3, description="CREDITS", text=credits_str))
+        tags.add(TXXX(encoding=3, desc="CREDITS", text=credits_str))
 
     if release.identifiers:
         barcodes = [i.value for i in release.identifiers if i.type == "Barcode"]
         if barcodes:
-            tags.add(TXXX(encoding=3, description="BARCODE", text=", ".join(barcodes)))
+            tags.add(TXXX(encoding=3, desc="BARCODE", text=", ".join(barcodes)))
 
     if artwork_data:
         # In replace mode, we already deleted all APIC frames.

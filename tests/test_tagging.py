@@ -73,7 +73,7 @@ def test_scan_folder_finds_files(tmp_path: Path) -> None:
     assert any(f.extension == ".flac" for f in files)
 
 
-def testcalculate_track_and_disc_logic():
+def test_calculate_track_and_disc_logic():
     from vinylkit.models import DiscMapping, TrackNumbering
     from vinylkit.tagging import calculate_track_and_disc
 

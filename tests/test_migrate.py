@@ -1,50 +1,12 @@
 from __future__ import annotations
 
 import os
-import pytest
-from click.testing import CliRunner
-from pathlib import Path
+
+from conftest import create_mock_release
+
 from vinylkit.cli import cli
-from vinylkit.models import TrackInfo, DiscogsRelease
+from vinylkit.models import ImageInfo
 
-@pytest.fixture
-def runner(tmp_path, monkeypatch) -> CliRunner:
-    config_path = tmp_path / "config.toml"
-    monkeypatch.setenv("VINYLKIT_CONFIG", str(config_path))
-    # Disable rich colors for testing
-    monkeypatch.setenv("TERM", "dumb")
-    monkeypatch.setenv("NO_COLOR", "1")
-    return CliRunner()
-
-@pytest.fixture
-def mock_discogs(mocker):
-    mock_get_client = mocker.patch("vinylkit.cli.get_client")
-    mock_client = mock_get_client.return_value
-    # Mock tagging to avoid side effects
-    mocker.patch("vinylkit.cli.tag_audio_file")
-    mocker.patch("vinylkit.cli.clear_audio_tags")
-    mocker.patch("vinylkit.cli.write_release_info")
-    mocker.patch("vinylkit.cli.save_artwork")
-    return mock_client
-
-def create_mock_release(rid: int, artist: str, title: str) -> DiscogsRelease:
-    return DiscogsRelease(
-        id=rid,
-        artists=[artist],
-        title=title,
-        year=2000,
-        tracklist=[TrackInfo(position="A1", title="Track 1")],
-        labels=[],
-        companies=[],
-        formats=[],
-        identifiers=[],
-        extraartists=[],
-        genres=[],
-        styles=[],
-        notes="",
-        images=[],
-        uri="",
-    )
 
 def test_migrate_basic_success(runner, tmp_path, mock_discogs, mocker):
     """Test a successful migration of one folder with ID in name."""
@@ -67,13 +29,13 @@ def test_migrate_basic_success(runner, tmp_path, mock_discogs, mocker):
     assert result.exit_code == 0
     # Clean output check (ignoring colors/ANSI)
     assert "Migrated: Album [123]" in result.output.replace("\x1b", "")
-    
+
     # Check log file
     log_file = dest / "00-Migration-Results.txt"
     assert log_file.exists()
     log_content = log_file.read_text()
     assert "PROCESSING: Album [123] (ID: 123)" in log_content
-    
+
     # Check mapping in log with platform-specific separator
     # Default is A1 if NUMERIC is not working as expected in tests
     expected_rel = os.path.join("Artist", "2000 - Title", "A1 - Track 1.mp3")
@@ -135,16 +97,16 @@ def test_migrate_leading_zero_normalization(runner, tmp_path, mock_discogs, mock
     (album_dir / "track.mp3").write_text("audio")
 
     dest = tmp_path / "dest"
-    
+
     # Release has 1 track
     mock_discogs.get_release.return_value = create_mock_release(123, "A", "T")
-    
+
     # File has tag '01'
     mocker.patch("vinylkit.cli.get_track_number", return_value="01")
-    
+
     # Should NOT prompt for alphabetical because 01 -> 1 is normalized
     result = runner.invoke(cli, ["migrate", str(source), str(dest)])
-    
+
     assert "Automatic mapping failed" not in result.output
     assert "Migrated: Normalize [123]" in result.output
     assert result.exit_code == 0
@@ -159,7 +121,7 @@ def test_migrate_dry_run(runner, tmp_path, mock_discogs, mocker):
 
     dest = tmp_path / "dest"
     mock_discogs.get_release.return_value = create_mock_release(1, "D", "R")
-    
+
     spy_copy = mocker.patch("shutil.copy2")
 
     result = runner.invoke(cli, ["migrate", str(source), str(dest), "--dry-run"])
@@ -174,15 +136,68 @@ def test_migrate_filter_ids(runner, tmp_path, mock_discogs):
     source.mkdir()
     (source / "Keep [123]").mkdir()
     (source / "Skip [456]").mkdir()
-    
+
     # We only need to check if it tries to fetch the right one
     mock_discogs.get_release.return_value = create_mock_release(123, "A", "T")
-    
+
     # We use dry-run to avoid needing files
     result = runner.invoke(cli, ["migrate", str(source), str(tmp_path / "dest"), "--id", "123", "--dry-run"])
-    
+
     assert "Migrating: Keep [123]" in result.output
     assert "Migrating: Skip [456]" in result.output
     assert "Skipping Skip [456] (ID 456 not in filter list)" in result.output
     # Ensure get_release was only called for 123
     mock_discogs.get_release.assert_called_once_with(123)
+
+
+def test_migrate_collect_all_artwork(runner, tmp_path, mock_discogs, mocker):
+    """Test that migrate downloads and saves secondary artwork when collect_all_artwork is True."""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "Art [100]"
+    album_dir.mkdir()
+    (album_dir / "01.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+
+    release = create_mock_release(100, "Artist", "Album")
+    # Add images to the release (frozen dataclass, so use object.__setattr__)
+    images = [
+        ImageInfo(uri="http://img/1", type="primary", resource_url="http://img/1"),
+        ImageInfo(uri="http://img/2", type="secondary", resource_url="http://img/2"),
+        ImageInfo(uri="http://img/3", type="secondary", resource_url="http://img/3"),
+    ]
+    object.__setattr__(release, "images", images)
+    mock_discogs.get_release.return_value = release
+    mock_discogs.download_image.side_effect = [b"primary", b"secondary1", b"secondary2"]
+
+    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+
+    # Enable collect_all_artwork and image_handling=both via config
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        'image_handling = "both"\ncollect_all_artwork = true\n'
+    )
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)])
+
+    assert result.exit_code == 0
+
+    from vinylkit.cli import save_artwork
+
+    save_calls = save_artwork.call_args_list
+    # 4 calls: folder primary + subdir primary_01 + secondary_01 + secondary_02
+    assert len(save_calls) == 4, f"Expected 4 save_artwork calls, got {len(save_calls)}"
+
+    # First call: primary artwork in music folder (uses config filename)
+    assert save_calls[0].kwargs.get("is_primary", True) is True
+
+    # Second call: primary artwork in subdir as primary_01.jpg
+    assert save_calls[1].kwargs["is_primary"] is False
+    assert save_calls[1].kwargs["filename"] == "primary_01.jpg"
+
+    # Third and fourth calls: secondary artwork
+    assert save_calls[2].kwargs["is_primary"] is False
+    assert save_calls[2].kwargs["filename"] == "secondary_01.jpg"
+    assert save_calls[3].kwargs["is_primary"] is False
+    assert save_calls[3].kwargs["filename"] == "secondary_02.jpg"

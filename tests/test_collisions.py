@@ -1,43 +1,9 @@
 from __future__ import annotations
 
-import pytest
-from click.testing import CliRunner
-from pathlib import Path
+from conftest import create_mock_release
+
 from vinylkit.cli import cli
-from vinylkit.models import TrackInfo, DiscogsRelease
 
-@pytest.fixture
-def runner(tmp_path, monkeypatch) -> CliRunner:
-    config_path = tmp_path / "config.toml"
-    monkeypatch.setenv("VINYLKIT_CONFIG", str(config_path))
-    return CliRunner()
-
-@pytest.fixture
-def mock_discogs(mocker):
-    mock_get_client = mocker.patch("vinylkit.cli.get_client")
-    mock_client = mock_get_client.return_value
-    mocker.patch("vinylkit.cli.tag_audio_file")
-    mocker.patch("vinylkit.cli.write_release_info")
-    return mock_client
-
-def create_mock_release(rid: int, artist: str, title: str) -> DiscogsRelease:
-    return DiscogsRelease(
-        id=rid,
-        artists=[artist],
-        title=title,
-        year=2000,
-        tracklist=[TrackInfo(position="A1", title="Track 1")],
-        labels=[],
-        companies=[],
-        formats=[],
-        identifiers=[],
-        extraartists=[],
-        genres=[],
-        styles=[],
-        notes="",
-        images=[],
-        uri="",
-    )
 
 def test_tag_collision_abort(runner, tmp_path, mock_discogs):
     """Test that tagging aborts move if collision exists and user says 'n'."""

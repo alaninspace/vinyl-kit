@@ -2,15 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003
 
-import pytest
 from click.testing import CliRunner
 
 from vinylkit.cli import cli
-
-
-@pytest.fixture
-def runner() -> CliRunner:
-    return CliRunner()
 
 
 def test_tag_no_id_fails(runner: CliRunner, tmp_path: Path) -> None:
