@@ -165,6 +165,7 @@ VinylKit's settings are grouped into the following categories:
 - **Artwork & Metadata** — `image_handling`, `artwork_filename`, `collect_all_artwork`, `artwork_subdir`, `info_filename`
 - **Search & Discovery** — `search_page_size`, `default_format`
 - **Safety & Backups** — `backup_enabled`, `backup_dir`
+- **Logging** — `log_level`, `log_to_file`, `log_file`, `log_rotation`, `log_retention`
 
 For defaults, allowed values, and examples for every setting, see the **[Configuration Guide](configuration.md)**.
 
@@ -235,7 +236,45 @@ VinylKit writes the following tags:
 
 ---
 
-## 8. Common Gotchas
+## 8. Logging
+
+VinylKit uses **loguru** for dual-sink logging:
+
+- **Console sink**: Displays messages at the configured `log_level` (default: `INFO`). Only shows the level and message for a clean user experience.
+- **File sink**: Writes detailed diagnostic logs (always at `DEBUG` level) to a rotating log file, including timestamps, module names, and line numbers. Enabled by default.
+
+### Default Log File Location
+
+The log file is stored in the platform-specific log directory:
+
+| Platform | Default Path |
+|---|---|
+| **Windows** | `%LOCALAPPDATA%\vinylkit\Logs\vinylkit.log` |
+| **macOS** | `~/Library/Logs/vinylkit/vinylkit.log` |
+| **Linux** | `~/.local/state/vinylkit/log/vinylkit.log` |
+
+### Customising Logging
+
+```bash
+# Show more detail in the console
+vinylkit config set log_level DEBUG
+
+# Disable file logging entirely
+vinylkit config set log_to_file false
+
+# Use a custom log file path
+vinylkit config set log_file ~/logs/vinylkit.log
+
+# Change rotation size (default: "5 MB")
+vinylkit config set log_rotation "10 MB"
+
+# Keep fewer rotated files (default: 5)
+vinylkit config set log_retention 3
+```
+
+---
+
+## 9. Common Gotchas
 
 ### Multi-word searches
 Always wrap multi-word search queries in quotes. Without quotes, the CLI will treat the second word as a folder path.

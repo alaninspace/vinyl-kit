@@ -88,6 +88,7 @@ tests/
     ├── test_edge_cases.py         # Unicode, empty tracklist, missing fields
     ├── test_examples_coverage.py  # Ensures every doc example has a test
     ├── test_expanded_metadata.py  # Expanded metadata field tests
+    ├── test_logging.py            # Loguru initialisation and config round-trip tests
     ├── test_migrate.py            # Library migration command tests
     ├── test_naming.py             # Naming and path generation tests
     ├── test_tagging.py            # Tagging logic and scan tests
@@ -142,6 +143,7 @@ CLI command (click)
 - **Frozen dataclasses with `slots=True`** for all models — immutable and memory-efficient
 - **Custom exceptions** for user-facing errors — never leak raw library exceptions to the CLI
 - **`VinylkitError`** hierarchy: `ConfigError`, `AuthError`, `DiscogsAPIError`, `TaggingError`, `FileOperationError`, `ValidationError`
+- **Loguru logging**: Use `from loguru import logger` — no `logging.getLogger(__name__)`. The global `logger` instance routes to both console and file sinks configured in `initialise_logging()`. Stdlib loggers (httpx, authlib) are bridged through an `_InterceptHandler`
 
 ---
 

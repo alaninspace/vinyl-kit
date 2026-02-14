@@ -166,3 +166,8 @@ class AppConfig:
     auto_move: bool = False
     delete_after_migration: bool = False
     replace_artwork_on_migration: bool = True
+    log_level: str = "INFO"
+    log_to_file: bool = True
+    log_file: Path | None = None
+    log_rotation: str = "5 MB"
+    log_retention: int = 5

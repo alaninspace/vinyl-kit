@@ -1,12 +1,36 @@
 from __future__ import annotations
 
+import logging
 import struct
 from pathlib import Path  # noqa: TC003
 
 import pytest
 from click.testing import CliRunner
+from loguru import logger
 
 from vinylkit.models import DiscogsRelease, RateLimitInfo, TrackInfo
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _suppress_loguru_file_sink() -> None:
+    """Remove all loguru sinks at session start to prevent file I/O during tests."""
+    logger.remove()
+
+
+@pytest.fixture
+def caplog(caplog: pytest.LogCaptureFixture) -> pytest.LogCaptureFixture:
+    """Bridge loguru to pytest's caplog handler for log capture in tests."""
+    handler_id = logger.add(
+        caplog.handler,
+        format="{message}",
+        level=0,
+        filter=lambda record: record["level"].no >= caplog.handler.level,
+        enqueue=False,
+    )
+    # Also ensure stdlib root logger propagates through the bridge
+    logging.getLogger().handlers = [caplog.handler]
+    yield caplog
+    logger.remove(handler_id)
 
 
 @pytest.fixture
@@ -14,6 +38,8 @@ def runner(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> CliRunner:
     """CLI runner with isolated config (prevents reading/writing real user config)."""
     config_path = tmp_path / "config.toml"
     monkeypatch.setenv("VINYLKIT_CONFIG", str(config_path))
+    # Prevent CLI invocations from creating real file sinks during tests
+    monkeypatch.setattr("vinylkit.cli.initialise_logging", lambda _config: None)
     return CliRunner()
 
 

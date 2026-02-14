@@ -14,8 +14,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 import click
+from loguru import logger
+from platformdirs import user_log_dir
 from rich.console import Console
-from rich.logging import RichHandler
 from rich.table import Table
 
 from vinylkit.config import get_config_path, load_config, save_config
@@ -41,14 +42,64 @@ from vinylkit.tagging import (
 )
 from vinylkit.utils import backup_file
 
-# Configure console and logging
+# Configure console
 console = Console()
-logging.basicConfig(
-    level="INFO",
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[RichHandler(console=console, rich_tracebacks=True)],
-)
+
+
+class _InterceptHandler(logging.Handler):
+    """Route stdlib log records (httpx, authlib) through loguru."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        # Find caller from where the logged message originated
+        level: str | int
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        frame, depth = logging.currentframe(), 2
+        while frame and frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
+
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
+
+
+def initialise_logging(config: AppConfig) -> None:
+    """Configure loguru sinks based on user settings."""
+    logger.remove()
+
+    # Console sink at user-configured level
+    logger.add(
+        sys.stderr,
+        level=config.log_level,
+        format="<level>{level: <8}</level> | {message}",
+        colorize=True,
+    )
+
+    # File sink (if enabled)
+    if config.log_to_file:
+        log_path = config.log_file or (
+            Path(user_log_dir("vinylkit", ensure_exists=True)) / "vinylkit.log"
+        )
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.add(
+            log_path,
+            level="DEBUG",
+            format=(
+                "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8}"
+                " | {name}:{function}:{line} | {message}"
+            ),
+            rotation=config.log_rotation,
+            retention=config.log_retention,
+            encoding="utf-8",
+        )
+
+    # Bridge stdlib logging (httpx, authlib) through loguru
+    logging.basicConfig(handlers=[_InterceptHandler()], level=0, force=True)
+
 
 # Constants for Discogs API - These can now be overridden by config
 DEFAULT_CONSUMER_KEY = "placeholder_key"
@@ -167,6 +218,7 @@ def _plan_supplementary_moves(
 def cli(ctx: click.Context) -> None:
     """VinylKit: Manage your digitized vinyl collection with Discogs metadata."""
     ctx.obj = load_config()
+    initialise_logging(ctx.obj)
 
 
 @cli.command()
@@ -1293,6 +1345,16 @@ def config_show(config_obj: AppConfig) -> None:
             ],
         ),
         (
+            "Logging",
+            [
+                ("log_level", config_obj.log_level),
+                ("log_to_file", str(config_obj.log_to_file)),
+                ("log_file", str(config_obj.log_file or "Default")),
+                ("log_rotation", config_obj.log_rotation),
+                ("log_retention", str(config_obj.log_retention)),
+            ],
+        ),
+        (
             "Authentication",
             [
                 ("auth_mode", config_obj.auth_mode.value),
@@ -1351,6 +1413,11 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "auto_move": _parse_bool,
     "delete_after_migration": _parse_bool,
     "replace_artwork_on_migration": _parse_bool,
+    "log_level": str,
+    "log_to_file": _parse_bool,
+    "log_file": Path,
+    "log_rotation": str,
+    "log_retention": int,
 }
 
 
@@ -1383,7 +1450,7 @@ def main() -> None:
         sys.exit(1)
     except Exception as e:
         console.print(f"[bold red]Unexpected Error:[/bold red] {e}")
-        logging.exception("An unexpected error occurred")
+        logger.exception("An unexpected error occurred")
         sys.exit(1)
 
 

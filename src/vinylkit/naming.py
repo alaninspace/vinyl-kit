@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-import logging
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from loguru import logger
 
 from vinylkit.exceptions import FileOperationError
 from vinylkit.utils import sanitize_filename
 
 if TYPE_CHECKING:
     from vinylkit.models import DiscogsRelease
-
-logger = logging.getLogger(__name__)
 
 
 def generate_path(

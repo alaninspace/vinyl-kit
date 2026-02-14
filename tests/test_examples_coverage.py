@@ -407,6 +407,8 @@ def test_ex_8_2_migration_with_delete(runner, tmp_path, mock_discogs, mocker):
     mock_discogs.get_release.return_value = create_mock_release(33511, "PD", "T")
     mocker.patch("vinylkit.cli.get_track_number", return_value="1")
 
-    result = runner.invoke(cli, ["migrate", str(source), str(dest), "--delete"], input="y\n")
+    result = runner.invoke(
+        cli, ["migrate", str(source), str(dest), "--delete"], input="y\n"
+    )
     assert result.exit_code == 0
     assert not album_dir.exists()

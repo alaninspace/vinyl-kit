@@ -155,6 +155,48 @@ Whether to replace existing embedded artwork during migration with fresh high-qu
 
 ---
 
+## Logging
+
+VinylKit uses dual-sink logging: a clean console sink for user-facing messages and a detailed rotating file sink for diagnostics.
+
+### `log_level`
+The minimum log level displayed in the console.
+- **Default:** `INFO`
+- **Allowed:** `DEBUG`, `INFO`, `WARNING`, `ERROR`
+- **Example:** `vinylkit config set log_level DEBUG`
+
+### `log_to_file`
+Enable or disable the rotating log file.
+- **Default:** `true`
+- **Example:** `vinylkit config set log_to_file false`
+
+### `log_file`
+Custom path for the log file. When not set, VinylKit uses the platform default provided by `platformdirs`:
+
+| Platform | Default Path |
+|---|---|
+| **Windows** | `%LOCALAPPDATA%\vinylkit\Logs\vinylkit.log` |
+| **macOS** | `~/Library/Logs/vinylkit/vinylkit.log` |
+| **Linux** | `~/.local/state/vinylkit/log/vinylkit.log` |
+
+**Bash:**
+- **Example:** `vinylkit config set log_file ~/logs/vinylkit.log`
+
+**PowerShell:**
+- **Example:** `vinylkit config set log_file "D:\Logs\vinylkit.log"`
+
+### `log_rotation`
+Controls when the log file is rotated. Accepts size-based (e.g. `"5 MB"`, `"100 MB"`) or time-based (e.g. `"1 day"`, `"1 week"`) specifications.
+- **Default:** `5 MB`
+- **Example:** `vinylkit config set log_rotation "10 MB"`
+
+### `log_retention`
+Number of rotated log files to keep before the oldest is deleted.
+- **Default:** `5`
+- **Example:** `vinylkit config set log_retention 3`
+
+---
+
 ## Authentication
 
 See the [Authentication Guide](auth.md) for a detailed walkthrough of these settings.

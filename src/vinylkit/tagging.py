@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import logging
 import re
 from pathlib import Path  # noqa: TC003
 
+from loguru import logger
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3
 from mutagen.id3._frames import (
@@ -29,8 +29,6 @@ from vinylkit.models import (
     TagStatus,
     TrackNumbering,
 )
-
-logger = logging.getLogger(__name__)
 
 FRONT_COVER_TYPE = 3  # ID3/FLAC picture type for front cover
 

@@ -28,13 +28,22 @@ def test_tag_collision_abort(runner, tmp_path, mock_discogs):
     # 2. 'n' to "Overwrite existing files/folders?"
     result = runner.invoke(
         cli,
-        ["tag", str(source_dir), "--id", "123", "--rename", "--library-root", str(lib_dir)],
-        input="y\nn\n"
+        [
+            "tag",
+            str(source_dir),
+            "--id",
+            "123",
+            "--rename",
+            "--library-root",
+            str(lib_dir),
+        ],
+        input="y\nn\n",
     )
 
     assert "Warning: 1 destination file(s)/folder(s) already exist" in result.output
     assert "Move aborted by user" in result.output
     assert dest_file.read_text() == "existing"
+
 
 def test_tag_collision_overwrite(runner, tmp_path, mock_discogs):
     """Test that tagging overwrites if collision exists and user says 'y'."""
@@ -52,8 +61,16 @@ def test_tag_collision_overwrite(runner, tmp_path, mock_discogs):
     # Input 'y' twice
     result = runner.invoke(
         cli,
-        ["tag", str(source_dir), "--id", "123", "--rename", "--library-root", str(lib_dir)],
-        input="y\ny\n"
+        [
+            "tag",
+            str(source_dir),
+            "--id",
+            "123",
+            "--rename",
+            "--library-root",
+            str(lib_dir),
+        ],
+        input="y\ny\n",
     )
 
     assert "Warning: 1 destination file(s)/folder(s) already exist" in result.output

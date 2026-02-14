@@ -73,6 +73,11 @@ def load_config() -> AppConfig:
         auto_move=data.get("auto_move", False),
         delete_after_migration=data.get("delete_after_migration", False),
         replace_artwork_on_migration=data.get("replace_artwork_on_migration", True),
+        log_level=data.get("log_level", "INFO"),
+        log_to_file=data.get("log_to_file", True),
+        log_file=Path(data["log_file"]) if "log_file" in data else None,
+        log_rotation=data.get("log_rotation", "5 MB"),
+        log_retention=data.get("log_retention", 5),
     )
 
 
@@ -99,6 +104,10 @@ def save_config(config: AppConfig) -> None:
         "auto_move": config.auto_move,
         "delete_after_migration": config.delete_after_migration,
         "replace_artwork_on_migration": config.replace_artwork_on_migration,
+        "log_level": config.log_level,
+        "log_to_file": config.log_to_file,
+        "log_rotation": config.log_rotation,
+        "log_retention": config.log_retention,
     }
     if config.consumer_key:
         data["consumer_key"] = config.consumer_key
@@ -112,6 +121,8 @@ def save_config(config: AppConfig) -> None:
         data["discogs_secret"] = config.discogs_secret
     if config.backup_dir:
         data["backup_dir"] = str(config.backup_dir)
+    if config.log_file:
+        data["log_file"] = str(config.log_file)
 
     try:
         with path.open("wb") as f:

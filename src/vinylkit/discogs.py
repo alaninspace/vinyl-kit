@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import re
 import time
 from pathlib import Path
@@ -9,6 +8,7 @@ from typing import Any, cast
 
 import httpx
 from authlib.integrations.httpx_client import OAuth1Client
+from loguru import logger
 from platformdirs import user_cache_dir
 
 from vinylkit.exceptions import AuthError, DiscogsAPIError
@@ -23,8 +23,6 @@ from vinylkit.models import (
     RateLimitInfo,
     TrackInfo,
 )
-
-logger = logging.getLogger(__name__)
 
 DISCOGS_API_URL = "https://api.discogs.com"
 REQUEST_TOKEN_URL = f"{DISCOGS_API_URL}/oauth/request_token"
