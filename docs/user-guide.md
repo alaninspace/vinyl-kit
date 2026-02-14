@@ -96,7 +96,8 @@ Migrates an existing library to the new structure.
 - **Smart Throttling**: The migrate command dynamically adjusts API request delays based on remaining rate limit headroom (from Discogs `X-Discogs-Ratelimit-Remaining` headers). When headroom is high, requests are faster; as limits approach, delays increase automatically. Rate limit snapshots are logged to `00-Migration-Results.txt` during migration, along with a summary at the end.
 - **Options**:
     - `--delete`: Delete source folders after successful migration (Default: False).
-    - `--replace-artwork`: Replace existing artwork in tags with fresh downloads (Default: True).
+    - `--replace-artwork`: Replace existing artwork in tags with fresh downloads (Default: uses config `replace_artwork_on_migration`).
+    - `--replace-tags`: Clear and re-write audio tags from Discogs metadata (Default: uses config `replace_tags_on_migration`). When not set, files are copied without tag modifications.
     - `--id <TEXT>`: Only migrate specific Discogs IDs (comma-separated list).
     - `--dry-run`: Preview the migration and mapping without touching any files.
 
@@ -160,7 +161,7 @@ When viewing results, you can use the following commands:
 VinylKit's settings are grouped into the following categories:
 
 - **General** — `library_root`, `recordings_root`, `auto_move`, `auth_mode`
-- **Tagging & Numbering** — `tag_mode`, `track_numbering`, `disc_mapping`
+- **Tagging & Numbering** — `tag_mode`, `track_numbering`, `disc_mapping`, `skip_tags`
 - **Naming & Organization** — `naming_pattern`
 - **Artwork & Metadata** — `image_handling`, `artwork_filename`, `collect_all_artwork`, `artwork_subdir`, `info_filename`
 - **Search & Discovery** — `search_page_size`, `default_format`
@@ -194,24 +195,26 @@ You can customize your library structure using the following placeholders in `na
 
 ## 6. Tagging Details
 
-### MP3 (ID3v2.4)
-VinylKit writes the following frames:
-- `TPE1`: Artist
-- `TIT2`: Title
-- `TALB`: Album
-- `TDRC`: Year
-- `TRCK`: Track Number
-- `TPOS`: Disc Number
-- `TPUB`: Publisher (Label)
-- `TCON`: Genre
-- `TXXX (STYLE)`: Style
-- `TXXX (DISCOGS_POSITION)`: Original vinyl position
-- `TXXX (SIDE)`: Vinyl side
-- `APIC`: Front Cover
+VinylKit writes up to **32 tags** per audio file, covering standard metadata, ecosystem-recognized fields, and Discogs-specific data. For the complete mapping of every tag including its MP3 frame, FLAC key, and data source, see the **[Tag Mapping Reference](tag-mapping.md)**.
 
-### FLAC (Vorbis Comments)
-VinylKit writes the following tags:
-- `artist`, `title`, `album`, `date`, `tracknumber`, `discnumber`, `organization` (Label), `genre`, `style`, `discogs_position`, `side`.
+### Highlights
+
+- **Standard tags**: artist, albumartist, title, album, date, releasedate, tracknumber, discnumber, publisher, genre, composer, remixer, copyright, media, artistsort
+- **Ecosystem tags**: style, catalognumber, side, label, format, companies, credits, barcode, country, discogs_position
+- **Discogs-specific**: discogs_release_id, discogs_release_url, discogs_master_id, discogs_master_url, discogs_notes, discogs_data_quality, discogs_format_quantity
+- **Artwork**: Front cover embedded as APIC (MP3) or PICTURE (FLAC)
+
+### Controlling Tags
+
+You can exclude any tag using the `skip_tags` config setting:
+
+```bash
+# Skip genre and style
+vinylkit config set skip_tags "genre,style"
+
+# Clear the skip list (write all tags)
+vinylkit config set skip_tags "none"
+```
 
 ---
 
@@ -240,8 +243,8 @@ VinylKit writes the following tags:
 
 VinylKit uses **loguru** for dual-sink logging:
 
-- **Console sink**: Displays messages at the configured `log_level` (default: `INFO`). Only shows the level and message for a clean user experience.
-- **File sink**: Writes detailed diagnostic logs (always at `DEBUG` level) to a rotating log file, including timestamps, module names, and line numbers. Enabled by default.
+- **Console sink**: Displays messages at the configured `log_level` (default: `INFO`). Shows release separators and summaries for a clean user experience. Per-file operations (tagging, moving, artwork saving) are `DEBUG`-level and hidden from the console by default.
+- **File sink**: Writes detailed diagnostic logs (always at `DEBUG` level) to a rotating log file, including timestamps, module names, and line numbers. The log file is structured with release separators (`=== Release: ... ===`), per-file debug entries, and rate limit snapshots for easy review. Enabled by default.
 
 ### Default Log File Location
 

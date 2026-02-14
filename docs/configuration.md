@@ -48,7 +48,7 @@ Automatically move files to your library after successful tagging and renaming w
 The template used to generate folder and file paths.
 - **Default:** `{artist}/{year} - {album}/{track_number} - {title}`
 - **Placeholders:** `{artist}`, `{album}`, `{year}`, `{id}`, `{track_number}`, `{title}`, `{label}`, `{catalogue_number}`, `{side}`, `{genre}`, `{style}`, `{country}`.
-- **Example:** `vinylkit config set naming_pattern "{artist}/{album} ({year})/{track_number} - {title}"`
+- **Example:** `vinylkit config set naming_pattern "{artist}/{year} - {album} [{label}]/{track_number} - {title}"`
 
 ### `tag_mode`
 Controls how VinylKit writes metadata to files.
@@ -75,6 +75,12 @@ Controls how vinyl sides are mapped to the `DISCNUMBER` tag.
 The name of the professional release information file generated in each album folder.
 - **Default:** `release_info.txt`
 - **Example:** `vinylkit config set info_filename "00_metadata.txt"`
+
+### `skip_tags`
+A comma-separated list of canonical tag names to exclude from being written to audio files. Useful for omitting metadata you don't want (e.g., Discogs-specific fields, genre, artwork embedding). See the [Tag Mapping Reference](tag-mapping.md) for the full list of canonical names.
+- **Default:** (empty — all tags are written)
+- **Example:** `vinylkit config set skip_tags "genre,style,discogs_notes"`
+- **Clear:** `vinylkit config set skip_tags "none"`
 
 ---
 
@@ -149,15 +155,20 @@ Automatically delete the source folders after a successful migration.
 - **Example:** `vinylkit config set delete_after_migration true`
 
 ### `replace_artwork_on_migration`
-Whether to replace existing embedded artwork during migration with fresh high-quality images from Discogs.
+Whether to replace existing embedded artwork in audio files during migration with fresh images from Discogs. Artwork *files* (e.g. `folder.jpg`) are always saved per the `image_handling` config regardless of this setting.
 - **Default:** `true`
 - **Example:** `vinylkit config set replace_artwork_on_migration false`
+
+### `replace_tags_on_migration`
+Whether to clear and re-write audio tags from Discogs metadata during migration. When `false`, audio files are copied/moved without any tag modifications. Discogs data is still fetched for path generation, and supplementary files (`release_info.txt`, artwork files) are still written.
+- **Default:** `true`
+- **Example:** `vinylkit config set replace_tags_on_migration false`
 
 ---
 
 ## Logging
 
-VinylKit uses dual-sink logging: a clean console sink for user-facing messages and a detailed rotating file sink for diagnostics.
+VinylKit uses dual-sink logging: a clean console sink for user-facing messages and a detailed rotating file sink for diagnostics. Per-file operations (tagging, moving, artwork saving) are logged at `DEBUG` and only appear in the log file. Command-level summaries and release separators are logged at `INFO` and appear in the console.
 
 ### `log_level`
 The minimum log level displayed in the console.

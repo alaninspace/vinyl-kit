@@ -53,6 +53,8 @@ class TrackInfo:
     title: str
     artists: list[str] = field(default_factory=list)
     side: str | None = None
+    extraartists: list[ExtraArtistInfo] = field(default_factory=list)
+    duration: str | None = None
 
 
 @dataclass(slots=True, frozen=True)
@@ -115,6 +117,11 @@ class DiscogsRelease:
     notes: str | None = None
     images: list[ImageInfo] = field(default_factory=list)
     uri: str | None = None
+    master_id: int | None = None
+    master_url: str | None = None
+    artists_sort: str | None = None
+    data_quality: str | None = None
+    format_quantity: int | None = None
 
 
 @dataclass(slots=True, frozen=True)
@@ -166,6 +173,8 @@ class AppConfig:
     auto_move: bool = False
     delete_after_migration: bool = False
     replace_artwork_on_migration: bool = True
+    replace_tags_on_migration: bool = True
+    skip_tags: list[str] = field(default_factory=list)
     log_level: str = "INFO"
     log_to_file: bool = True
     log_file: Path | None = None

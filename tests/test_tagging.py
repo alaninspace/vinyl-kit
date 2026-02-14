@@ -4,8 +4,14 @@ from pathlib import Path  # noqa: TC003
 
 import pytest
 
-from vinylkit.models import DiscogsRelease, TrackInfo
-from vinylkit.tagging import tag_audio_file
+from vinylkit.models import DiscogsRelease, ExtraArtistInfo, TrackInfo
+from vinylkit.tagging import (
+    _COMPOSER_ROLES,
+    _REMIXER_ROLES,
+    _extract_by_role,
+    _should_write,
+    tag_audio_file,
+)
 
 
 @pytest.fixture
@@ -40,6 +46,7 @@ def test_tag_audio_file_mp3(
     mock_mp3_class = mocker.patch("vinylkit.tagging.MP3")
     mock_audio = mock_mp3_class.return_value
     mock_audio.tags = mocker.Mock(spec=ID3)
+    mock_audio.tags.getall.return_value = []
 
     tag_audio_file(mock_mp3, sample_release, track_index=0)
 
@@ -144,3 +151,60 @@ def test_calculate_track_and_disc_logic():
         release_prefix, 0, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL
     )
     assert d == "1"
+
+
+# ---------------------------------------------------------------------------
+# _should_write tests
+# ---------------------------------------------------------------------------
+
+
+def test_should_write_empty_skip_set() -> None:
+    assert _should_write("artist", frozenset()) is True
+
+
+def test_should_write_tag_in_skip_set() -> None:
+    assert _should_write("artist", frozenset({"artist", "genre"})) is False
+
+
+def test_should_write_tag_not_in_skip_set() -> None:
+    assert _should_write("title", frozenset({"artist", "genre"})) is True
+
+
+# ---------------------------------------------------------------------------
+# _extract_by_role tests
+# ---------------------------------------------------------------------------
+
+
+def test_extract_composers() -> None:
+    eas = [
+        ExtraArtistInfo(name="John", role="Written-By"),
+        ExtraArtistInfo(name="Paul", role="Producer"),
+        ExtraArtistInfo(name="George", role="Composer"),
+    ]
+    result = _extract_by_role(eas, _COMPOSER_ROLES)
+    assert result == ["John", "George"]
+
+
+def test_extract_remixers() -> None:
+    eas = [
+        ExtraArtistInfo(name="DJ Shadow", role="Remix"),
+        ExtraArtistInfo(name="RZA", role="Producer"),
+        ExtraArtistInfo(name="Fatboy Slim", role="Remixed By"),
+    ]
+    result = _extract_by_role(eas, _REMIXER_ROLES)
+    assert result == ["DJ Shadow", "Fatboy Slim"]
+
+
+def test_extract_by_role_empty() -> None:
+    assert _extract_by_role([], _COMPOSER_ROLES) == []
+
+
+def test_extract_by_role_no_match() -> None:
+    eas = [ExtraArtistInfo(name="Eng", role="Mastered By")]
+    assert _extract_by_role(eas, _COMPOSER_ROLES) == []
+
+
+def test_extract_by_role_case_insensitive() -> None:
+    eas = [ExtraArtistInfo(name="Bach", role="WRITTEN-BY")]
+    result = _extract_by_role(eas, _COMPOSER_ROLES)
+    assert result == ["Bach"]

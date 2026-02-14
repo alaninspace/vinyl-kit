@@ -8,7 +8,14 @@ import pytest
 from click.testing import CliRunner
 from loguru import logger
 
-from vinylkit.models import DiscogsRelease, RateLimitInfo, TrackInfo
+from vinylkit.models import (
+    CompanyInfo,
+    DiscogsRelease,
+    ExtraArtistInfo,
+    FormatInfo,
+    RateLimitInfo,
+    TrackInfo,
+)
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -105,11 +112,23 @@ def create_mock_release(
     title: str,
     *,
     year: int = 2000,
+    released: str | None = None,
+    country: str | None = None,
     tracklist: list[TrackInfo] | None = None,
     genres: list[str] | None = None,
     styles: list[str] | None = None,
     label: str | None = None,
     catno: str | None = None,
+    companies: list[CompanyInfo] | None = None,
+    formats: list[FormatInfo] | None = None,
+    extraartists: list[ExtraArtistInfo] | None = None,
+    notes: str | None = None,
+    uri: str | None = None,
+    master_id: int | None = None,
+    master_url: str | None = None,
+    artists_sort: str | None = None,
+    data_quality: str | None = None,
+    format_quantity: int | None = None,
 ) -> DiscogsRelease:
     """Build a DiscogsRelease with sensible defaults for testing."""
     return DiscogsRelease(
@@ -117,17 +136,24 @@ def create_mock_release(
         artists=[artist],
         title=title,
         year=year,
+        released=released,
+        country=country,
         tracklist=tracklist or [TrackInfo(position="A1", title="Track 1")],
         labels=[],
-        companies=[],
-        formats=[],
+        companies=companies or [],
+        formats=formats or [],
         identifiers=[],
-        extraartists=[],
+        extraartists=extraartists or [],
         genres=genres or [],
         styles=styles or [],
-        notes="",
+        notes=notes or "",
         images=[],
-        uri="",
+        uri=uri or "",
         label=label,
         catno=catno,
+        master_id=master_id,
+        master_url=master_url,
+        artists_sort=artists_sort,
+        data_quality=data_quality,
+        format_quantity=format_quantity,
     )

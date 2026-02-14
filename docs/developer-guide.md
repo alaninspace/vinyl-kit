@@ -100,6 +100,7 @@ docs/
     ├── user-guide.md       # In-depth command and feature reference
     ├── examples.md         # Real-world command combinations
     ├── configuration.md    # Full list of all settings
+    ├── tag-mapping.md      # Authoritative tag mapping reference (canonical names, MP3/FLAC keys, sources)
     ├── auth.md             # Discogs authentication guide
     ├── data-model.md       # Data model reference
     ├── spec.md             # Feature specification
@@ -144,6 +145,7 @@ CLI command (click)
 - **Custom exceptions** for user-facing errors — never leak raw library exceptions to the CLI
 - **`VinylkitError`** hierarchy: `ConfigError`, `AuthError`, `DiscogsAPIError`, `TaggingError`, `FileOperationError`, `ValidationError`
 - **Loguru logging**: Use `from loguru import logger` — no `logging.getLogger(__name__)`. The global `logger` instance routes to both console and file sinks configured in `initialise_logging()`. Stdlib loggers (httpx, authlib) are bridged through an `_InterceptHandler`
+- **Logging convention**: Per-file operations in modules (`tagging.py`, `naming.py`) use `logger.debug()` so they only appear in the log file. Command-level summaries and release separators in `cli.py` use `logger.info()`. HTTP request tracing in `discogs.py` uses `logger.debug()`. Third-party HTTP loggers (httpx, httpcore) are suppressed to WARNING
 
 ---
 

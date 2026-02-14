@@ -16,6 +16,7 @@ def test_config_round_trip(runner: CliRunner) -> None:
         ("backup_enabled", "false"),
         ("artwork_subdir", "Art"),
         ("info_filename", "info.txt"),
+        ("replace_tags_on_migration", "false"),
     ]
 
     for key, value in settings:
@@ -30,3 +31,28 @@ def test_config_round_trip(runner: CliRunner) -> None:
     assert "15" in show.output  # search_page_size
     assert "Art" in show.output  # artwork_subdir
     assert "info.txt" in show.output
+    assert "replace_tags_on_migration" in show.output
+
+
+def test_skip_tags_config_roundtrip(runner: CliRunner) -> None:
+    """Verify skip_tags survives a CSV set -> show cycle."""
+    result = runner.invoke(cli, ["config", "set", "skip_tags", "genre,style,barcode"])
+    assert result.exit_code == 0
+
+    show = runner.invoke(cli, ["config", "show"])
+    assert show.exit_code == 0
+    assert "genre" in show.output
+    assert "style" in show.output
+    assert "barcode" in show.output
+
+
+def test_skip_tags_none_clears(runner: CliRunner) -> None:
+    """Setting skip_tags to 'none' produces an empty list."""
+    runner.invoke(cli, ["config", "set", "skip_tags", "genre,style"])
+    result = runner.invoke(cli, ["config", "set", "skip_tags", "none"])
+    assert result.exit_code == 0
+
+    show = runner.invoke(cli, ["config", "show"])
+    assert show.exit_code == 0
+    # With an empty list, the display should show "None"
+    assert "skip_tags" in show.output

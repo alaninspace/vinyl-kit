@@ -9,13 +9,20 @@ from mutagen.id3 import ID3
 from mutagen.id3._frames import (
     APIC,
     TALB,
+    TCOM,
     TCON,
+    TCOP,
     TDRC,
+    TDRL,
     TIT2,
+    TMED,
     TPE1,
+    TPE2,
+    TPE4,
     TPOS,
     TPUB,
     TRCK,
+    TSOP,
     TXXX,
 )
 from mutagen.mp3 import MP3
@@ -25,12 +32,35 @@ from vinylkit.models import (
     AudioFile,
     DiscMapping,
     DiscogsRelease,
+    ExtraArtistInfo,
     TagMode,
     TagStatus,
     TrackNumbering,
 )
 
 FRONT_COVER_TYPE = 3  # ID3/FLAC picture type for front cover
+
+_COMPOSER_ROLES = {"written-by", "written by", "composer", "music by", "lyrics by"}
+_REMIXER_ROLES = {"remix", "remixed by", "remixer"}
+
+
+def _should_write(canonical_name: str, skip_tags: frozenset[str]) -> bool:
+    """Return True if the tag should be written (not in the skip list)."""
+    return canonical_name not in skip_tags
+
+
+def _extract_by_role(
+    extraartists: list[ExtraArtistInfo], role_patterns: set[str]
+) -> list[str]:
+    """Extract artist names matching any of the given role patterns."""
+    result: list[str] = []
+    for ea in extraartists:
+        role_lower = ea.role.lower()
+        for pattern in role_patterns:
+            if pattern in role_lower:
+                result.append(ea.name)
+                break
+    return result
 
 
 def write_release_info(
@@ -126,7 +156,7 @@ def write_release_info(
     try:
         target.write_text("\n".join(lines), encoding="utf-8")
 
-        logger.info(f"Created info file: {target.name}")
+        logger.debug(f"Created info file: {target.name}")
 
     except OSError as e:
         logger.warning(f"Failed to create info file: {e}")
@@ -154,7 +184,7 @@ def save_artwork(
 
     try:
         target.write_bytes(artwork_data)
-        logger.info(f"Saved artwork: {target.name}")
+        logger.debug(f"Saved artwork: {target.name}")
     except OSError as e:
         logger.warning(f"Failed to save artwork: {e}")
     return target
@@ -201,15 +231,15 @@ def clear_audio_tags(path: Path, preserve_artwork: bool = False) -> None:
     elif ext == ".flac":
         audio = FLAC(path)
         if preserve_artwork:
-            pics = audio.pictures
+            # FLAC.delete() only removes Vorbis comment blocks, NOT picture
+            # metadata blocks — so pictures naturally survive and no
+            # save/restore cycle is needed (that would double them).
             audio.delete()
             audio.save()
-            # Restore pics
-            audio = FLAC(path)
-            for p in pics:
-                audio.add_picture(p)
-            audio.save()
         else:
+            # Must clear pictures explicitly before delete() since
+            # FLAC.delete() does not touch PICTURE metadata blocks.
+            audio.clear_pictures()
             audio.delete()
             audio.save()
 
@@ -243,6 +273,7 @@ def tag_audio_file(
     tag_mode: TagMode = TagMode.REPLACE,
     track_numbering: TrackNumbering = TrackNumbering.NUMERIC,
     disc_mapping: DiscMapping = DiscMapping.PHYSICAL,
+    skip_tags: frozenset[str] = frozenset(),
 ) -> None:
     """
     Tag an audio file with Discogs release metadata.
@@ -256,6 +287,7 @@ def tag_audio_file(
         tag_mode: REPLACE (delete existing) or MERGE (keep existing).
         track_numbering: How to format track numbers.
         disc_mapping: How to map discs.
+        skip_tags: Set of canonical tag names to omit.
     """
     if track_index >= len(release.tracklist):
         raise TaggingError(
@@ -285,6 +317,7 @@ def tag_audio_file(
                 tag_mode,
                 track_numbering,
                 disc_mapping,
+                skip_tags,
             )
         elif ext == ".flac":
             _tag_flac(
@@ -295,11 +328,12 @@ def tag_audio_file(
                 tag_mode,
                 track_numbering,
                 disc_mapping,
+                skip_tags,
             )
         else:
             raise TaggingError(f"Unsupported file format: {ext}")
 
-        logger.info(f"Tagged {path.name} successfully.")
+        logger.debug(f"Tagged {path.name} successfully.")
     except Exception as e:
         raise TaggingError(f"Failed to tag {path}: {e}") from e
 
@@ -361,10 +395,16 @@ def _tag_mp3(
     tag_mode: TagMode = TagMode.REPLACE,
     track_numbering: TrackNumbering = TrackNumbering.NUMERIC,
     disc_mapping: DiscMapping = DiscMapping.PHYSICAL,
+    skip_tags: frozenset[str] = frozenset(),
 ) -> None:
     audio = MP3(path)
+    saved_pics: list[APIC] = []
 
     if tag_mode == TagMode.REPLACE:
+        # Save existing artwork if we're not replacing it
+        if artwork_data is None and audio.tags is not None:
+            saved_pics = audio.tags.getall("APIC")
+
         audio.delete()
         audio.save()
         # Re-load after delete
@@ -381,68 +421,126 @@ def _tag_mp3(
         release, track_index, track_numbering, disc_mapping
     )
 
+    ok = _should_write
+
     # Standard frames
-    tags.add(TPE1(encoding=3, text=", ".join(release.artists)))
-    tags.add(TIT2(encoding=3, text=track.title))
-    tags.add(TALB(encoding=3, text=release.title))
-    if release.year:
+    if ok("artist", skip_tags):
+        tags.add(TPE1(encoding=3, text=", ".join(release.artists)))
+    if ok("title", skip_tags):
+        tags.add(TIT2(encoding=3, text=track.title))
+    if ok("album", skip_tags):
+        tags.add(TALB(encoding=3, text=release.title))
+    if ok("date", skip_tags) and release.year:
         tags.add(TDRC(encoding=3, text=str(release.year)))
-    tags.add(TRCK(encoding=3, text=track_num))
-    tags.add(TPOS(encoding=3, text=disc_num))
-    if release.label:
+    if ok("tracknumber", skip_tags):
+        tags.add(TRCK(encoding=3, text=track_num))
+    if ok("discnumber", skip_tags):
+        tags.add(TPOS(encoding=3, text=disc_num))
+    if ok("publisher", skip_tags) and release.label:
         tags.add(TPUB(encoding=3, text=release.label))
-
-    if release.genres:
+    if ok("genre", skip_tags) and release.genres:
         tags.add(TCON(encoding=3, text=", ".join(release.genres)))
-
-    if release.styles:
+    if ok("style", skip_tags) and release.styles:
         tags.add(TXXX(encoding=3, desc="STYLE", text=", ".join(release.styles)))
 
+    # New standard tags
+    if ok("albumartist", skip_tags):
+        tags.add(TPE2(encoding=3, text=", ".join(release.artists)))
+    if ok("media", skip_tags) and release.formats:
+        tags.add(TMED(encoding=3, text=release.formats[0].name))
+    if ok("releasedate", skip_tags) and release.released:
+        tags.add(TDRL(encoding=3, text=release.released))
+    if ok("artistsort", skip_tags) and release.artists_sort:
+        tags.add(TSOP(encoding=3, text=release.artists_sort))
+
+    # Composer and remixer from extraartists
+    all_extraartists = list(release.extraartists) + list(track.extraartists)
+    if ok("composer", skip_tags):
+        composers = _extract_by_role(all_extraartists, _COMPOSER_ROLES)
+        if composers:
+            tags.add(TCOM(encoding=3, text=", ".join(composers)))
+    if ok("remixer", skip_tags):
+        remixers = _extract_by_role(all_extraartists, _REMIXER_ROLES)
+        if remixers:
+            tags.add(TPE4(encoding=3, text=", ".join(remixers)))
+
+    # Copyright from companies
+    if ok("copyright", skip_tags) and release.companies:
+        copyrights = [
+            c.name for c in release.companies if "Copyright" in c.entity_type_name
+        ]
+        if copyrights:
+            tags.add(TCOP(encoding=3, text=", ".join(copyrights)))
+
     # Custom vinyl frames
-    tags.add(TXXX(encoding=3, desc="DISCOGS_POSITION", text=track.position))
-    if release.catno:
+    if ok("discogs_position", skip_tags):
+        tags.add(TXXX(encoding=3, desc="DISCOGS_POSITION", text=track.position))
+    if ok("catalognumber", skip_tags) and release.catno:
         tags.add(TXXX(encoding=3, desc="CATALOGNUMBER", text=release.catno))
-    if track.side:
+    if ok("side", skip_tags) and track.side:
         tags.add(TXXX(encoding=3, desc="SIDE", text=track.side))
 
     # Extended Discogs Tags
-    if release.uri:
+    if ok("discogs_release_url", skip_tags) and release.uri:
         tags.add(TXXX(encoding=3, desc="DISCOGS_RELEASE_URL", text=release.uri))
 
-    if release.labels:
+    if ok("label", skip_tags) and release.labels:
         labels_str = ", ".join(lbl.name for lbl in release.labels)
         tags.add(TXXX(encoding=3, desc="LABEL", text=labels_str))
+    if ok("catalognumber", skip_tags) and release.labels:
         catnos_str = ", ".join(lbl.catno for lbl in release.labels if lbl.catno)
         if catnos_str:
             tags.add(TXXX(encoding=3, desc="CATALOGNUMBER", text=catnos_str))
 
-    if release.formats:
+    if ok("format", skip_tags) and release.formats:
         fmt_strs = []
         for f in release.formats:
             desc = f" ({', '.join(f.descriptions)})" if f.descriptions else ""
             fmt_strs.append(f"{f.qty}x {f.name}{desc}")
         tags.add(TXXX(encoding=3, desc="FORMAT", text=", ".join(fmt_strs)))
 
-    if release.companies:
+    if ok("companies", skip_tags) and release.companies:
         comp_str = ", ".join(
             f"{c.entity_type_name}: {c.name}" for c in release.companies
         )
         tags.add(TXXX(encoding=3, desc="COMPANIES", text=comp_str))
 
-    if release.extraartists:
-        credits_str = ", ".join(f"{a.role}: {a.name}" for a in release.extraartists)
+    if ok("credits", skip_tags) and all_extraartists:
+        credits_str = ", ".join(f"{a.role}: {a.name}" for a in all_extraartists)
         tags.add(TXXX(encoding=3, desc="CREDITS", text=credits_str))
 
-    if release.identifiers:
+    if ok("barcode", skip_tags) and release.identifiers:
         barcodes = [i.value for i in release.identifiers if i.type == "Barcode"]
         if barcodes:
             tags.add(TXXX(encoding=3, desc="BARCODE", text=", ".join(barcodes)))
 
-    if artwork_data:
-        # In replace mode, we already deleted all APIC frames.
-        # In merge mode, we might want to preserve them,
-        # but usually we want to replace the cover.
-        # mutagen tags.add replaces existing frames of same type/desc.
+    # New custom/DISCOGS-prefixed tags
+    if ok("country", skip_tags) and release.country:
+        tags.add(TXXX(encoding=3, desc="COUNTRY", text=release.country))
+    if ok("discogs_release_id", skip_tags):
+        tags.add(TXXX(encoding=3, desc="DISCOGS_RELEASE_ID", text=str(release.id)))
+    if ok("discogs_master_id", skip_tags) and release.master_id is not None:
+        tags.add(
+            TXXX(encoding=3, desc="DISCOGS_MASTER_ID", text=str(release.master_id))
+        )
+    if ok("discogs_master_url", skip_tags) and release.master_url:
+        tags.add(TXXX(encoding=3, desc="DISCOGS_MASTER_URL", text=release.master_url))
+    if ok("discogs_notes", skip_tags) and release.notes:
+        tags.add(TXXX(encoding=3, desc="DISCOGS_NOTES", text=release.notes))
+    if ok("discogs_data_quality", skip_tags) and release.data_quality:
+        tags.add(
+            TXXX(encoding=3, desc="DISCOGS_DATA_QUALITY", text=release.data_quality)
+        )
+    if ok("discogs_format_quantity", skip_tags) and release.format_quantity is not None:
+        tags.add(
+            TXXX(
+                encoding=3,
+                desc="DISCOGS_FORMAT_QUANTITY",
+                text=str(release.format_quantity),
+            )
+        )
+
+    if ok("artwork", skip_tags) and artwork_data:
         tags.add(
             APIC(
                 encoding=3,
@@ -452,6 +550,10 @@ def _tag_mp3(
                 data=artwork_data,
             )
         )
+    elif tag_mode == TagMode.REPLACE and saved_pics:
+        # Restore previously saved artwork when not replacing it
+        for p in saved_pics:
+            tags.add(p)
 
     audio.save()
 
@@ -464,10 +566,17 @@ def _tag_flac(
     tag_mode: TagMode = TagMode.REPLACE,
     track_numbering: TrackNumbering = TrackNumbering.NUMERIC,
     disc_mapping: DiscMapping = DiscMapping.PHYSICAL,
+    skip_tags: frozenset[str] = frozenset(),
 ) -> None:
     audio = FLAC(path)
 
     if tag_mode == TagMode.REPLACE:
+        if artwork_data is not None:
+            # Must clear pictures explicitly — FLAC.delete() only
+            # removes Vorbis comment blocks, not PICTURE blocks.
+            audio.clear_pictures()
+        # When artwork_data is None, pictures survive delete()
+        # naturally, preserving existing artwork.
         audio.delete()
         audio.save()
         # Re-load after delete
@@ -478,63 +587,112 @@ def _tag_flac(
         release, track_index, track_numbering, disc_mapping
     )
 
-    audio["artist"] = release.artists
-    audio["title"] = track.title
-    audio["album"] = release.title
-    if release.year:
+    ok = _should_write
+
+    if ok("artist", skip_tags):
+        audio["artist"] = release.artists
+    if ok("title", skip_tags):
+        audio["title"] = track.title
+    if ok("album", skip_tags):
+        audio["album"] = release.title
+    if ok("date", skip_tags) and release.year:
         audio["date"] = str(release.year)
-    audio["tracknumber"] = track_num
-    audio["discnumber"] = disc_num
-    if release.label:
+    if ok("tracknumber", skip_tags):
+        audio["tracknumber"] = track_num
+    if ok("discnumber", skip_tags):
+        audio["discnumber"] = disc_num
+    if ok("publisher", skip_tags) and release.label:
         audio["organization"] = release.label
-
-    if release.genres:
+    if ok("genre", skip_tags) and release.genres:
         audio["genre"] = release.genres
-
-    if release.styles:
+    if ok("style", skip_tags) and release.styles:
         audio["style"] = release.styles
 
+    # New standard tags
+    if ok("albumartist", skip_tags):
+        audio["albumartist"] = ", ".join(release.artists)
+    if ok("media", skip_tags) and release.formats:
+        audio["media"] = release.formats[0].name
+    if ok("releasedate", skip_tags) and release.released:
+        audio["releasedate"] = release.released
+    if ok("artistsort", skip_tags) and release.artists_sort:
+        audio["artistsort"] = release.artists_sort
+
+    # Composer and remixer from extraartists
+    all_extraartists = list(release.extraartists) + list(track.extraartists)
+    if ok("composer", skip_tags):
+        composers = _extract_by_role(all_extraartists, _COMPOSER_ROLES)
+        if composers:
+            audio["composer"] = composers
+    if ok("remixer", skip_tags):
+        remixers = _extract_by_role(all_extraartists, _REMIXER_ROLES)
+        if remixers:
+            audio["remixer"] = remixers
+
+    # Copyright from companies
+    if ok("copyright", skip_tags) and release.companies:
+        copyrights = [
+            c.name for c in release.companies if "Copyright" in c.entity_type_name
+        ]
+        if copyrights:
+            audio["copyright"] = copyrights
+
     # Custom vinyl frames
-    audio["discogs_position"] = track.position
-    if release.catno:
+    if ok("discogs_position", skip_tags):
+        audio["discogs_position"] = track.position
+    if ok("catalognumber", skip_tags) and release.catno:
         audio["catalognumber"] = release.catno
-    if track.side:
+    if ok("side", skip_tags) and track.side:
         audio["side"] = track.side
 
     # Extended Discogs Tags
-    if release.uri:
+    if ok("discogs_release_url", skip_tags) and release.uri:
         audio["discogs_release_url"] = release.uri
 
-    if release.labels:
+    if ok("label", skip_tags) and release.labels:
         audio["label"] = [lbl.name for lbl in release.labels]
+    if ok("catalognumber", skip_tags) and release.labels:
         catnos = [lbl.catno for lbl in release.labels if lbl.catno]
         if catnos:
             audio["catalognumber"] = catnos
 
-    if release.formats:
+    if ok("format", skip_tags) and release.formats:
         fmt_strs = []
         for f in release.formats:
             desc = f" ({', '.join(f.descriptions)})" if f.descriptions else ""
             fmt_strs.append(f"{f.qty}x {f.name}{desc}")
         audio["format"] = ", ".join(fmt_strs)
 
-    if release.companies:
+    if ok("companies", skip_tags) and release.companies:
         audio["companies"] = [
             f"{c.entity_type_name}: {c.name}" for c in release.companies
         ]
 
-    if release.extraartists:
-        audio["credits"] = [f"{a.role}: {a.name}" for a in release.extraartists]
+    if ok("credits", skip_tags) and all_extraartists:
+        audio["credits"] = [f"{a.role}: {a.name}" for a in all_extraartists]
 
-    if release.identifiers:
+    if ok("barcode", skip_tags) and release.identifiers:
         barcodes = [i.value for i in release.identifiers if i.type == "Barcode"]
         if barcodes:
             audio["barcode"] = barcodes
 
-    if artwork_data:
-        # For FLAC, delete existing pictures if in REPLACE mode
-        # (already done by audio.delete()).
-        # Or if we just want one primary picture.
+    # New custom/DISCOGS-prefixed tags
+    if ok("country", skip_tags) and release.country:
+        audio["country"] = release.country
+    if ok("discogs_release_id", skip_tags):
+        audio["discogs_release_id"] = str(release.id)
+    if ok("discogs_master_id", skip_tags) and release.master_id is not None:
+        audio["discogs_master_id"] = str(release.master_id)
+    if ok("discogs_master_url", skip_tags) and release.master_url:
+        audio["discogs_master_url"] = release.master_url
+    if ok("discogs_notes", skip_tags) and release.notes:
+        audio["discogs_notes"] = release.notes
+    if ok("discogs_data_quality", skip_tags) and release.data_quality:
+        audio["discogs_data_quality"] = release.data_quality
+    if ok("discogs_format_quantity", skip_tags) and release.format_quantity is not None:
+        audio["discogs_format_quantity"] = str(release.format_quantity)
+
+    if ok("artwork", skip_tags) and artwork_data:
         pic = Picture()
         pic.data = artwork_data
         pic.type = FRONT_COVER_TYPE

@@ -300,6 +300,10 @@ class DiscogsClient:
                 elif side_match:
                     side = side_match.group(1)
 
+                track_extraartists = [
+                    ExtraArtistInfo(name=a.get("name"), role=a.get("role"))
+                    for a in t.get("extraartists", [])
+                ]
                 tracklist.append(
                     TrackInfo(
                         position=pos,
@@ -308,6 +312,8 @@ class DiscogsClient:
                         if t.get("artists")
                         else [],
                         side=side,
+                        extraartists=track_extraartists,
+                        duration=t.get("duration") or None,
                     )
                 )
             images = [
@@ -371,6 +377,11 @@ class DiscogsClient:
                 tracklist=tracklist,
                 images=images,
                 uri=data.get("uri"),
+                master_id=data.get("master_id"),
+                master_url=data.get("master_url"),
+                artists_sort=data.get("artists_sort"),
+                data_quality=data.get("data_quality"),
+                format_quantity=data.get("format_quantity"),
             )
         except DiscogsAPIError:
             raise

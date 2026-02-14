@@ -73,6 +73,8 @@ def load_config() -> AppConfig:
         auto_move=data.get("auto_move", False),
         delete_after_migration=data.get("delete_after_migration", False),
         replace_artwork_on_migration=data.get("replace_artwork_on_migration", True),
+        replace_tags_on_migration=data.get("replace_tags_on_migration", True),
+        skip_tags=data.get("skip_tags", []),
         log_level=data.get("log_level", "INFO"),
         log_to_file=data.get("log_to_file", True),
         log_file=Path(data["log_file"]) if "log_file" in data else None,
@@ -104,11 +106,14 @@ def save_config(config: AppConfig) -> None:
         "auto_move": config.auto_move,
         "delete_after_migration": config.delete_after_migration,
         "replace_artwork_on_migration": config.replace_artwork_on_migration,
+        "replace_tags_on_migration": config.replace_tags_on_migration,
         "log_level": config.log_level,
         "log_to_file": config.log_to_file,
         "log_rotation": config.log_rotation,
         "log_retention": config.log_retention,
     }
+    if config.skip_tags:
+        data["skip_tags"] = config.skip_tags
     if config.consumer_key:
         data["consumer_key"] = config.consumer_key
     if config.consumer_secret:

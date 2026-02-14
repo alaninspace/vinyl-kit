@@ -11,13 +11,16 @@ from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 
 from vinylkit.models import (
+    CompanyInfo,
     DiscMapping,
     DiscogsRelease,
+    ExtraArtistInfo,
+    FormatInfo,
     TagMode,
     TrackInfo,
     TrackNumbering,
 )
-from vinylkit.tagging import FRONT_COVER_TYPE, tag_audio_file
+from vinylkit.tagging import FRONT_COVER_TYPE, clear_audio_tags, tag_audio_file
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -325,3 +328,507 @@ class TestFLACRoundTrip:
         audio = FLAC(flac_file)
         assert audio["tracknumber"] == ["1"]  # first on side B
         assert audio["discnumber"] == ["2"]  # B = disc 2
+
+
+# ---------------------------------------------------------------------------
+# Artwork duplication bug-fix tests
+# ---------------------------------------------------------------------------
+
+TINY_JPEG_ALT = (
+    b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x02\x00\x02\x00\x00\xff\xd9"
+)
+
+
+class TestFLACArtworkReplace:
+    """Verify FLAC REPLACE mode handles pictures correctly."""
+
+    def test_flac_replace_clears_existing_pictures(self, flac_file: Path) -> None:
+        """Re-tagging with new artwork should produce exactly 1 picture, not 2."""
+        release = _single_lp_release()
+        tag_audio_file(flac_file, release, track_index=0, artwork_data=TINY_JPEG)
+
+        assert len(FLAC(flac_file).pictures) == 1
+
+        # Re-tag with different artwork in REPLACE mode
+        tag_audio_file(
+            flac_file,
+            release,
+            track_index=0,
+            artwork_data=TINY_JPEG_ALT,
+            tag_mode=TagMode.REPLACE,
+        )
+
+        audio = FLAC(flac_file)
+        assert len(audio.pictures) == 1
+        assert audio.pictures[0].data == TINY_JPEG_ALT
+
+    def test_flac_replace_preserves_pictures_when_no_artwork(
+        self, flac_file: Path
+    ) -> None:
+        """Re-tagging without artwork_data should keep existing picture."""
+        release = _single_lp_release()
+        tag_audio_file(flac_file, release, track_index=0, artwork_data=TINY_JPEG)
+
+        assert len(FLAC(flac_file).pictures) == 1
+
+        # Re-tag without artwork in REPLACE mode
+        tag_audio_file(
+            flac_file,
+            release,
+            track_index=0,
+            artwork_data=None,
+            tag_mode=TagMode.REPLACE,
+        )
+
+        audio = FLAC(flac_file)
+        assert len(audio.pictures) == 1
+        assert audio.pictures[0].data == TINY_JPEG
+
+
+class TestMP3ArtworkReplace:
+    """Verify MP3 REPLACE mode handles APIC frames correctly."""
+
+    def test_mp3_replace_preserves_apic_when_no_artwork(self, mp3_file: Path) -> None:
+        """Re-tagging without artwork_data should keep existing APIC frame."""
+        release = _single_lp_release()
+        tag_audio_file(mp3_file, release, track_index=0, artwork_data=TINY_JPEG)
+
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert len(tags.getall("APIC")) == 1
+
+        # Re-tag without artwork in REPLACE mode
+        tag_audio_file(
+            mp3_file,
+            release,
+            track_index=0,
+            artwork_data=None,
+            tag_mode=TagMode.REPLACE,
+        )
+
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        apic = tags.getall("APIC")
+        assert len(apic) == 1
+        assert apic[0].data == TINY_JPEG
+
+
+class TestClearAudioTagsFLAC:
+    """Verify clear_audio_tags handles FLAC pictures correctly."""
+
+    def test_preserve_artwork_does_not_double(self, flac_file: Path) -> None:
+        """clear_audio_tags(preserve_artwork=True) must not duplicate pictures."""
+        release = _single_lp_release()
+        tag_audio_file(flac_file, release, track_index=0, artwork_data=TINY_JPEG)
+
+        assert len(FLAC(flac_file).pictures) == 1
+
+        clear_audio_tags(flac_file, preserve_artwork=True)
+
+        audio = FLAC(flac_file)
+        assert len(audio.pictures) == 1
+        assert audio.pictures[0].data == TINY_JPEG
+
+    def test_remove_artwork(self, flac_file: Path) -> None:
+        """clear_audio_tags(preserve_artwork=False) must remove pictures."""
+        release = _single_lp_release()
+        tag_audio_file(flac_file, release, track_index=0, artwork_data=TINY_JPEG)
+
+        assert len(FLAC(flac_file).pictures) == 1
+
+        clear_audio_tags(flac_file, preserve_artwork=False)
+
+        audio = FLAC(flac_file)
+        assert len(audio.pictures) == 0
+
+
+# ---------------------------------------------------------------------------
+# Helper: richly populated release for new-tag tests
+# ---------------------------------------------------------------------------
+
+
+def _full_release() -> DiscogsRelease:
+    """Release with all new fields populated for comprehensive tag testing."""
+    return DiscogsRelease(
+        id=19983,
+        artists=["Green Velvet"],
+        title="Flash",
+        year=1995,
+        released="1995-06-01",
+        country="US",
+        tracklist=[
+            TrackInfo(
+                position="A1",
+                title="Flash",
+                side="A",
+                extraartists=[
+                    ExtraArtistInfo(name="Cajmere", role="Remix"),
+                ],
+            ),
+            TrackInfo(
+                position="A2",
+                title="Answering Machine",
+                side="A",
+                extraartists=[
+                    ExtraArtistInfo(name="Curtis Jones", role="Written-By"),
+                ],
+            ),
+        ],
+        genres=["Electronic"],
+        styles=["Techno"],
+        label="Relief Records",
+        catno="RR-014",
+        companies=[
+            CompanyInfo(name="Relief Records Inc.", entity_type_name="Pressed By"),
+            CompanyInfo(name="Cajual Songs", entity_type_name="Copyright (c)"),
+        ],
+        formats=[FormatInfo(name="Vinyl", qty="1", descriptions=['12"', "33 ⅓ RPM"])],
+        extraartists=[
+            ExtraArtistInfo(name="Curtis Jones", role="Written-By"),
+            ExtraArtistInfo(name="Paul Johnson", role="Mastered By"),
+        ],
+        notes="Classic Chicago house.",
+        uri="https://www.discogs.com/release/19983",
+        master_id=5000,
+        master_url="https://www.discogs.com/master/5000",
+        artists_sort="Green Velvet",
+        data_quality="Correct",
+        format_quantity=1,
+    )
+
+
+# ---------------------------------------------------------------------------
+# New standard tag tests
+# ---------------------------------------------------------------------------
+
+
+class TestNewStandardTagsMP3:
+    """Verify the 7 new standard ID3 frames in MP3."""
+
+    def test_albumartist(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TPE2"]) == "Green Velvet"
+
+    def test_media(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TMED"]) == "Vinyl"
+
+    def test_releasedate(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TDRL"]) == "1995-06-01"
+
+    def test_artistsort(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TSOP"]) == "Green Velvet"
+
+    def test_composer(self, mp3_file: Path) -> None:
+        release = _full_release()
+        # Track A1 has no Written-By, but release has Curtis Jones as Written-By
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TCOM"]) == "Curtis Jones"
+
+    def test_composer_from_track_level(self, mp3_file: Path) -> None:
+        release = _full_release()
+        # Track A2 has Curtis Jones as Written-By at track level
+        tag_audio_file(mp3_file, release, track_index=1)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert "Curtis Jones" in str(tags["TCOM"])
+
+    def test_remixer(self, mp3_file: Path) -> None:
+        release = _full_release()
+        # Track A1 has Cajmere as Remix at track level
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TPE4"]) == "Cajmere"
+
+    def test_copyright(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TCOP"]) == "Cajual Songs"
+
+
+class TestNewStandardTagsFLAC:
+    """Verify the 7 new standard Vorbis fields in FLAC."""
+
+    def test_albumartist(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["albumartist"] == ["Green Velvet"]
+
+    def test_media(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["media"] == ["Vinyl"]
+
+    def test_releasedate(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["releasedate"] == ["1995-06-01"]
+
+    def test_artistsort(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["artistsort"] == ["Green Velvet"]
+
+    def test_composer(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert "Curtis Jones" in audio["composer"]
+
+    def test_remixer(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["remixer"] == ["Cajmere"]
+
+    def test_copyright(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["copyright"] == ["Cajual Songs"]
+
+
+# ---------------------------------------------------------------------------
+# New custom/DISCOGS-prefixed tag tests
+# ---------------------------------------------------------------------------
+
+
+class TestNewDiscogsTagsMP3:
+    """Verify the 7 new custom TXXX tags in MP3."""
+
+    def test_country(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TXXX:COUNTRY"]) == "US"
+
+    def test_discogs_release_id(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TXXX:DISCOGS_RELEASE_ID"]) == "19983"
+
+    def test_discogs_master_id(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TXXX:DISCOGS_MASTER_ID"]) == "5000"
+
+    def test_discogs_master_url(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert "master/5000" in str(tags["TXXX:DISCOGS_MASTER_URL"])
+
+    def test_discogs_notes(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TXXX:DISCOGS_NOTES"]) == "Classic Chicago house."
+
+    def test_discogs_data_quality(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TXXX:DISCOGS_DATA_QUALITY"]) == "Correct"
+
+    def test_discogs_format_quantity(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TXXX:DISCOGS_FORMAT_QUANTITY"]) == "1"
+
+
+class TestNewDiscogsTagsFLAC:
+    """Verify the 7 new custom Vorbis fields in FLAC."""
+
+    def test_country(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["country"] == ["US"]
+
+    def test_discogs_release_id(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["discogs_release_id"] == ["19983"]
+
+    def test_discogs_master_id(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["discogs_master_id"] == ["5000"]
+
+    def test_discogs_master_url(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert "master/5000" in audio["discogs_master_url"][0]
+
+    def test_discogs_notes(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["discogs_notes"] == ["Classic Chicago house."]
+
+    def test_discogs_data_quality(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["discogs_data_quality"] == ["Correct"]
+
+    def test_discogs_format_quantity(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        assert audio["discogs_format_quantity"] == ["1"]
+
+
+# ---------------------------------------------------------------------------
+# Track-level extraartists and credits enhancement
+# ---------------------------------------------------------------------------
+
+
+class TestTrackLevelExtraartists:
+    """Credits include both release-level and track-level extraartists."""
+
+    def test_credits_include_track_extraartists_mp3(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(mp3_file, release, track_index=0)
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        credits_val = str(tags["TXXX:CREDITS"])
+        # Release-level credit
+        assert "Paul Johnson" in credits_val
+        # Track-level credit
+        assert "Cajmere" in credits_val
+
+    def test_credits_include_track_extraartists_flac(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(flac_file, release, track_index=0)
+        audio = FLAC(flac_file)
+        credits_val = audio["credits"]
+        credits_str = ", ".join(credits_val)
+        assert "Paul Johnson" in credits_str
+        assert "Cajmere" in credits_str
+
+
+# ---------------------------------------------------------------------------
+# skip_tags filtering
+# ---------------------------------------------------------------------------
+
+
+class TestSkipTagsMP3:
+    """Verify skip_tags prevents tags from being written (MP3)."""
+
+    def test_skip_genre_and_style(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(
+            mp3_file,
+            release,
+            track_index=0,
+            skip_tags=frozenset({"genre", "style"}),
+        )
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        # Skipped tags should not exist
+        assert "TCON" not in tags
+        assert "TXXX:STYLE" not in tags
+        # Other tags should still be present
+        assert str(tags["TPE1"]) == "Green Velvet"
+
+    def test_skip_artwork(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(
+            mp3_file,
+            release,
+            track_index=0,
+            artwork_data=TINY_JPEG,
+            skip_tags=frozenset({"artwork"}),
+        )
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert len(tags.getall("APIC")) == 0
+
+    def test_skip_discogs_release_id(self, mp3_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(
+            mp3_file,
+            release,
+            track_index=0,
+            skip_tags=frozenset({"discogs_release_id"}),
+        )
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert "TXXX:DISCOGS_RELEASE_ID" not in tags
+
+
+class TestSkipTagsFLAC:
+    """Verify skip_tags prevents tags from being written (FLAC)."""
+
+    def test_skip_genre_and_style(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(
+            flac_file,
+            release,
+            track_index=0,
+            skip_tags=frozenset({"genre", "style"}),
+        )
+        audio = FLAC(flac_file)
+        assert "genre" not in audio
+        assert "style" not in audio
+        assert audio["artist"] == ["Green Velvet"]
+
+    def test_skip_artwork(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(
+            flac_file,
+            release,
+            track_index=0,
+            artwork_data=TINY_JPEG,
+            skip_tags=frozenset({"artwork"}),
+        )
+        audio = FLAC(flac_file)
+        assert len(audio.pictures) == 0
+
+    def test_skip_country(self, flac_file: Path) -> None:
+        release = _full_release()
+        tag_audio_file(
+            flac_file,
+            release,
+            track_index=0,
+            skip_tags=frozenset({"country"}),
+        )
+        audio = FLAC(flac_file)
+        assert "country" not in audio

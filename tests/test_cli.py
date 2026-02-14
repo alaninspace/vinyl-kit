@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import logging as stdlogging
 from pathlib import Path  # noqa: TC003
 
 from click.testing import CliRunner
+from conftest import create_mock_release
 
 from vinylkit.cli import cli
 
@@ -175,3 +177,80 @@ def test_tag_filtered_search_real_collection_example(
     assert "Search Results for: Faithless" in result.output
     assert "Loaded Release: Faithless - Insomnia" in result.output
     assert "Files moved successfully" in result.output
+
+
+def test_tag_logs_rate_limit_info_per_release(runner, tmp_path, mock_discogs, caplog):
+    """Rate limit status is logged at INFO after each tagged release."""
+    (tmp_path / "01.mp3").write_text("audio")
+    mock_discogs.get_release.return_value = create_mock_release(100, "Artist", "Title")
+
+    info = mock_discogs.rate_limit_info
+    info.limit = 60
+    info.used = 10
+    info.remaining = 50
+
+    with caplog.at_level(stdlogging.INFO):
+        result = runner.invoke(cli, ["tag", str(tmp_path), "--id", "100"])
+
+    assert result.exit_code == 0
+    assert "Rate limit: 50/60 remaining" in caplog.text
+
+
+def test_httpcore_debug_suppressed(tmp_path):
+    """initialise_logging suppresses httpcore debug noise."""
+    from vinylkit.cli import initialise_logging
+    from vinylkit.models import AppConfig
+
+    config = AppConfig(library_root=tmp_path, log_to_file=False)
+    initialise_logging(config)
+
+    assert stdlogging.getLogger("httpcore").level == stdlogging.WARNING
+    assert stdlogging.getLogger("httpx").level == stdlogging.WARNING
+
+
+def test_tag_summary_output(runner, tmp_path, mock_discogs):
+    """Tag command displays a counted summary after tagging."""
+    (tmp_path / "01.mp3").write_text("audio")
+    mock_discogs.get_release.return_value = create_mock_release(100, "Artist", "Title")
+
+    result = runner.invoke(cli, ["tag", str(tmp_path), "--id", "100"])
+
+    assert result.exit_code == 0
+    assert "Tagged 1 tracks" in result.output
+    assert "saved 0 artwork files" in result.output
+
+
+def test_tag_passes_skip_tags(runner, tmp_path, mock_discogs, mocker):
+    """skip_tags from config is forwarded as frozenset to tag_audio_file."""
+    (tmp_path / "01.mp3").write_text("audio")
+    mock_discogs.get_release.return_value = create_mock_release(100, "Artist", "Title")
+
+    # Patch tag_audio_file to capture kwargs
+    mock_tag = mocker.patch("vinylkit.cli.tag_audio_file")
+
+    # Set skip_tags via config file
+    from vinylkit.config import get_config_path, save_config
+    from vinylkit.models import AppConfig
+
+    cfg = AppConfig(library_root=tmp_path, skip_tags=["genre", "style"])
+    config_path = get_config_path()
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    save_config(cfg)
+
+    result = runner.invoke(cli, ["tag", str(tmp_path), "--id", "100"])
+    assert result.exit_code == 0
+    assert mock_tag.called
+    call_kwargs = mock_tag.call_args
+    assert call_kwargs.kwargs.get("skip_tags") == frozenset({"genre", "style"})
+
+
+def test_release_separator_in_log(runner, tmp_path, mock_discogs, caplog):
+    """Release separator line appears in logs at the start of processing."""
+    (tmp_path / "01.mp3").write_text("audio")
+    mock_discogs.get_release.return_value = create_mock_release(100, "Artist", "Title")
+
+    with caplog.at_level(stdlogging.INFO):
+        result = runner.invoke(cli, ["tag", str(tmp_path), "--id", "100"])
+
+    assert result.exit_code == 0
+    assert "=== Release: Artist - Title (ID: 100) ===" in caplog.text

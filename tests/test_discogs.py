@@ -44,6 +44,71 @@ def test_get_release_success() -> None:
 
 
 @respx.mock
+def test_get_release_new_fields() -> None:
+    """Verify master_id, artists_sort, data_quality, format_quantity are parsed."""
+    release_id = 12345
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "Test Artist"}],
+        "title": "Test Album",
+        "year": 2020,
+        "tracklist": [
+            {
+                "position": "A1",
+                "title": "Track 1",
+                "duration": "5:32",
+                "extraartists": [{"name": "Mixer", "role": "Remix"}],
+            },
+        ],
+        "master_id": 9999,
+        "master_url": "https://api.discogs.com/masters/9999",
+        "artists_sort": "Test Artist, The",
+        "data_quality": "Correct",
+        "format_quantity": 2,
+    }
+
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+
+    assert release.master_id == 9999
+    assert release.master_url == "https://api.discogs.com/masters/9999"
+    assert release.artists_sort == "Test Artist, The"
+    assert release.data_quality == "Correct"
+    assert release.format_quantity == 2
+    # Track-level extraartists and duration
+    assert release.tracklist[0].duration == "5:32"
+    assert len(release.tracklist[0].extraartists) == 1
+    assert release.tracklist[0].extraartists[0].name == "Mixer"
+    assert release.tracklist[0].extraartists[0].role == "Remix"
+
+
+@respx.mock
+def test_get_release_empty_duration_is_none() -> None:
+    """Empty string duration should be normalized to None."""
+    release_id = 11111
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "A"}],
+        "title": "T",
+        "tracklist": [{"position": "A1", "title": "T1", "duration": ""}],
+    }
+
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+    assert release.tracklist[0].duration is None
+
+
+@respx.mock
 def test_search_releases_success() -> None:
     query = "Pink Floyd Dark Side"
     client = DiscogsClient("key", "secret")

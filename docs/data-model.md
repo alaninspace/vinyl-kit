@@ -23,6 +23,11 @@ Represents metadata fetched from the Discogs API.
 - **notes**: `str | None`
 - **images**: `list[ImageInfo]`
 - **uri**: `str | None` (Discogs release URL)
+- **master_id**: `int | None` (Discogs master release ID)
+- **master_url**: `str | None` (Discogs master release URL)
+- **artists_sort**: `str | None` (Discogs normalized artist sort name)
+- **data_quality**: `str | None` (Discogs data quality rating, e.g., "Correct")
+- **format_quantity**: `int | None` (Number of physical items in the release)
 
 ### LabelInfo
 - **name**: `str`
@@ -51,6 +56,8 @@ Represents metadata fetched from the Discogs API.
 - **title**: `str`
 - **artists**: `list[str]` (Track-specific artists)
 - **side**: `str | None` (Extracted from position, e.g., "A")
+- **extraartists**: `list[ExtraArtistInfo]` (Track-level credits, e.g., remix, written-by)
+- **duration**: `str | None` (Track duration from Discogs, e.g., "5:32")
 
 ### RateLimitInfo
 Live rate limit telemetry updated on every Discogs API response. Intentionally **mutable** (not frozen) since fields are updated in-place.
@@ -92,6 +99,15 @@ User settings stored in TOML.
 - **search_page_size**: `int` (Default: 5)
 - **default_format**: `list[str]` (Default: ["Vinyl"])
 - **auto_move**: `bool` (Default: false)
+- **delete_after_migration**: `bool` (Default: false)
+- **replace_artwork_on_migration**: `bool` (Default: true)
+- **replace_tags_on_migration**: `bool` (Default: true)
+- **skip_tags**: `list[str]` (Canonical tag names to exclude from writing; default: empty)
+- **log_level**: `str` (Default: "INFO")
+- **log_to_file**: `bool` (Default: true)
+- **log_file**: `pathlib.Path | None`
+- **log_rotation**: `str` (Default: "5 MB")
+- **log_retention**: `int` (Default: 5)
 
 ## State Transitions
 

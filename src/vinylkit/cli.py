@@ -573,6 +573,7 @@ def tag(
                         tag_mode=tag_mode,
                         track_numbering=config.track_numbering,
                         disc_mapping=config.disc_mapping,
+                        skip_tags=frozenset(config.skip_tags),
                     )
                     tagged_paths.append(file_path)
 
@@ -1067,6 +1068,7 @@ def migrate(
                             tag_mode=TagMode.REPLACE,
                             track_numbering=config.track_numbering,
                             disc_mapping=config.disc_mapping,
+                            skip_tags=frozenset(config.skip_tags),
                         )
 
                 # 3. Supplementary files
@@ -1379,6 +1381,10 @@ def config_show(config_obj: AppConfig) -> None:
                 ("track_numbering", config_obj.track_numbering.value),
                 ("disc_mapping", config_obj.disc_mapping.value),
                 ("info_filename", config_obj.info_filename),
+                (
+                    "skip_tags",
+                    ", ".join(config_obj.skip_tags) if config_obj.skip_tags else "None",
+                ),
             ],
         ),
         (
@@ -1491,6 +1497,7 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "delete_after_migration": _parse_bool,
     "replace_artwork_on_migration": _parse_bool,
     "replace_tags_on_migration": _parse_bool,
+    "skip_tags": _parse_format_list,
     "log_level": str,
     "log_to_file": _parse_bool,
     "log_file": Path,

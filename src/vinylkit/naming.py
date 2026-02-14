@@ -70,7 +70,7 @@ def move_file(source: Path, target: Path, dry_run: bool = False) -> None:
         target.parent.mkdir(parents=True, exist_ok=True)
         # atomic replace
         source.replace(target)
-        logger.info(f"Moved: {source.name} -> {target}")
+        logger.debug(f"Moved: {source.name} -> {target}")
     except Exception as e:
         raise FileOperationError(f"Failed to move {source} to {target}: {e}") from e
 
@@ -94,7 +94,7 @@ def move_directory(source: Path, target: Path, dry_run: bool = False) -> None:
         if target.exists():
             shutil.rmtree(target)
         shutil.move(str(source), str(target))
-        logger.info(f"Moved directory: {source.name} -> {target}")
+        logger.debug(f"Moved directory: {source.name} -> {target}")
     except Exception as e:
         raise FileOperationError(
             f"Failed to move directory {source} to {target}: {e}"
