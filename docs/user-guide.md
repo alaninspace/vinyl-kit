@@ -79,8 +79,9 @@ Organizes already-tagged files into the library structure without re-tagging.
 
 - **Usage**: `vinylkit rename [PATHS]... [OPTIONS]`
 - **Options**:
-    - `--id <INTEGER>`: Required to know the metadata for path generation.
+    - `--id <INTEGER>`: Discogs Release ID for path generation. Prompted interactively if not provided.
     - `--commit`: Required to actually move files (defaults to dry-run).
+    - `--library-root <PATH>`: Temporary override for the library destination.
 
 ### `migrate`
 Migrates an existing library to the new structure.
@@ -114,7 +115,7 @@ Manages your connection to Discogs.
 - `auth identity`: Displays the currently logged-in user.
 
 > [!IMPORTANT]
-> `auth login` requires `consumer_key` and `consumer_secret` to be configured first. For most users, setting a personal access token via `vinylkit config set discogs_token <TOKEN>` is simpler. See the **[Authentication Guide](auth.md)** for details.
+> `auth login` requires `consumer_key` and `consumer_secret` to be configured first. For most users, setting a personal access token via `vinylkit config set discogs_token <TOKEN>` (and optionally `discogs_secret`) is simpler. See the **[Authentication Guide](auth.md)** for details.
 
 ### `cache`
 Manages the Discogs API response cache stored in the platform cache directory.
@@ -176,7 +177,9 @@ VinylKit's settings are grouped into the following categories:
 - **Artwork & Metadata** — `image_handling`, `artwork_filename`, `collect_all_artwork`, `artwork_subdir`, `info_filename`
 - **Search & Discovery** — `search_page_size`, `default_format`
 - **Safety & Backups** — `backup_enabled`, `backup_dir`
+- **Library Migration** — `delete_after_migration`, `replace_artwork_on_migration`, `replace_tags_on_migration`
 - **Logging** — `log_level`, `log_to_file`, `log_file`, `log_rotation`, `log_retention`
+- **Authentication** — `auth_mode`, `consumer_key`, `consumer_secret`, `discogs_token`, `discogs_secret`
 
 For defaults, allowed values, and examples for every setting, see the **[Configuration Guide](configuration.md)**.
 
@@ -200,6 +203,7 @@ You can customize your library structure using the following placeholders in `na
 | `{style}` | Primary style |
 | `{country}` | Release country |
 | `{id}` | Discogs Release ID |
+| `{discogs_id}` | Alias for `{id}` |
 
 ---
 

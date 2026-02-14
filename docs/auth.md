@@ -87,6 +87,19 @@ vinylkit config set auth_mode auto
 
 ---
 
+## Migrating Credentials Between Machines
+
+If you need to manually set up OAuth credentials from another machine, you will need the `discogs_secret` (OAuth token secret) in addition to `discogs_token`:
+
+```bash
+# Bash / PowerShell
+vinylkit config set discogs_token <YOUR_TOKEN>
+vinylkit config set discogs_secret <YOUR_SECRET>
+vinylkit config set consumer_key <YOUR_KEY>
+vinylkit config set consumer_secret <YOUR_SECRET>
+vinylkit config set auth_mode oauth
+```
+
 ## Verifying Authentication
 
 To check which mode is active and if your credentials are valid:

@@ -255,6 +255,20 @@ Number of rotated log files to keep before the oldest is deleted.
 
 See the [Authentication Guide](auth.md) for a detailed walkthrough of these settings.
 
-- `auth_mode`: `auto` (Default), `token`, `oauth`, `key_secret`.
-- `consumer_key` / `consumer_secret`: Discogs Developer Application credentials.
-- `discogs_token` / `discogs_secret`: User-specific authentication tokens.
+### `auth_mode`
+Controls which authentication method VinylKit uses.
+- **Default:** `auto`
+- **Allowed:** `auto`, `token`, `oauth`, `key_secret`, `none`
+- **Example:** `vinylkit config set auth_mode token`
+
+### `consumer_key` / `consumer_secret`
+Discogs Developer Application credentials. Required for OAuth login.
+- **Example:** `vinylkit config set consumer_key "YOUR_KEY"`
+
+### `discogs_token`
+Personal access token from Discogs. The simplest auth method for most users.
+- **Example:** `vinylkit config set discogs_token "YOUR_TOKEN"`
+
+### `discogs_secret`
+OAuth token secret, automatically set by `vinylkit auth login`. Can also be set manually when migrating credentials from another machine.
+- **Example:** `vinylkit config set discogs_secret "YOUR_SECRET"`

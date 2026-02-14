@@ -51,6 +51,12 @@ Represents metadata fetched from the Discogs API.
 - **name**: `str`
 - **role**: `str`
 
+### ImageInfo
+Represents a single image associated with a Discogs release.
+- **uri**: `str` (URL to fetch the image)
+- **type**: `str` (e.g., "primary", "secondary")
+- **resource_url**: `str` (Discogs API resource URL)
+
 ### TrackInfo
 - **position**: `str` (e.g., "A1", "B2")
 - **title**: `str`
@@ -89,7 +95,7 @@ User settings stored in TOML.
 - **naming_pattern**: `str` (Default: `{artist}/{year} - {album}/{track_number} - {title}`)
 - **image_handling**: `ImageHandling` (EMBED, SAVE, BOTH, NONE)
 - **collect_all_artwork**: `bool` (Download all release images)
-- **artwork_subdir**: `str` (Subdirectory for additional images)
+- **artwork_subdir**: `str` (Subdirectory for additional images; Default: "Artwork")
 - **backup_enabled**: `bool`
 - **backup_dir**: `pathlib.Path | None`
 - **info_filename**: `str` (Default: release_info.txt)
@@ -109,6 +115,61 @@ User settings stored in TOML.
 - **log_file**: `pathlib.Path | None`
 - **log_rotation**: `str` (Default: "5 MB")
 - **log_retention**: `int` (Default: 5)
+
+## Enums
+
+### TagStatus
+Tagging state of an audio file.
+- `UNTAGGED` — No tags detected.
+- `PARTIAL` — Some tags present but incomplete.
+- `TAGGED` — Fully tagged.
+
+### AuthMode
+Authentication method for the Discogs API.
+- `auto` — (Default) Try OAuth, then token, then key/secret.
+- `token` — Personal access token only.
+- `oauth` — Full OAuth 1.0a.
+- `key_secret` — Consumer key and secret only.
+- `none` — No authentication.
+
+### TagMode
+Controls how tags are written.
+- `replace` — (Default) Clear existing tags and write fresh.
+- `merge` — Preserve existing tags, only add/update from Discogs.
+
+### ImageHandling
+Controls where artwork is placed.
+- `both` — (Default) Embed in audio files and save as file.
+- `embed` — Only embed inside audio files.
+- `save` — Only save as standalone file.
+- `none` — Disable artwork processing.
+
+### TrackNumbering
+Controls how track numbers are written.
+- `numeric` — (Default) Sequential numbers (1, 2, 3...).
+- `original` — Keep original Discogs position (e.g., "A1").
+- `per_side` — Reset count per side (A1→1, B1→1).
+
+### DiscMapping
+Controls how vinyl sides map to disc numbers.
+- `physical` — (Default) Pairs of sides (A/B, C/D) → Disc 1, 2, etc.
+- `single` — All tracks on Disc 1.
+- `per_side` — Each side is a separate disc.
+- `original` — Uses Discogs physical count if available.
+
+## Exception Hierarchy
+
+All custom exceptions inherit from `VinylkitError`:
+
+```
+VinylkitError (base)
+├── ConfigError          — Configuration issues
+├── AuthError            — Authentication failures
+├── DiscogsAPIError      — Discogs API errors
+├── TaggingError         — Audio file tagging issues
+├── FileOperationError   — File move/rename failures
+└── ValidationError      — Data validation failures
+```
 
 ## State Transitions
 

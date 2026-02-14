@@ -15,7 +15,7 @@ Users can install VinylKit directly from the repository:
 
 ```bash
 # Bash / PowerShell
-uv tool install git+https://github.com/alaninspace/vinyl-man.git
+uv tool install git+https://github.com/alaninspace/vinyl-kit.git
 ```
 
 ### Updating VinylKit
@@ -164,8 +164,10 @@ VinylKit provides the following commands:
 - **`scan`** — View audio files and their tagging status.
 - **`tag`** — Tag files using a Discogs Release ID or interactive search, with optional rename/move.
 - **`rename`** — Move already-tagged files into your library structure (dry-run by default).
+- **`migrate`** — Migrate an existing library to the new folder structure.
 - **`auth`** — Manage Discogs authentication (login, identity).
 - **`config`** — View and update persistent settings.
+- **`cache`** — List and clear cached Discogs API responses.
 - **`collection`** — Download your Discogs collection as CSV.
 
 For full syntax, options, and search tips, see the **[User Guide — Command Reference](user-guide.md#3-command-reference)**.
@@ -181,6 +183,7 @@ For full syntax, options, and search tips, see the **[User Guide — Command Ref
 ## Where is my config?
 Your settings and keys are stored in a persistent location:
 - **Windows**: `%LOCALAPPDATA%\vinylkit\config.toml`
-- **macOS/Linux**: `~/.config/vinylkit/config.toml`
+- **macOS**: `~/Library/Application Support/vinylkit/config.toml`
+- **Linux**: `~/.config/vinylkit/config.toml`
 
 Running `uv tool install --force` **will not** delete or reset these files.

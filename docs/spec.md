@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-vinylkit-cli-manager`  
 **Created**: 2026-02-07  
-**Status**: Implemented
+**Status**: Historical / Superseded — See [user-guide.md](user-guide.md) and [configuration.md](configuration.md) for current documentation
 **Input**: User description: "Build \"vinylkit\" — a cross-platform CLI tool for managing digitised vinyl record audio files using metadata from Discogs..."
 
 ## User Scenarios & Testing *(mandatory)*

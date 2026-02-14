@@ -6,7 +6,7 @@ import pytest
 from conftest import create_mock_release
 
 from vinylkit.cli import cli
-from vinylkit.models import AppConfig
+from vinylkit.models import AppConfig, RateLimitInfo
 
 
 @pytest.fixture
@@ -20,6 +20,7 @@ def mock_discogs(mocker):
     mocker.patch("vinylkit.cli.save_artwork")
     mocker.patch("vinylkit.cli.move_file")
     mocker.patch("vinylkit.cli.move_directory")
+    mock_client.rate_limit_info = RateLimitInfo()
     return mock_client
 
 
@@ -254,7 +255,68 @@ def test_ex_4_4_batch_processing(runner, tmp_path, mock_discogs):
     assert result.output.count("Processing folder:") == 2
 
 
-## 5. Configuration Examples
+## 4b. Tag Flags: --no-artwork, --no-rename
+
+
+def test_ex_4_5_no_artwork(runner, tmp_path, mock_discogs, mocker):
+    """Covers: vinylkit tag --id 31 --no-artwork"""
+    (tmp_path / "01.mp3").write_text("audio")
+    mock_discogs.get_release.return_value = create_mock_release(
+        31, "Aphex Twin", "Selected Ambient Works 85-92"
+    )
+    spy = mocker.patch("vinylkit.cli.tag_audio_file")
+    result = runner.invoke(cli, ["tag", str(tmp_path), "--id", "31", "--no-artwork"])
+    assert result.exit_code == 0
+    assert spy.call_args[1]["artwork_data"] is None
+
+
+def test_ex_4_6_no_rename(runner, tmp_path, mock_discogs, mocker):
+    """Covers: vinylkit tag --id 62122 --no-rename"""
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    (inbox / "01.mp3").write_text("audio")
+    mocker.patch(
+        "vinylkit.cli.load_config",
+        return_value=AppConfig(library_root=tmp_path / "lib", recordings_root=inbox),
+    )
+    mock_discogs.get_release.return_value = create_mock_release(
+        62122, "Orbital", "Chime"
+    )
+    spy_move = mocker.patch("vinylkit.cli.move_file")
+    result = runner.invoke(cli, ["tag", "--id", "62122", "--no-rename"])
+    assert result.exit_code == 0
+    spy_move.assert_not_called()
+
+
+## 5. Rename & Organize
+
+
+def test_ex_5_1_rename_dry_run(runner, tmp_path, mock_discogs):
+    """Covers: vinylkit rename /path --id 6108"""
+    (tmp_path / "01.mp3").write_text("audio")
+    mock_discogs.get_release.return_value = create_mock_release(
+        6108, "Leftfield", "Leftism"
+    )
+    result = runner.invoke(cli, ["rename", str(tmp_path), "--id", "6108"])
+    assert result.exit_code == 0
+    assert "Dry-run" in result.output
+
+
+def test_ex_5_2_rename_commit(runner, tmp_path, mock_discogs):
+    """Covers: vinylkit rename /path --id 6108 --commit"""
+    (tmp_path / "01.mp3").write_text("audio")
+    mock_discogs.get_release.return_value = create_mock_release(
+        6108, "Leftfield", "Leftism"
+    )
+    result = runner.invoke(
+        cli,
+        ["rename", str(tmp_path), "--id", "6108", "--commit"],
+        input="y\n",
+    )
+    assert result.exit_code == 0
+
+
+## 6. Configuration Examples
 
 
 def test_ex_5_1_config_auto_move(runner):
@@ -287,7 +349,14 @@ def test_ex_5_3_config_naming_pattern(runner):
         assert pattern.replace(" ", "") in clean
 
 
-## 6. Advanced Overrides
+def test_ex_6_4_config_show(runner):
+    """Covers: vinylkit config show"""
+    result = runner.invoke(cli, ["config", "show"])
+    assert result.exit_code == 0
+    assert "library_root" in result.output
+
+
+## 7. Advanced Overrides
 
 
 def test_ex_6_1_library_root_override(runner, tmp_path, mock_discogs):
@@ -327,7 +396,22 @@ def test_ex_6_2_merge_mode(runner, tmp_path, mock_discogs, mocker):
     assert spy.call_args[1]["tag_mode"] == TagMode.MERGE
 
 
-## 7. Collection Management
+## 8. Authentication
+
+
+def test_ex_8_1_auth_identity(runner, mock_discogs):
+    """Covers: vinylkit auth identity"""
+    mock_discogs.get_identity.return_value = {
+        "username": "testuser",
+        "name": "Test User",
+        "resource_url": "https://api.discogs.com/users/testuser",
+    }
+    result = runner.invoke(cli, ["auth", "identity"])
+    assert result.exit_code == 0
+    assert "testuser" in result.output
+
+
+## 9. Collection Management
 
 
 def test_ex_7_1_collection_download(runner, mock_discogs):
@@ -375,10 +459,10 @@ def test_ex_7_1_collection_download(runner, mock_discogs):
         assert "Download aborted" in result_abort.output
 
 
-## 8. Library Migration
+## 10. Library Migration
 
 
-def test_ex_8_1_basic_migration(runner, tmp_path, mock_discogs, mocker):
+def test_ex_10_1_basic_migration(runner, tmp_path, mock_discogs, mocker):
     """Covers: vinylkit migrate ..."""
     source = tmp_path / "source"
     source.mkdir()
@@ -395,10 +479,86 @@ def test_ex_8_1_basic_migration(runner, tmp_path, mock_discogs, mocker):
     assert "Migration complete!" in result.output
 
 
-## 9. Cache Management
+def test_ex_10_3_migration_filter_ids(runner, tmp_path, mock_discogs, mocker):
+    """Covers: vinylkit migrate ... --id '49135,37623'"""
+    source = tmp_path / "source"
+    source.mkdir()
+    a1 = source / "Album A [49135]"
+    a1.mkdir()
+    (a1 / "track.mp3").write_text("audio")
+    a2 = source / "Album B [37623]"
+    a2.mkdir()
+    (a2 / "track.mp3").write_text("audio")
+    a3 = source / "Album C [99999]"
+    a3.mkdir()
+    (a3 / "track.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+    mock_discogs.get_release.side_effect = [
+        create_mock_release(49135, "A", "T"),
+        create_mock_release(37623, "B", "T"),
+    ]
+    mocker.patch("vinylkit.cli.get_track_number", return_value="1")
+
+    result = runner.invoke(
+        cli,
+        ["migrate", str(source), str(dest), "--id", "49135,37623"],
+        input="y\ny\n",
+    )
+    assert result.exit_code == 0
+    assert "Skipping Album C" in result.output
 
 
-def test_ex_9_1_cache_list(runner, tmp_path, mocker):
+def test_ex_10_4_migration_dry_run(runner, tmp_path, mock_discogs, mocker):
+    """Covers: vinylkit migrate ... --dry-run"""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "Peace Division [33511]"
+    album_dir.mkdir()
+    (album_dir / "track.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+    mock_discogs.get_release.return_value = create_mock_release(33511, "PD", "T")
+    mocker.patch("vinylkit.cli.get_track_number", return_value="1")
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest), "--dry-run"])
+    assert result.exit_code == 0
+    assert "Dry-run" in result.output
+    # Source should still exist since it's a dry-run
+    assert album_dir.exists()
+
+
+def test_ex_10_5_migration_replace_artwork_tags(runner, tmp_path, mock_discogs, mocker):
+    """Covers: vinylkit migrate ... --replace-artwork --replace-tags"""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "Test Album [12345]"
+    album_dir.mkdir()
+    (album_dir / "track.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+    mock_discogs.get_release.return_value = create_mock_release(12345, "A", "T")
+    mocker.patch("vinylkit.cli.get_track_number", return_value="1")
+
+    result = runner.invoke(
+        cli,
+        [
+            "migrate",
+            str(source),
+            str(dest),
+            "--replace-artwork",
+            "--replace-tags",
+        ],
+        input="y\n",
+    )
+    assert result.exit_code == 0
+    assert "Migration complete!" in result.output
+
+
+## 11. Cache Management
+
+
+def test_ex_11_1_cache_list(runner, tmp_path, mocker):
     """Covers: vinylkit cache list"""
     import json
 
@@ -410,7 +570,7 @@ def test_ex_9_1_cache_list(runner, tmp_path, mocker):
     assert "19983" in result.output
 
 
-def test_ex_9_2_cache_clear(runner, tmp_path, mocker):
+def test_ex_11_2_cache_clear(runner, tmp_path, mocker):
     """Covers: vinylkit cache clear --yes"""
     import json
 
@@ -422,7 +582,7 @@ def test_ex_9_2_cache_clear(runner, tmp_path, mocker):
     assert "Cleared 1" in result.output
 
 
-def test_ex_9_3_cache_clear_single(runner, tmp_path, mocker):
+def test_ex_11_3_cache_clear_single(runner, tmp_path, mocker):
     """Covers: vinylkit cache clear --id 19983"""
     import json
 
@@ -434,7 +594,7 @@ def test_ex_9_3_cache_clear_single(runner, tmp_path, mocker):
     assert "Cleared cache for release 19983" in result.output
 
 
-def test_ex_9_4_cache_clear_interactive(runner, tmp_path, mocker):
+def test_ex_11_4_cache_clear_interactive(runner, tmp_path, mocker):
     """Covers: vinylkit cache clear (interactive confirmation)"""
     import json
 
@@ -446,7 +606,7 @@ def test_ex_9_4_cache_clear_interactive(runner, tmp_path, mocker):
     assert "Cleared 1" in result.output
 
 
-def test_ex_9_5_cache_clear_short_flag(runner, tmp_path, mocker):
+def test_ex_11_5_cache_clear_short_flag(runner, tmp_path, mocker):
     """Covers: vinylkit cache clear -y"""
     import json
 
@@ -458,7 +618,7 @@ def test_ex_9_5_cache_clear_short_flag(runner, tmp_path, mocker):
     assert "Cleared 1" in result.output
 
 
-def test_ex_9_6_config_cache_disabled(runner):
+def test_ex_11_6_config_cache_disabled(runner):
     """Covers: vinylkit config set cache_enabled false"""
     result = runner.invoke(cli, ["config", "set", "cache_enabled", "false"])
     assert result.exit_code == 0
@@ -467,7 +627,7 @@ def test_ex_9_6_config_cache_disabled(runner):
     assert "False" in show.output
 
 
-def test_ex_8_2_migration_with_delete(runner, tmp_path, mock_discogs, mocker):
+def test_ex_10_2_migration_with_delete(runner, tmp_path, mock_discogs, mocker):
     """Covers: vinylkit migrate ... --delete"""
     source = tmp_path / "source"
     source.mkdir()

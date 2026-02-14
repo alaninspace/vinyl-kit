@@ -103,9 +103,45 @@ vinylkit tag /path/to/batch/folder/* --rename
 vinylkit tag C:\Path\To\Batch\Folder\* --rename
 ```
 
+### Skip Artwork Embedding
+Tag files without downloading or embedding any artwork.
+```bash
+# Bash / PowerShell
+# Example: Aphex Twin - Selected Ambient Works 85-92
+vinylkit tag --id 31 --no-artwork
+```
+
+### Tag Without Moving
+Tag files in place without moving them to the library, even when using `recordings_root`.
+```bash
+# Bash / PowerShell
+# Example: Orbital - Chime
+vinylkit tag --id 62122 --no-rename
+```
+
 ---
 
-## 5. Configuration Examples
+## 5. Rename & Organize (Without Re-tagging)
+
+### Dry-run Rename Preview
+Preview how already-tagged files would be organized (default is dry-run).
+```bash
+# Bash / PowerShell
+# Example: Leftfield - Leftism
+vinylkit rename /path/to/album --id 6108
+```
+
+### Commit the Rename
+Actually move the files after previewing.
+```bash
+# Bash / PowerShell
+# Example: Leftfield - Leftism
+vinylkit rename /path/to/album --id 6108 --commit
+```
+
+---
+
+## 6. Configuration Examples
 
 ### Set up for Automated Moves
 Bypass confirmation prompts for all future tagging.
@@ -135,21 +171,30 @@ vinylkit config set naming_pattern "{artist}/{year} - {album} [{label}]/{track_n
 
 ---
 
-## 6. Advanced Overrides
+### View Current Configuration
+Display all settings and the config file path.
+```bash
+# Bash / PowerShell
+vinylkit config show
+```
+
+---
+
+## 7. Advanced Overrides
 
 ### Manual Library Root Override
-Move files to a different location than your default library.
+Move files to a different location than your default library. Use `--auto-move` to skip the confirmation prompt.
 
 **Bash:**
 ```bash
 # Example: Daft Punk - Homework
-vinylkit tag --id 236605 --rename --library-root ~/Archive/Techno
+vinylkit tag --id 236605 --rename --auto-move --library-root ~/Archive/Techno
 ```
 
 **PowerShell:**
 ```powershell
 # Example: Daft Punk - Homework
-vinylkit tag --id 236605 --rename --library-root "E:\Archive\Techno"
+vinylkit tag --id 236605 --rename --auto-move --library-root "E:\Archive\Techno"
 ```
 
 ### Merge Mode
@@ -162,7 +207,18 @@ vinylkit tag --id 28203 --merge
 
 ---
 
-## 7. Collection Management
+## 8. Authentication
+
+### Check Current Identity
+Display the authenticated Discogs user.
+```bash
+# Bash / PowerShell
+vinylkit auth identity
+```
+
+---
+
+## 9. Collection Management
 
 ### Download Collection
 Export your entire Discogs collection to a local CSV file.
@@ -173,7 +229,7 @@ vinylkit collection download
 
 ---
 
-## 8. Library Migration
+## 10. Library Migration
 
 Move an entire existing library into the VinylKit structure.
 
@@ -237,9 +293,16 @@ vinylkit migrate ~/Music/Old ~/Music/New --dry-run
 vinylkit migrate "C:\Music\Old" "C:\Music\New" --dry-run
 ```
 
+### Replace Artwork and Tags During Migration
+Force fresh artwork and tags from Discogs, even if the files already have metadata.
+```bash
+# Bash / PowerShell
+vinylkit migrate ~/Music/Old ~/Music/New --replace-artwork --replace-tags
+```
+
 ---
 
-## 9. Cache Management
+## 11. Cache Management
 
 ### List Cached Releases
 See what Discogs API responses are stored locally.

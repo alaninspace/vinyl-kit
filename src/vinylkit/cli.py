@@ -1174,7 +1174,7 @@ def migrate(
             log_entries.append("  STATUS: Success")
             log_entries.append("")
 
-        except Exception as e:
+        except (VinylkitError, OSError) as e:
             console.print(f"[red]Failed to migrate {folder.name}: {e}[/red]")
             log_entries.append(f"FAILED: {folder.name} ({e})")
             log_entries.append("")
@@ -1244,20 +1244,14 @@ def login(config: AppConfig) -> None:
             req_token, req_token_secret, verifier
         )
 
-        # Update and save config
-        new_config = AppConfig(
-            library_root=config.library_root,
-            consumer_key=config.consumer_key,
-            consumer_secret=config.consumer_secret,
-            discogs_token=access_token,
-            discogs_secret=access_token_secret,
-            auth_mode=config.auth_mode,
-            tag_mode=config.tag_mode,
-            naming_pattern=config.naming_pattern,
-            image_handling=config.image_handling,
-            backup_enabled=config.backup_enabled,
-            backup_dir=config.backup_dir,
-        )
+        # Update and save config — preserve ALL existing fields,
+        # only overwrite the two tokens produced by the OAuth flow.
+        updated = {
+            field: getattr(config, field) for field in AppConfig.__dataclass_fields__
+        }
+        updated["discogs_token"] = access_token
+        updated["discogs_secret"] = access_token_secret
+        new_config = AppConfig(**updated)
         save_config(new_config)
         console.print(
             "[bold green]Success![/bold green] You are now authenticated with Discogs."
@@ -1520,6 +1514,7 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "consumer_key": str,
     "consumer_secret": str,
     "discogs_token": str,
+    "discogs_secret": str,
     "naming_pattern": str,
     "image_handling": ImageHandling,
     "collect_all_artwork": _parse_bool,

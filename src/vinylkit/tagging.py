@@ -33,6 +33,7 @@ from vinylkit.models import (
     DiscMapping,
     DiscogsRelease,
     ExtraArtistInfo,
+    FormatInfo,
     TagMode,
     TagStatus,
     TrackNumbering,
@@ -61,6 +62,15 @@ def _extract_by_role(
                 result.append(ea.name)
                 break
     return result
+
+
+def _format_formats(formats: list[FormatInfo]) -> str:
+    """Build a human-readable string describing release formats."""
+    parts: list[str] = []
+    for f in formats:
+        desc = f" ({', '.join(f.descriptions)})" if f.descriptions else ""
+        parts.append(f"{f.qty}x {f.name}{desc}")
+    return ", ".join(parts)
 
 
 def write_release_info(
@@ -95,14 +105,7 @@ def write_release_info(
     ]
 
     if release.formats:
-        fmt_lines = []
-
-        for f in release.formats:
-            desc = f" ({', '.join(f.descriptions)})" if f.descriptions else ""
-
-            fmt_lines.append(f"{f.qty}x {f.name}{desc}")
-
-        lines.append(f"{'Format:':<14} {', '.join(fmt_lines)}")
+        lines.append(f"{'Format:':<14} {_format_formats(release.formats)}")
 
     lines.extend(
         [
@@ -388,6 +391,168 @@ def calculate_track_and_disc(
     return track_num, disc_num
 
 
+# -- Lookup tables for format-specific tag writing ----------------------------
+
+_MP3_FRAMES = {
+    "artist": TPE1,
+    "title": TIT2,
+    "album": TALB,
+    "date": TDRC,
+    "tracknumber": TRCK,
+    "discnumber": TPOS,
+    "publisher": TPUB,
+    "genre": TCON,
+    "albumartist": TPE2,
+    "media": TMED,
+    "releasedate": TDRL,
+    "artistsort": TSOP,
+    "composer": TCOM,
+    "remixer": TPE4,
+    "copyright": TCOP,
+}
+
+_MP3_TXXX = {
+    "style": "STYLE",
+    "discogs_position": "DISCOGS_POSITION",
+    "catalognumber": "CATALOGNUMBER",
+    "side": "SIDE",
+    "discogs_release_url": "DISCOGS_RELEASE_URL",
+    "label": "LABEL",
+    "format": "FORMAT",
+    "companies": "COMPANIES",
+    "credits": "CREDITS",
+    "barcode": "BARCODE",
+    "country": "COUNTRY",
+    "discogs_release_id": "DISCOGS_RELEASE_ID",
+    "discogs_master_id": "DISCOGS_MASTER_ID",
+    "discogs_master_url": "DISCOGS_MASTER_URL",
+    "discogs_notes": "DISCOGS_NOTES",
+    "discogs_data_quality": "DISCOGS_DATA_QUALITY",
+    "discogs_format_quantity": "DISCOGS_FORMAT_QUANTITY",
+}
+
+_FLAC_KEY_OVERRIDES = {"publisher": "organization"}
+
+
+def _prepare_tags(
+    release: DiscogsRelease,
+    track_index: int,
+    track_numbering: TrackNumbering,
+    disc_mapping: DiscMapping,
+    skip_tags: frozenset[str],
+) -> dict[str, str | list[str]]:
+    """Compute all tag values (except artwork).
+
+    Returns a dict of canonical tag name to value.  Multi-value tags
+    are stored as ``list[str]``; scalar tags as ``str``.  The MP3
+    writer joins lists with ``", "``; the FLAC writer stores them
+    natively as multi-value Vorbis comments.
+    """
+    track = release.tracklist[track_index]
+    track_num, disc_num = calculate_track_and_disc(
+        release, track_index, track_numbering, disc_mapping
+    )
+    all_extra = list(release.extraartists) + list(track.extraartists)
+    ok = _should_write
+    tags: dict[str, str | list[str]] = {}
+
+    # --- Standard tags ---
+    if ok("artist", skip_tags):
+        tags["artist"] = list(release.artists)
+    if ok("title", skip_tags):
+        tags["title"] = track.title
+    if ok("album", skip_tags):
+        tags["album"] = release.title
+    if ok("date", skip_tags) and release.year:
+        tags["date"] = str(release.year)
+    if ok("tracknumber", skip_tags):
+        tags["tracknumber"] = track_num
+    if ok("discnumber", skip_tags):
+        tags["discnumber"] = disc_num
+    if ok("publisher", skip_tags) and release.label:
+        tags["publisher"] = release.label
+    if ok("genre", skip_tags) and release.genres:
+        tags["genre"] = list(release.genres)
+    if ok("style", skip_tags) and release.styles:
+        tags["style"] = list(release.styles)
+
+    # --- Ecosystem-recognised tags ---
+    if ok("albumartist", skip_tags):
+        tags["albumartist"] = ", ".join(release.artists)
+    if ok("media", skip_tags) and release.formats:
+        tags["media"] = release.formats[0].name
+    if ok("releasedate", skip_tags) and release.released:
+        tags["releasedate"] = release.released
+    if ok("artistsort", skip_tags) and release.artists_sort:
+        tags["artistsort"] = release.artists_sort
+
+    # --- Composer / remixer ---
+    if ok("composer", skip_tags):
+        composers = _extract_by_role(all_extra, _COMPOSER_ROLES)
+        if composers:
+            tags["composer"] = composers
+    if ok("remixer", skip_tags):
+        remixers = _extract_by_role(all_extra, _REMIXER_ROLES)
+        if remixers:
+            tags["remixer"] = remixers
+
+    # --- Copyright ---
+    if ok("copyright", skip_tags) and release.companies:
+        copyrights = [
+            c.name for c in release.companies if "Copyright" in c.entity_type_name
+        ]
+        if copyrights:
+            tags["copyright"] = copyrights
+
+    # --- Vinyl-specific tags ---
+    if ok("discogs_position", skip_tags):
+        tags["discogs_position"] = track.position
+    if ok("catalognumber", skip_tags):
+        catnos = (
+            [lbl.catno for lbl in release.labels if lbl.catno] if release.labels else []
+        )
+        if catnos:
+            tags["catalognumber"] = catnos
+        elif release.catno:
+            tags["catalognumber"] = release.catno
+    if ok("side", skip_tags) and track.side:
+        tags["side"] = track.side
+
+    # --- Extended Discogs tags ---
+    if ok("discogs_release_url", skip_tags) and release.uri:
+        tags["discogs_release_url"] = release.uri
+    if ok("label", skip_tags) and release.labels:
+        tags["label"] = [lbl.name for lbl in release.labels]
+    if ok("format", skip_tags) and release.formats:
+        tags["format"] = _format_formats(release.formats)
+    if ok("companies", skip_tags) and release.companies:
+        tags["companies"] = [
+            f"{c.entity_type_name}: {c.name}" for c in release.companies
+        ]
+    if ok("credits", skip_tags) and all_extra:
+        tags["credits"] = [f"{a.role}: {a.name}" for a in all_extra]
+    if ok("barcode", skip_tags) and release.identifiers:
+        barcodes = [i.value for i in release.identifiers if i.type == "Barcode"]
+        if barcodes:
+            tags["barcode"] = barcodes
+    if ok("country", skip_tags) and release.country:
+        tags["country"] = release.country
+    if ok("discogs_release_id", skip_tags):
+        tags["discogs_release_id"] = str(release.id)
+    if ok("discogs_master_id", skip_tags) and release.master_id is not None:
+        tags["discogs_master_id"] = str(release.master_id)
+    if ok("discogs_master_url", skip_tags) and release.master_url:
+        tags["discogs_master_url"] = release.master_url
+    if ok("discogs_notes", skip_tags) and release.notes:
+        tags["discogs_notes"] = release.notes
+    if ok("discogs_data_quality", skip_tags) and release.data_quality:
+        tags["discogs_data_quality"] = release.data_quality
+    if ok("discogs_format_quantity", skip_tags) and release.format_quantity is not None:
+        tags["discogs_format_quantity"] = str(release.format_quantity)
+
+    return tags
+
+
 def _tag_mp3(
     path: Path,
     release: DiscogsRelease,
@@ -417,131 +582,24 @@ def _tag_mp3(
     tags = audio.tags
     assert isinstance(tags, ID3)
 
-    track = release.tracklist[track_index]
-    track_num, disc_num = calculate_track_and_disc(
-        release, track_index, track_numbering, disc_mapping
+    tag_values = _prepare_tags(
+        release, track_index, track_numbering, disc_mapping, skip_tags
     )
 
-    ok = _should_write
-
-    # Standard frames
-    if ok("artist", skip_tags):
-        tags.add(TPE1(encoding=3, text=", ".join(release.artists)))
-    if ok("title", skip_tags):
-        tags.add(TIT2(encoding=3, text=track.title))
-    if ok("album", skip_tags):
-        tags.add(TALB(encoding=3, text=release.title))
-    if ok("date", skip_tags) and release.year:
-        tags.add(TDRC(encoding=3, text=str(release.year)))
-    if ok("tracknumber", skip_tags):
-        tags.add(TRCK(encoding=3, text=track_num))
-    if ok("discnumber", skip_tags):
-        tags.add(TPOS(encoding=3, text=disc_num))
-    if ok("publisher", skip_tags) and release.label:
-        tags.add(TPUB(encoding=3, text=release.label))
-    if ok("genre", skip_tags) and release.genres:
-        tags.add(TCON(encoding=3, text=", ".join(release.genres)))
-    if ok("style", skip_tags) and release.styles:
-        tags.add(TXXX(encoding=3, desc="STYLE", text=", ".join(release.styles)))
-
-    # New standard tags
-    if ok("albumartist", skip_tags):
-        tags.add(TPE2(encoding=3, text=", ".join(release.artists)))
-    if ok("media", skip_tags) and release.formats:
-        tags.add(TMED(encoding=3, text=release.formats[0].name))
-    if ok("releasedate", skip_tags) and release.released:
-        tags.add(TDRL(encoding=3, text=release.released))
-    if ok("artistsort", skip_tags) and release.artists_sort:
-        tags.add(TSOP(encoding=3, text=release.artists_sort))
-
-    # Composer and remixer from extraartists
-    all_extraartists = list(release.extraartists) + list(track.extraartists)
-    if ok("composer", skip_tags):
-        composers = _extract_by_role(all_extraartists, _COMPOSER_ROLES)
-        if composers:
-            tags.add(TCOM(encoding=3, text=", ".join(composers)))
-    if ok("remixer", skip_tags):
-        remixers = _extract_by_role(all_extraartists, _REMIXER_ROLES)
-        if remixers:
-            tags.add(TPE4(encoding=3, text=", ".join(remixers)))
-
-    # Copyright from companies
-    if ok("copyright", skip_tags) and release.companies:
-        copyrights = [
-            c.name for c in release.companies if "Copyright" in c.entity_type_name
-        ]
-        if copyrights:
-            tags.add(TCOP(encoding=3, text=", ".join(copyrights)))
-
-    # Custom vinyl frames
-    if ok("discogs_position", skip_tags):
-        tags.add(TXXX(encoding=3, desc="DISCOGS_POSITION", text=track.position))
-    if ok("catalognumber", skip_tags) and release.catno:
-        tags.add(TXXX(encoding=3, desc="CATALOGNUMBER", text=release.catno))
-    if ok("side", skip_tags) and track.side:
-        tags.add(TXXX(encoding=3, desc="SIDE", text=track.side))
-
-    # Extended Discogs Tags
-    if ok("discogs_release_url", skip_tags) and release.uri:
-        tags.add(TXXX(encoding=3, desc="DISCOGS_RELEASE_URL", text=release.uri))
-
-    if ok("label", skip_tags) and release.labels:
-        labels_str = ", ".join(lbl.name for lbl in release.labels)
-        tags.add(TXXX(encoding=3, desc="LABEL", text=labels_str))
-    if ok("catalognumber", skip_tags) and release.labels:
-        catnos_str = ", ".join(lbl.catno for lbl in release.labels if lbl.catno)
-        if catnos_str:
-            tags.add(TXXX(encoding=3, desc="CATALOGNUMBER", text=catnos_str))
-
-    if ok("format", skip_tags) and release.formats:
-        fmt_strs = []
-        for f in release.formats:
-            desc = f" ({', '.join(f.descriptions)})" if f.descriptions else ""
-            fmt_strs.append(f"{f.qty}x {f.name}{desc}")
-        tags.add(TXXX(encoding=3, desc="FORMAT", text=", ".join(fmt_strs)))
-
-    if ok("companies", skip_tags) and release.companies:
-        comp_str = ", ".join(
-            f"{c.entity_type_name}: {c.name}" for c in release.companies
-        )
-        tags.add(TXXX(encoding=3, desc="COMPANIES", text=comp_str))
-
-    if ok("credits", skip_tags) and all_extraartists:
-        credits_str = ", ".join(f"{a.role}: {a.name}" for a in all_extraartists)
-        tags.add(TXXX(encoding=3, desc="CREDITS", text=credits_str))
-
-    if ok("barcode", skip_tags) and release.identifiers:
-        barcodes = [i.value for i in release.identifiers if i.type == "Barcode"]
-        if barcodes:
-            tags.add(TXXX(encoding=3, desc="BARCODE", text=", ".join(barcodes)))
-
-    # New custom/DISCOGS-prefixed tags
-    if ok("country", skip_tags) and release.country:
-        tags.add(TXXX(encoding=3, desc="COUNTRY", text=release.country))
-    if ok("discogs_release_id", skip_tags):
-        tags.add(TXXX(encoding=3, desc="DISCOGS_RELEASE_ID", text=str(release.id)))
-    if ok("discogs_master_id", skip_tags) and release.master_id is not None:
-        tags.add(
-            TXXX(encoding=3, desc="DISCOGS_MASTER_ID", text=str(release.master_id))
-        )
-    if ok("discogs_master_url", skip_tags) and release.master_url:
-        tags.add(TXXX(encoding=3, desc="DISCOGS_MASTER_URL", text=release.master_url))
-    if ok("discogs_notes", skip_tags) and release.notes:
-        tags.add(TXXX(encoding=3, desc="DISCOGS_NOTES", text=release.notes))
-    if ok("discogs_data_quality", skip_tags) and release.data_quality:
-        tags.add(
-            TXXX(encoding=3, desc="DISCOGS_DATA_QUALITY", text=release.data_quality)
-        )
-    if ok("discogs_format_quantity", skip_tags) and release.format_quantity is not None:
-        tags.add(
-            TXXX(
-                encoding=3,
-                desc="DISCOGS_FORMAT_QUANTITY",
-                text=str(release.format_quantity),
+    for name, value in tag_values.items():
+        text = ", ".join(value) if isinstance(value, list) else value
+        if name in _MP3_FRAMES:
+            tags.add(_MP3_FRAMES[name](encoding=3, text=text))
+        elif name in _MP3_TXXX:
+            tags.add(
+                TXXX(
+                    encoding=3,
+                    desc=_MP3_TXXX[name],
+                    text=text,
+                )
             )
-        )
 
-    if ok("artwork", skip_tags) and artwork_data:
+    if _should_write("artwork", skip_tags) and artwork_data:
         tags.add(
             APIC(
                 encoding=3,
@@ -583,117 +641,15 @@ def _tag_flac(
         # Re-load after delete
         audio = FLAC(path)
 
-    track = release.tracklist[track_index]
-    track_num, disc_num = calculate_track_and_disc(
-        release, track_index, track_numbering, disc_mapping
+    tag_values = _prepare_tags(
+        release, track_index, track_numbering, disc_mapping, skip_tags
     )
 
-    ok = _should_write
+    for name, value in tag_values.items():
+        key = _FLAC_KEY_OVERRIDES.get(name, name)
+        audio[key] = value
 
-    if ok("artist", skip_tags):
-        audio["artist"] = release.artists
-    if ok("title", skip_tags):
-        audio["title"] = track.title
-    if ok("album", skip_tags):
-        audio["album"] = release.title
-    if ok("date", skip_tags) and release.year:
-        audio["date"] = str(release.year)
-    if ok("tracknumber", skip_tags):
-        audio["tracknumber"] = track_num
-    if ok("discnumber", skip_tags):
-        audio["discnumber"] = disc_num
-    if ok("publisher", skip_tags) and release.label:
-        audio["organization"] = release.label
-    if ok("genre", skip_tags) and release.genres:
-        audio["genre"] = release.genres
-    if ok("style", skip_tags) and release.styles:
-        audio["style"] = release.styles
-
-    # New standard tags
-    if ok("albumartist", skip_tags):
-        audio["albumartist"] = ", ".join(release.artists)
-    if ok("media", skip_tags) and release.formats:
-        audio["media"] = release.formats[0].name
-    if ok("releasedate", skip_tags) and release.released:
-        audio["releasedate"] = release.released
-    if ok("artistsort", skip_tags) and release.artists_sort:
-        audio["artistsort"] = release.artists_sort
-
-    # Composer and remixer from extraartists
-    all_extraartists = list(release.extraartists) + list(track.extraartists)
-    if ok("composer", skip_tags):
-        composers = _extract_by_role(all_extraartists, _COMPOSER_ROLES)
-        if composers:
-            audio["composer"] = composers
-    if ok("remixer", skip_tags):
-        remixers = _extract_by_role(all_extraartists, _REMIXER_ROLES)
-        if remixers:
-            audio["remixer"] = remixers
-
-    # Copyright from companies
-    if ok("copyright", skip_tags) and release.companies:
-        copyrights = [
-            c.name for c in release.companies if "Copyright" in c.entity_type_name
-        ]
-        if copyrights:
-            audio["copyright"] = copyrights
-
-    # Custom vinyl frames
-    if ok("discogs_position", skip_tags):
-        audio["discogs_position"] = track.position
-    if ok("catalognumber", skip_tags) and release.catno:
-        audio["catalognumber"] = release.catno
-    if ok("side", skip_tags) and track.side:
-        audio["side"] = track.side
-
-    # Extended Discogs Tags
-    if ok("discogs_release_url", skip_tags) and release.uri:
-        audio["discogs_release_url"] = release.uri
-
-    if ok("label", skip_tags) and release.labels:
-        audio["label"] = [lbl.name for lbl in release.labels]
-    if ok("catalognumber", skip_tags) and release.labels:
-        catnos = [lbl.catno for lbl in release.labels if lbl.catno]
-        if catnos:
-            audio["catalognumber"] = catnos
-
-    if ok("format", skip_tags) and release.formats:
-        fmt_strs = []
-        for f in release.formats:
-            desc = f" ({', '.join(f.descriptions)})" if f.descriptions else ""
-            fmt_strs.append(f"{f.qty}x {f.name}{desc}")
-        audio["format"] = ", ".join(fmt_strs)
-
-    if ok("companies", skip_tags) and release.companies:
-        audio["companies"] = [
-            f"{c.entity_type_name}: {c.name}" for c in release.companies
-        ]
-
-    if ok("credits", skip_tags) and all_extraartists:
-        audio["credits"] = [f"{a.role}: {a.name}" for a in all_extraartists]
-
-    if ok("barcode", skip_tags) and release.identifiers:
-        barcodes = [i.value for i in release.identifiers if i.type == "Barcode"]
-        if barcodes:
-            audio["barcode"] = barcodes
-
-    # New custom/DISCOGS-prefixed tags
-    if ok("country", skip_tags) and release.country:
-        audio["country"] = release.country
-    if ok("discogs_release_id", skip_tags):
-        audio["discogs_release_id"] = str(release.id)
-    if ok("discogs_master_id", skip_tags) and release.master_id is not None:
-        audio["discogs_master_id"] = str(release.master_id)
-    if ok("discogs_master_url", skip_tags) and release.master_url:
-        audio["discogs_master_url"] = release.master_url
-    if ok("discogs_notes", skip_tags) and release.notes:
-        audio["discogs_notes"] = release.notes
-    if ok("discogs_data_quality", skip_tags) and release.data_quality:
-        audio["discogs_data_quality"] = release.data_quality
-    if ok("discogs_format_quantity", skip_tags) and release.format_quantity is not None:
-        audio["discogs_format_quantity"] = str(release.format_quantity)
-
-    if ok("artwork", skip_tags) and artwork_data:
+    if _should_write("artwork", skip_tags) and artwork_data:
         pic = Picture()
         pic.data = artwork_data
         pic.type = FRONT_COVER_TYPE

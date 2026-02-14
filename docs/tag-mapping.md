@@ -21,7 +21,7 @@ All tag names below use their **canonical name** — the lowercase identifier us
 | Canonical Name | MP3 Frame | FLAC Key | Source |
 |---|---|---|---|
 | `artist` | TPE1 | `artist` | `release.artists` (comma-separated for MP3, list for FLAC) |
-| `albumartist` | TPE2 | `albumartist` | `release.artists` (always set, same as artist) |
+| `albumartist` | TPE2 | `albumartist` | `release.artists` (always set; comma-separated string in both MP3 and FLAC, unlike `artist` which uses a multi-value list in FLAC) |
 | `title` | TIT2 | `title` | `track.title` |
 | `album` | TALB | `album` | `release.title` |
 | `date` | TDRC | `date` | `release.year` (year only, e.g. "1995") |
@@ -123,7 +123,7 @@ You can exclude any tag from being written by adding its **canonical name** to t
 vinylkit config set skip_tags "genre,style"
 
 # Skip all Discogs-specific metadata
-vinylkit config set skip_tags "discogs_release_id,discogs_master_id,discogs_master_url,discogs_notes,discogs_data_quality,discogs_format_quantity"
+vinylkit config set skip_tags "discogs_release_id,discogs_release_url,discogs_master_id,discogs_master_url,discogs_notes,discogs_data_quality,discogs_format_quantity"
 
 # Skip artwork embedding (artwork files are still saved per image_handling config)
 vinylkit config set skip_tags "artwork"

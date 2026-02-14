@@ -29,8 +29,8 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 
 ```bash
 # Bash / PowerShell
-git clone https://github.com/alaninspace/vinyl-man.git
-cd vinyl-man
+git clone https://github.com/alaninspace/vinyl-kit.git
+cd vinyl-kit
 uv sync          # installs all dependencies, including the dev group
 ```
 
@@ -60,7 +60,7 @@ uv tool install . --force --no-cache
 ```
 
 > [!NOTE]
-> Your configuration file persists across reinstalls. It lives in a platform-specific location managed by `platformdirs` (e.g. `%LOCALAPPDATA%\vinylkit\config.toml` on Windows, `~/.config/vinylkit/config.toml` on macOS/Linux), not inside the repo.
+> Your configuration file persists across reinstalls. It lives in a platform-specific location managed by `platformdirs` (e.g. `%LOCALAPPDATA%\vinylkit\config.toml` on Windows, `~/Library/Application Support/vinylkit/config.toml` on macOS, `~/.config/vinylkit/config.toml` on Linux), not inside the repo.
 
 ---
 
@@ -69,6 +69,8 @@ uv tool install . --force --no-cache
 ```text
 src/
 └── vinylkit/
+    ├── __init__.py     # Package marker
+    ├── __main__.py     # Entry point for `python -m vinylkit`
     ├── cli.py          # Click commands, helpers, and main entry point
     ├── config.py       # TOML config loading and saving (platformdirs)
     ├── discogs.py      # Discogs API client, OAuth, and response caching
@@ -114,25 +116,25 @@ docs/
 
 ### Synchronous CLI
 
-VinylKit is a synchronous CLI built on **Click** with **httpx** `SyncClient` for API calls. There is no async code — this keeps the CLI simple and debuggable.
+VinylKit is a synchronous CLI built on **Click** with **httpx** `Client` for API calls. There is no async code — this keeps the CLI simple and debuggable.
 
 ### Module Responsibilities
 
 | Module | Responsibility |
 |---|---|
-| `cli.py` | Click command definitions, shared helpers (`_collect_audio_files`, `_display_relative`, `_plan_supplementary_moves`), `_CONFIG_CONVERTERS` dict |
+| `cli.py` | Click command definitions, shared helpers (`_collect_audio_files`, `_display_relative`, `_plan_supplementary_moves`, `_check_collisions`, `_download_artwork`, `_save_release_files`, `_extract_id`, `initialise_logging`), `_CONFIG_CONVERTERS` dict |
 | `config.py` | TOML config loading/saving via `tomllib` / `tomli-w`, path resolution via `platformdirs` |
 | `discogs.py` | Discogs API client, OAuth flow, response caching, rate limit header tracking and dynamic throttling |
-| `models.py` | Frozen dataclasses with `slots=True` (e.g. `DiscogsRelease`, `AppConfig`, `AudioFile`) and enums (`TagMode`, `AuthMode`, etc.) |
+| `models.py` | Frozen dataclasses with `slots=True` (e.g. `DiscogsRelease`, `AppConfig`, `AudioFile`) and enums (`TagMode`, `AuthMode`, etc.). Exception: `RateLimitInfo` is intentionally mutable |
 | `naming.py` | Filename template rendering, path generation, and safe file moves |
-| `tagging.py` | Mutagen-based tagging for MP3 (ID3v2) and FLAC (Vorbis comments), artwork embedding |
-| `utils.py` | Backup file creation and filename sanitization |
+| `tagging.py` | Mutagen-based tagging for MP3 (ID3v2) and FLAC (Vorbis comments), artwork embedding/saving, folder scanning (`scan_folder`), tag clearing (`clear_audio_tags`), track/disc calculation (`calculate_track_and_disc`), release info writing (`write_release_info`) |
+| `utils.py` | Backup file creation, filename sanitization, and path resolution (`ensure_absolute`) |
 | `exceptions.py` | Custom exception hierarchy rooted at `VinylkitError` |
 
 ### Data Flow
 
 ```
-CLI command (click)
+CLI command (click, ctx.obj=AppConfig)
   → DiscogsClient (httpx)
     → DiscogsRelease model (frozen dataclass)
       → tagging.py (write tags to audio files)
@@ -142,7 +144,7 @@ CLI command (click)
 ### Key Conventions
 
 - **`from __future__ import annotations`** in every file
-- **Frozen dataclasses with `slots=True`** for all models — immutable and memory-efficient
+- **Frozen dataclasses with `slots=True`** for most models — immutable and memory-efficient. Exception: `RateLimitInfo` is intentionally mutable (updated in-place on every API response)
 - **Custom exceptions** for user-facing errors — never leak raw library exceptions to the CLI
 - **`VinylkitError`** hierarchy: `ConfigError`, `AuthError`, `DiscogsAPIError`, `TaggingError`, `FileOperationError`, `ValidationError`
 - **Loguru logging**: Use `from loguru import logger` — no `logging.getLogger(__name__)`. The global `logger` instance routes to both console and file sinks configured in `initialise_logging()`. Stdlib loggers (httpx, authlib) are bridged through an `_InterceptHandler`
@@ -190,6 +192,7 @@ uv run pytest -k "test_name"
   - `mock_discogs` — patches `get_client`, `tag_audio_file`, `clear_audio_tags`, `write_release_info`, and `save_artwork`. Does **not** mock `move_file`/`move_directory` — tests that need file movement suppressed should patch those locally.
   - `mp3_file` / `flac_file` — minimal valid audio files for real tagging round-trip tests.
   - `create_mock_release()` — helper function (not a fixture) for building `DiscogsRelease` objects with sensible defaults.
+- **Autouse fixtures** — `_suppress_loguru_file_sink` (session-scoped) prevents loguru file sinks during tests, `_isolate_cache_dir` redirects the cache directory to `tmp_path` for every test, and a `caplog` bridge fixture routes loguru output to pytest's log capture.
 - **Docs/examples parity** — every example in [`docs/examples.md`](examples.md) must have a corresponding test in `tests/test_examples_coverage.py`. If you add an example, add a test.
 
 ---
