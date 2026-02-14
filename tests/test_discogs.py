@@ -3,7 +3,13 @@ from __future__ import annotations
 import respx
 from httpx import Response
 
-from vinylkit.discogs import DISCOGS_API_URL, RATE_LIMIT_DELAY, DiscogsClient
+from vinylkit.discogs import (
+    DISCOGS_API_URL,
+    RATE_LIMIT_DELAY,
+    DiscogsClient,
+    describe_throttle_strategy,
+)
+from vinylkit.models import RateLimitInfo
 
 
 @respx.mock
@@ -322,3 +328,66 @@ def test_calculate_delay_unauthenticated_limit() -> None:
 
     info.remaining = 3  # 12% -> caution tier
     assert client._calculate_delay() == 2.0
+
+
+# --- describe_throttle_strategy Tests ---
+
+
+def test_describe_throttle_strategy_no_data() -> None:
+    """Fallback tier when no rate limit data is available."""
+    info = RateLimitInfo()
+    result = describe_throttle_strategy(info)
+    assert "Fallback" in result
+    assert "1.0s delay" in result
+    assert "no rate limit data available" in result
+
+
+def test_describe_throttle_strategy_fast_tier() -> None:
+    """Fast tier when > 33% remaining."""
+    info = RateLimitInfo()
+    info.limit = 60
+    info.remaining = 55
+    result = describe_throttle_strategy(info)
+    assert "Fast" in result
+    assert "0.25s" in result
+    assert "55/60" in result
+
+
+def test_describe_throttle_strategy_standard_tier() -> None:
+    """Standard tier when 15-33% remaining."""
+    info = RateLimitInfo()
+    info.limit = 60
+    info.remaining = 12
+    result = describe_throttle_strategy(info)
+    assert "Standard" in result
+    assert "1.0s" in result
+
+
+def test_describe_throttle_strategy_caution_tier() -> None:
+    """Caution tier when 8-15% remaining."""
+    info = RateLimitInfo()
+    info.limit = 60
+    info.remaining = 6
+    result = describe_throttle_strategy(info)
+    assert "Caution" in result
+    assert "2.0s" in result
+
+
+def test_describe_throttle_strategy_critical_tier() -> None:
+    """Critical tier when 1-8% remaining."""
+    info = RateLimitInfo()
+    info.limit = 60
+    info.remaining = 2
+    result = describe_throttle_strategy(info)
+    assert "Critical" in result
+    assert "5.0s" in result
+
+
+def test_describe_throttle_strategy_exhausted() -> None:
+    """Exhausted tier when 0 remaining."""
+    info = RateLimitInfo()
+    info.limit = 60
+    info.remaining = 0
+    result = describe_throttle_strategy(info)
+    assert "Exhausted" in result
+    assert "10.0s" in result

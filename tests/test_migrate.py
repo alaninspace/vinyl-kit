@@ -231,10 +231,40 @@ def test_migrate_rate_limit_logging(runner, tmp_path, mock_discogs, mocker):
     info.remaining = 45
     info.peak_used = 15
 
-    # First call initializes rate_log_time, subsequent calls return 10s later
-    # so the 5-second elapsed check in _maybe_log_rate_limit always passes
-    time_values = iter([0.0, 10.0, 20.0, 30.0, 40.0, 50.0])
-    mocker.patch("vinylkit.cli.time.time", side_effect=lambda: next(time_values))
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)])
+
+    assert result.exit_code == 0
+
+    log_file = dest / "00-Migration-Results.txt"
+    assert log_file.exists()
+    log_content = log_file.read_text()
+
+    # Check per-release rate limit entry with tier info
+    assert "[Rate Limit] Fast (0.25s delay)" in log_content
+    assert "45/60 remaining" in log_content
+
+    # Check summary section
+    assert "Rate Limit Summary" in log_content
+    assert "Peak usage: 15/60" in log_content
+    assert "Final state: 15/60 used, 45 remaining" in log_content
+
+
+def test_migrate_rate_limit_fallback_when_cached(
+    runner, tmp_path, mock_discogs, mocker
+):
+    """When all releases are cached, rate limit shows Fallback tier."""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "Album [100]"
+    album_dir.mkdir()
+    (album_dir / "01.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+
+    mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
+    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+
+    # Leave rate_limit_info at defaults (all None) to simulate fully-cached scenario
 
     result = runner.invoke(cli, ["migrate", str(source), str(dest)])
 
@@ -244,10 +274,125 @@ def test_migrate_rate_limit_logging(runner, tmp_path, mock_discogs, mocker):
     assert log_file.exists()
     log_content = log_file.read_text()
 
-    # Check periodic rate limit snapshot
-    assert "[Rate Limit] 15/60 used, 45 remaining" in log_content
+    # Check fallback tier appears
+    assert "[Rate Limit] Fallback (1.0s delay)" in log_content
+    assert "no rate limit data available" in log_content
 
-    # Check summary section
-    assert "Rate Limit Summary" in log_content
-    assert "Peak usage: 15/60" in log_content
-    assert "Final state: 15/60 used, 45 remaining" in log_content
+    # No summary section when no data was collected
+    assert "Rate Limit Summary" not in log_content
+
+
+def test_migrate_logs_rate_limit_info_per_release(
+    runner, tmp_path, mock_discogs, mocker, caplog
+):
+    """Rate limit status is logged at INFO after each migrated release."""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "Album [100]"
+    album_dir.mkdir()
+    (album_dir / "01.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+
+    mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
+    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+
+    info = mock_discogs.rate_limit_info
+    info.limit = 60
+    info.used = 15
+    info.remaining = 45
+    info.peak_used = 15
+
+    import logging as stdlogging
+
+    with caplog.at_level(stdlogging.INFO):
+        result = runner.invoke(cli, ["migrate", str(source), str(dest)])
+
+    assert result.exit_code == 0
+    assert "Rate limit: 45/60 remaining" in caplog.text
+
+
+def test_migrate_replace_tags_false(runner, tmp_path, mock_discogs, mocker):
+    """Tags are not touched but files are still copied."""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "Album [100]"
+    album_dir.mkdir()
+    (album_dir / "01.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+
+    mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
+    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+
+    # Disable tag replacement via config
+    config_path = tmp_path / "config.toml"
+    config_path.write_text("replace_tags_on_migration = false\n")
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)])
+
+    assert result.exit_code == 0
+
+    # tag_audio_file and clear_audio_tags should NOT have been called
+    from vinylkit.cli import clear_audio_tags, tag_audio_file
+
+    tag_audio_file.assert_not_called()
+    clear_audio_tags.assert_not_called()
+
+    # But files should still be copied
+    expected_rel = os.path.join("A", "2000 - T", "A1 - Track 1.mp3")
+    assert (dest / expected_rel).exists()
+
+    # And supplementary files should still be written
+    from vinylkit.cli import write_release_info
+
+    write_release_info.assert_called_once()
+
+
+def test_migrate_replace_tags_false_summary(runner, tmp_path, mock_discogs, mocker):
+    """With replace_tags=False, summary says 'Copied N files' instead of 'Tagged'."""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "Album [100]"
+    album_dir.mkdir()
+    (album_dir / "01.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+
+    mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
+    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+
+    config_path = tmp_path / "config.toml"
+    config_path.write_text("replace_tags_on_migration = false\n")
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)])
+
+    assert result.exit_code == 0
+    assert "Copied 1 files" in result.output
+    assert "Tagged" not in result.output
+
+
+def test_migrate_summary_output(runner, tmp_path, mock_discogs, mocker):
+    """Migrate command displays a per-release summary after each release."""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "Album [100]"
+    album_dir.mkdir()
+    (album_dir / "01.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+
+    mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
+    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+
+    info = mock_discogs.rate_limit_info
+    info.limit = 60
+    info.used = 5
+    info.remaining = 55
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)])
+
+    assert result.exit_code == 0
+    assert "Tagged 1 tracks" in result.output
+    assert "saved 0 artwork files" in result.output
+    assert "Rate limit: 55/60 remaining" in result.output

@@ -34,6 +34,35 @@ RATE_LIMIT_DELAY = 1.0  # seconds between requests to stay safe (60 req/min)
 APP_NAME = "vinylkit"
 
 
+def _classify_rate_limit(info: RateLimitInfo) -> tuple[str, float]:
+    """Classify current rate limit state into a named tier and delay."""
+    if info.limit is None or info.remaining is None:
+        return "Fallback", RATE_LIMIT_DELAY
+    if info.limit == 0:
+        return "Fallback", RATE_LIMIT_DELAY
+    remaining_pct = info.remaining / info.limit
+    if remaining_pct > 0.33:
+        return "Fast", 0.25
+    if remaining_pct > 0.15:
+        return "Standard", 1.0
+    if remaining_pct > 0.08:
+        return "Caution", 2.0
+    if info.remaining > 0:
+        return "Critical", 5.0
+    return "Exhausted", 10.0
+
+
+def describe_throttle_strategy(info: RateLimitInfo) -> str:
+    """Return human-readable description of current throttle tier and delay."""
+    tier, delay = _classify_rate_limit(info)
+    if info.limit is None or info.remaining is None:
+        return f"{tier} ({delay}s delay) — no rate limit data available"
+    pct = info.remaining / info.limit if info.limit > 0 else 0
+    return (
+        f"{tier} ({delay}s delay) — {info.remaining}/{info.limit} remaining ({pct:.0%})"
+    )
+
+
 class DiscogsClient:
     def __init__(
         self,
@@ -147,27 +176,13 @@ class DiscogsClient:
 
     def _calculate_delay(self) -> float:
         """Calculate request delay based on remaining rate limit headroom."""
-        info = self.rate_limit_info
-        if info.limit is None or info.remaining is None:
-            return RATE_LIMIT_DELAY  # 1.0s fallback when no data
-
-        if info.limit == 0:
-            return RATE_LIMIT_DELAY
-
-        remaining_pct = info.remaining / info.limit
-
-        if remaining_pct > 0.33:
-            return 0.25
-        if remaining_pct > 0.15:
-            return 1.0
-        if remaining_pct > 0.08:
-            return 2.0
-        if info.remaining > 0:
+        tier, delay = _classify_rate_limit(self.rate_limit_info)
+        if tier == "Critical":
+            info = self.rate_limit_info
             logger.warning(
                 f"Rate limit critical: {info.remaining}/{info.limit} remaining"
             )
-            return 5.0
-        return 10.0  # exhausted
+        return delay
 
     def _request_with_retry(
         self, method: str, url: str, **kwargs: Any
@@ -242,6 +257,7 @@ class DiscogsClient:
 
     def get_identity(self) -> dict[str, Any]:
         """Get the authenticated user's full profile identity."""
+        logger.debug("Fetching identity")
         resp = self._request_with_retry("GET", IDENTITY_URL)
         identity_data: dict[str, Any] = resp.json()
         username = identity_data.get("username")
@@ -258,9 +274,12 @@ class DiscogsClient:
 
     def get_release(self, release_id: int) -> DiscogsRelease:
         """Fetch and map a Discogs release."""
+        logger.debug("Fetching release {}", release_id)
         try:
             data = self._get_cached_release(release_id)
-            if not data:
+            if data:
+                logger.debug("Release {} served from cache", release_id)
+            else:
                 resp = self._request_with_retry(
                     "GET", f"{DISCOGS_API_URL}/releases/{release_id}"
                 )
@@ -362,6 +381,7 @@ class DiscogsClient:
         self, query: str | None = None, **filters: Any
     ) -> list[dict[str, Any]]:
         """Search releases with optional filters (artist, release_title, etc.)."""
+        logger.debug("Searching releases: query={}", query)
         params: list[tuple[str, Any]] = [("type", "release")]
         if query:
             params.append(("q", query))
@@ -387,6 +407,7 @@ class DiscogsClient:
 
     def download_image(self, url: str) -> bytes:
         """Download image."""
+        logger.debug("Downloading image")
         resp = self._request_with_retry("GET", url)
         return resp.content
 
@@ -394,6 +415,7 @@ class DiscogsClient:
         self, username: str, folder_id: int = 0
     ) -> list[dict[str, Any]]:
         """Fetch all releases in a user's collection folder."""
+        logger.debug("Fetching collection for user: {}", username)
         releases = []
         page = 1
         per_page = 100

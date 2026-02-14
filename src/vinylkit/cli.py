@@ -5,7 +5,6 @@ import logging
 import re
 import shutil
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -20,7 +19,7 @@ from rich.console import Console
 from rich.table import Table
 
 from vinylkit.config import get_config_path, load_config, save_config
-from vinylkit.discogs import DiscogsClient
+from vinylkit.discogs import DiscogsClient, describe_throttle_strategy
 from vinylkit.exceptions import DiscogsAPIError, VinylkitError
 from vinylkit.models import (
     AppConfig,
@@ -99,6 +98,11 @@ def initialise_logging(config: AppConfig) -> None:
 
     # Bridge stdlib logging (httpx, authlib) through loguru
     logging.basicConfig(handlers=[_InterceptHandler()], level=0, force=True)
+
+    # Suppress httpcore and httpx noise — our own debug logging in discogs.py
+    # provides concise, meaningful request tracing instead.
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 # Constants for Discogs API - These can now be overridden by config
@@ -479,6 +483,12 @@ def tag(
             assert current_release_id is not None
             release = client.get_release(current_release_id)
             artist_str = ", ".join(release.artists)
+            logger.info(
+                "=== Release: {} - {} (ID: {}) ===",
+                artist_str,
+                release.title,
+                release.id,
+            )
             release_display = (
                 f"Loaded Release: [bold]{artist_str}"
                 f" - {release.title}[/bold]"
@@ -591,6 +601,33 @@ def tag(
                                 subdir=config.artwork_subdir,
                             )
 
+            # Count artwork files saved
+            artwork_count = 0
+            if (
+                not dry_run
+                and artwork_data
+                and config.image_handling
+                in (
+                    ImageHandling.SAVE,
+                    ImageHandling.BOTH,
+                )
+            ):
+                artwork_count = 1  # primary artwork
+                if config.collect_all_artwork:
+                    # primary_01 + secondaries
+                    artwork_count += 1 + len(all_images_data)
+
+            # Build and display summary
+            rl = client.rate_limit_info
+            rate_str = ""
+            if rl.remaining is not None and rl.limit is not None:
+                rate_str = f" | Rate limit: {rl.remaining}/{rl.limit} remaining"
+                logger.info(
+                    "Rate limit: {}/{} remaining",
+                    rl.remaining,
+                    rl.limit,
+                )
+
             if dry_run:
                 console.print(
                     f"\n[bold yellow]Dry-run complete for"
@@ -598,11 +635,12 @@ def tag(
                     " modified.[/bold yellow]"
                 )
             else:
-                console.print(
-                    f"\n[bold green]Successfully tagged"
-                    f" all files in {path.name}!"
-                    "[/bold green]"
+                summary = (
+                    f"Tagged {len(tagged_paths)} tracks"
+                    f", saved {artwork_count} artwork files"
+                    f"{rate_str}"
                 )
+                console.print(f"\n[bold green]{summary}[/bold green]")
 
                 # Optional Renaming
                 if do_rename:
@@ -750,21 +788,6 @@ def _extract_id(folder_name: str) -> int | None:
     return None
 
 
-def _maybe_log_rate_limit(
-    client: DiscogsClient, log_entries: list[str], last_log_time: float
-) -> float:
-    """Append a rate limit snapshot to the log if 5+ seconds have elapsed."""
-    now = time.time()
-    if now - last_log_time < 5.0:
-        return last_log_time
-    info = client.rate_limit_info
-    if info.used is not None and info.limit is not None:
-        log_entries.append(
-            f"  [Rate Limit] {info.used}/{info.limit} used, {info.remaining} remaining"
-        )
-    return now
-
-
 @cli.command()
 @click.argument(
     "source",
@@ -784,6 +807,12 @@ def _maybe_log_rate_limit(
     help="Replace existing artwork in tags (default uses config).",
 )
 @click.option(
+    "--replace-tags",
+    is_flag=True,
+    default=None,
+    help="Replace existing tags during migration (default uses config).",
+)
+@click.option(
     "--id",
     "filter_ids",
     type=str,
@@ -799,6 +828,7 @@ def migrate(
     destination: Path,
     delete: bool,
     replace_artwork: bool | None,
+    replace_tags: bool | None,
     filter_ids: str | None,
     dry_run: bool,
 ) -> None:
@@ -808,6 +838,9 @@ def migrate(
         replace_artwork
         if replace_artwork is not None
         else config.replace_artwork_on_migration
+    )
+    do_replace_tags = (
+        replace_tags if replace_tags is not None else config.replace_tags_on_migration
     )
 
     # Parse filter IDs if provided
@@ -821,7 +854,6 @@ def migrate(
             )
 
     client = get_client(config)
-    rate_log_time = time.time()
     log_file = destination / "00-Migration-Results.txt"
     log_entries: list[str] = [
         f"Migration Log - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
@@ -829,6 +861,7 @@ def migrate(
         f"Destination: {destination}",
         f"Delete After: {do_delete}",
         f"Replace Artwork: {do_replace_art}",
+        f"Replace Tags: {do_replace_tags}",
         "================================================================================",
         "",
     ]
@@ -872,7 +905,13 @@ def migrate(
 
         try:
             release = client.get_release(rid)
-            rate_log_time = _maybe_log_rate_limit(client, log_entries, rate_log_time)
+            artist_str = ", ".join(release.artists)
+            logger.info(
+                "=== Release: {} - {} (ID: {}) ===",
+                artist_str,
+                release.title,
+                release.id,
+            )
             audio_files = _collect_audio_files(folder)
 
             if not audio_files:
@@ -1013,26 +1052,22 @@ def migrate(
                         except DiscogsAPIError:
                             pass
 
-                rate_log_time = _maybe_log_rate_limit(
-                    client, log_entries, rate_log_time
-                )
-
                 # 2. Copy and tag
                 for src, dst, idx in planned_moves:
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src, dst)
 
-                    # Clear and re-tag
-                    clear_audio_tags(dst, preserve_artwork=not do_replace_art)
-                    tag_audio_file(
-                        dst,
-                        release,
-                        idx,
-                        artwork_data=artwork_data if do_replace_art else None,
-                        tag_mode=TagMode.REPLACE,
-                        track_numbering=config.track_numbering,
-                        disc_mapping=config.disc_mapping,
-                    )
+                    if do_replace_tags:
+                        clear_audio_tags(dst, preserve_artwork=not do_replace_art)
+                        tag_audio_file(
+                            dst,
+                            release,
+                            idx,
+                            artwork_data=artwork_data if do_replace_art else None,
+                            tag_mode=TagMode.REPLACE,
+                            track_numbering=config.track_numbering,
+                            disc_mapping=config.disc_mapping,
+                        )
 
                 # 3. Supplementary files
                 write_release_info(dst.parent, release, filename=config.info_filename)
@@ -1060,12 +1095,50 @@ def migrate(
                                 subdir=config.artwork_subdir,
                             )
 
+            # Count artwork files saved
+            artwork_count = 0
+            if artwork_data and config.image_handling in (
+                ImageHandling.SAVE,
+                ImageHandling.BOTH,
+            ):
+                artwork_count = 1  # primary artwork
+                if config.collect_all_artwork:
+                    # primary_01 + secondaries
+                    artwork_count += 1 + len(all_images_data)
+
             if do_delete:
                 shutil.rmtree(folder)
                 console.print(f"[green]Migrated and deleted: {folder.name}[/green]")
             else:
                 console.print(f"[green]Migrated: {folder.name}[/green]")
 
+            # Display per-release summary
+            rl = client.rate_limit_info
+            rate_str = ""
+            if rl.remaining is not None and rl.limit is not None:
+                rate_str = f" | Rate limit: {rl.remaining}/{rl.limit} remaining"
+                logger.info(
+                    "Rate limit: {}/{} remaining",
+                    rl.remaining,
+                    rl.limit,
+                )
+            if do_replace_tags:
+                summary = (
+                    f"  Tagged {len(planned_moves)} tracks"
+                    f", saved {artwork_count} artwork files"
+                    f"{rate_str}"
+                )
+            else:
+                summary = (
+                    f"  Copied {len(planned_moves)} files"
+                    f", saved {artwork_count} artwork files"
+                    f"{rate_str}"
+                )
+            console.print(summary)
+
+            log_entries.append(
+                f"  [Rate Limit] {describe_throttle_strategy(client.rate_limit_info)}"
+            )
             log_entries.append("  STATUS: Success")
             log_entries.append("")
 
@@ -1342,6 +1415,10 @@ def config_show(config_obj: AppConfig) -> None:
                     "replace_artwork_on_migration",
                     str(config_obj.replace_artwork_on_migration),
                 ),
+                (
+                    "replace_tags_on_migration",
+                    str(config_obj.replace_tags_on_migration),
+                ),
             ],
         ),
         (
@@ -1413,6 +1490,7 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "auto_move": _parse_bool,
     "delete_after_migration": _parse_bool,
     "replace_artwork_on_migration": _parse_bool,
+    "replace_tags_on_migration": _parse_bool,
     "log_level": str,
     "log_to_file": _parse_bool,
     "log_file": Path,
