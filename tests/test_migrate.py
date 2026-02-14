@@ -396,3 +396,65 @@ def test_migrate_summary_output(runner, tmp_path, mock_discogs, mocker):
     assert "Tagged 1 tracks" in result.output
     assert "saved 0 artwork files" in result.output
     assert "Rate limit: 55/60 remaining" in result.output
+
+
+def test_migrate_progress_display(runner, tmp_path, mock_discogs, mocker):
+    """Progress header shows [N/M] counter and percentage."""
+    source = tmp_path / "source"
+    source.mkdir()
+    for name in ("Alpha [1]", "Beta [2]"):
+        d = source / name
+        d.mkdir()
+        (d / "01.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+
+    mock_discogs.get_release.side_effect = [
+        create_mock_release(1, "A", "T1"),
+        create_mock_release(2, "B", "T2"),
+    ]
+    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)])
+
+    assert result.exit_code == 0
+    assert "[1/2] Migrating:" in result.output
+    assert "(0%)" in result.output
+    assert "[2/2] Migrating:" in result.output
+    assert "(50%)" in result.output
+
+
+def test_migrate_progress_recalculates_on_folder_removal(
+    runner, tmp_path, mock_discogs, mocker
+):
+    """Total recalculates when a folder disappears between iterations."""
+    source = tmp_path / "source"
+    source.mkdir()
+    for name in ("A [1]", "B [2]", "C [3]"):
+        d = source / name
+        d.mkdir()
+        (d / "01.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+
+    def _get_release_removing_c(rid: int):
+        """After first call, delete folder C so it disappears from scan."""
+        rel = create_mock_release(rid, "Art", f"Title{rid}")
+        if rid == 1:
+            import shutil
+
+            shutil.rmtree(source / "C [3]")
+        return rel
+
+    mock_discogs.get_release.side_effect = _get_release_removing_c
+    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)])
+
+    assert result.exit_code == 0
+    # First iteration: 3 remaining -> [1/3]
+    assert "[1/3] Migrating:" in result.output
+    # After processing A, C is gone -> 1 remaining + 1 completed = [2/2]
+    assert "[2/2] Migrating:" in result.output
+    # C should never appear in the output as a migration target
+    assert "C [3]" not in result.output

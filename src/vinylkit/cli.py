@@ -874,15 +874,36 @@ def migrate(
         "",
     ]
 
-    # Process folders in alphabetical order
-    folders = sorted([f for f in source.iterdir() if f.is_dir()])
-
-    if not folders:
+    # Process folders in alphabetical order, re-scanning each iteration so
+    # that external changes (user adding/removing folders) are picked up.
+    if not any(f.is_dir() for f in source.iterdir()):
         console.print("[yellow]No folders found to migrate.[/yellow]")
         return
 
-    for folder in folders:
-        console.print(f"\n[bold blue]Migrating:[/bold blue] {folder.name}")
+    processed: set[str] = set()
+    completed = 0
+
+    while True:
+        remaining = sorted(
+            f for f in source.iterdir() if f.is_dir() and f.name not in processed
+        )
+        if not remaining:
+            break
+
+        folder = remaining[0]
+        total = completed + len(remaining)
+        pct = round(completed / total * 100)
+
+        console.print(
+            f"\n[bold blue]\\[{completed + 1}/{total}] "
+            f"Migrating:[/bold blue] {folder.name} "
+            f"[dim]({pct}%)[/dim]"
+        )
+
+        # Mark folder as visited and increment count immediately.
+        # This ensures all code paths (process, skip, fail) advance.
+        processed.add(folder.name)
+        completed += 1
         rid = _extract_id(folder.name)
 
         # Apply filtering if enabled

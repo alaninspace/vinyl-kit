@@ -93,6 +93,7 @@ Migrates an existing library to the new structure.
     - Maps files to Discogs tracklists using existing tags (track numbers) or alphabetical order.
     - Non-destructive by default (copies files).
     - Generates a detailed log file `00-Migration-Results.txt` in the destination directory.
+- **Progress Tracking**: Each folder displays a progress header like `[1/10] Migrating: Album Name (0%)`. The total is recalculated dynamically by re-scanning the source directory before each release, so it adjusts automatically if folders are added or removed during migration.
 - **Smart Throttling**: The migrate command dynamically adjusts API request delays based on remaining rate limit headroom (from Discogs `X-Discogs-Ratelimit-Remaining` headers). When headroom is high, requests are faster; as limits approach, delays increase automatically. Rate limit snapshots are logged to `00-Migration-Results.txt` during migration, along with a summary at the end.
 - **Options**:
     - `--delete`: Delete source folders after successful migration (Default: False).
