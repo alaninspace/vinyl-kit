@@ -20,6 +20,7 @@ from vinylkit.models import (
     IdentifierInfo,
     ImageInfo,
     LabelInfo,
+    RateLimitInfo,
     TrackInfo,
 )
 
@@ -51,6 +52,7 @@ class DiscogsClient:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         self._last_request_time = 0.0
+        self.rate_limit_info = RateLimitInfo()
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
         user_agent = "VinylKit/0.1.0"
@@ -127,21 +129,62 @@ class DiscogsClient:
         except OSError as e:
             logger.warning(f"Failed to write cache for release {release_id}: {e}")
 
-    def _wait_for_rate_limit(self) -> None:
-        """Ensure we don't exceed the 60 requests per minute limit."""
-        elapsed = time.time() - self._last_request_time
-        if elapsed < RATE_LIMIT_DELAY:
-            time.sleep(RATE_LIMIT_DELAY - elapsed)
-        self._last_request_time = time.time()
+    def _update_rate_limit_info(self, resp: httpx.Response) -> None:
+        """Extract rate limit headers from a Discogs API response."""
+        info = self.rate_limit_info
+        limit = resp.headers.get("X-Discogs-Ratelimit")
+        used = resp.headers.get("X-Discogs-Ratelimit-Used")
+        remaining = resp.headers.get("X-Discogs-Ratelimit-Remaining")
+
+        if limit is not None:
+            info.limit = int(limit)
+        if used is not None:
+            info.used = int(used)
+            if info.used > info.peak_used:
+                info.peak_used = info.used
+        if remaining is not None:
+            info.remaining = int(remaining)
+
+        info.last_updated = time.time()
+
+    def _calculate_delay(self) -> float:
+        """Calculate request delay based on remaining rate limit headroom."""
+        info = self.rate_limit_info
+        if info.limit is None or info.remaining is None:
+            return RATE_LIMIT_DELAY  # 1.0s fallback when no data
+
+        if info.limit == 0:
+            return RATE_LIMIT_DELAY
+
+        remaining_pct = info.remaining / info.limit
+
+        if remaining_pct > 0.33:
+            return 0.25
+        if remaining_pct > 0.15:
+            return 1.0
+        if remaining_pct > 0.08:
+            return 2.0
+        if info.remaining > 0:
+            logger.warning(
+                f"Rate limit critical: {info.remaining}/{info.limit} remaining"
+            )
+            return 5.0
+        return 10.0  # exhausted
 
     def _request_with_retry(
         self, method: str, url: str, **kwargs: Any
     ) -> httpx.Response:
-        """Execute a request with rate limiting and basic retry logic."""
+        """Execute a request with dynamic rate limiting and retry logic."""
         for attempt in range(3):
-            self._wait_for_rate_limit()
+            delay = self._calculate_delay()
+            elapsed = time.time() - self._last_request_time
+            if elapsed < delay:
+                time.sleep(delay - elapsed)
+            self._last_request_time = time.time()
+
             try:
                 resp = self.client.request(method, url, **kwargs)
+                self._update_rate_limit_info(resp)
                 if resp.status_code == 429:
                     retry_after = int(resp.headers.get("Retry-After", 60))
                     logger.warning(f"Rate limited. Waiting {retry_after} seconds...")
@@ -150,6 +193,7 @@ class DiscogsClient:
                 resp.raise_for_status()
                 return resp
             except httpx.HTTPStatusError as e:
+                self._update_rate_limit_info(e.response)
                 if e.response.status_code >= 500 and attempt < 2:
                     logger.warning(
                         f"Server error {e.response.status_code}. Retrying..."

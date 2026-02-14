@@ -6,7 +6,7 @@ from pathlib import Path  # noqa: TC003
 import pytest
 from click.testing import CliRunner
 
-from vinylkit.models import DiscogsRelease, TrackInfo
+from vinylkit.models import DiscogsRelease, RateLimitInfo, TrackInfo
 
 
 @pytest.fixture
@@ -26,6 +26,7 @@ def mock_discogs(mocker):
     """
     mock_get_client = mocker.patch("vinylkit.cli.get_client")
     mock_client = mock_get_client.return_value
+    mock_client.rate_limit_info = RateLimitInfo()
     mocker.patch("vinylkit.cli.tag_audio_file")
     mocker.patch("vinylkit.cli.clear_audio_tags")
     mocker.patch("vinylkit.cli.write_release_info")

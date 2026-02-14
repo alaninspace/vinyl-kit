@@ -127,6 +127,20 @@ class AudioFile:
     duration: float | None = None
 
 
+@dataclass(slots=True)
+class RateLimitInfo:
+    """Live rate limit telemetry updated on every API response.
+
+    Intentionally mutable (not frozen) since fields are updated in-place.
+    """
+
+    limit: int | None = None  # X-Discogs-Ratelimit
+    used: int | None = None  # X-Discogs-Ratelimit-Used
+    remaining: int | None = None  # X-Discogs-Ratelimit-Remaining
+    last_updated: float = 0.0
+    peak_used: int = 0  # High-water mark
+
+
 @dataclass(slots=True, frozen=True)
 class AppConfig:
     library_root: Path

@@ -46,6 +46,7 @@ def test_migrate_basic_success(runner, tmp_path, mock_discogs, mocker):
     assert migrated_file.exists()
     assert migrated_file.read_text() == "audio"
 
+
 def test_migrate_prompt_for_id(runner, tmp_path, mock_discogs):
     """Test migration prompts for ID when missing from folder name."""
     source = tmp_path / "source"
@@ -68,6 +69,7 @@ def test_migrate_prompt_for_id(runner, tmp_path, mock_discogs):
     expected_rel_1 = os.path.join("A", "2000 - T", "1 - Track 1.mp3")
     assert (dest / expected_rel_a1).exists() or (dest / expected_rel_1).exists()
 
+
 def test_migrate_delete_after(runner, tmp_path, mock_discogs):
     """Test migration with --delete flag."""
     source = tmp_path / "source"
@@ -79,7 +81,9 @@ def test_migrate_delete_after(runner, tmp_path, mock_discogs):
     dest = tmp_path / "dest"
     mock_discogs.get_release.return_value = create_mock_release(999, "Del", "Me")
 
-    result = runner.invoke(cli, ["migrate", str(source), str(dest), "--delete"], input="y\n")
+    result = runner.invoke(
+        cli, ["migrate", str(source), str(dest), "--delete"], input="y\n"
+    )
 
     assert result.exit_code == 0
     assert not album_dir.exists()
@@ -87,6 +91,7 @@ def test_migrate_delete_after(runner, tmp_path, mock_discogs):
     expected_rel_a1 = os.path.join("Del", "2000 - Me", "A1 - Track 1.mp3")
     expected_rel_1 = os.path.join("Del", "2000 - Me", "1 - Track 1.mp3")
     assert (dest / expected_rel_a1).exists() or (dest / expected_rel_1).exists()
+
 
 def test_migrate_leading_zero_normalization(runner, tmp_path, mock_discogs, mocker):
     """Test that '01' tags correctly map to '1' in numeric numbering."""
@@ -111,6 +116,7 @@ def test_migrate_leading_zero_normalization(runner, tmp_path, mock_discogs, mock
     assert "Migrated: Normalize [123]" in result.output
     assert result.exit_code == 0
 
+
 def test_migrate_dry_run(runner, tmp_path, mock_discogs, mocker):
     """Test migration in dry-run mode."""
     source = tmp_path / "source"
@@ -130,6 +136,7 @@ def test_migrate_dry_run(runner, tmp_path, mock_discogs, mocker):
     assert not spy_copy.called
     assert not (dest / "00-Migration-Results.txt").exists()
 
+
 def test_migrate_filter_ids(runner, tmp_path, mock_discogs):
     """Test migration with --id filter."""
     source = tmp_path / "source"
@@ -141,7 +148,10 @@ def test_migrate_filter_ids(runner, tmp_path, mock_discogs):
     mock_discogs.get_release.return_value = create_mock_release(123, "A", "T")
 
     # We use dry-run to avoid needing files
-    result = runner.invoke(cli, ["migrate", str(source), str(tmp_path / "dest"), "--id", "123", "--dry-run"])
+    result = runner.invoke(
+        cli,
+        ["migrate", str(source), str(tmp_path / "dest"), "--id", "123", "--dry-run"],
+    )
 
     assert "Migrating: Keep [123]" in result.output
     assert "Migrating: Skip [456]" in result.output
@@ -175,9 +185,7 @@ def test_migrate_collect_all_artwork(runner, tmp_path, mock_discogs, mocker):
 
     # Enable collect_all_artwork and image_handling=both via config
     config_path = tmp_path / "config.toml"
-    config_path.write_text(
-        'image_handling = "both"\ncollect_all_artwork = true\n'
-    )
+    config_path.write_text('image_handling = "both"\ncollect_all_artwork = true\n')
 
     result = runner.invoke(cli, ["migrate", str(source), str(dest)])
 
@@ -201,3 +209,45 @@ def test_migrate_collect_all_artwork(runner, tmp_path, mock_discogs, mocker):
     assert save_calls[2].kwargs["filename"] == "secondary_01.jpg"
     assert save_calls[3].kwargs["is_primary"] is False
     assert save_calls[3].kwargs["filename"] == "secondary_02.jpg"
+
+
+def test_migrate_rate_limit_logging(runner, tmp_path, mock_discogs, mocker):
+    """Verify rate limit status and summary appear in migration log file."""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "Album [100]"
+    album_dir.mkdir()
+    (album_dir / "01.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+
+    mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
+    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+
+    # Simulate rate limit info being populated by API responses
+    info = mock_discogs.rate_limit_info
+    info.limit = 60
+    info.used = 15
+    info.remaining = 45
+    info.peak_used = 15
+
+    # First call initializes rate_log_time, subsequent calls return 10s later
+    # so the 5-second elapsed check in _maybe_log_rate_limit always passes
+    time_values = iter([0.0, 10.0, 20.0, 30.0, 40.0, 50.0])
+    mocker.patch("vinylkit.cli.time.time", side_effect=lambda: next(time_values))
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)])
+
+    assert result.exit_code == 0
+
+    log_file = dest / "00-Migration-Results.txt"
+    assert log_file.exists()
+    log_content = log_file.read_text()
+
+    # Check periodic rate limit snapshot
+    assert "[Rate Limit] 15/60 used, 45 remaining" in log_content
+
+    # Check summary section
+    assert "Rate Limit Summary" in log_content
+    assert "Peak usage: 15/60" in log_content
+    assert "Final state: 15/60 used, 45 remaining" in log_content

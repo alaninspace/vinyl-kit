@@ -52,6 +52,14 @@ Represents metadata fetched from the Discogs API.
 - **artists**: `list[str]` (Track-specific artists)
 - **side**: `str | None` (Extracted from position, e.g., "A")
 
+### RateLimitInfo
+Live rate limit telemetry updated on every Discogs API response. Intentionally **mutable** (not frozen) since fields are updated in-place.
+- **limit**: `int | None` (`X-Discogs-Ratelimit` — 60 for authenticated, 25 for unauthenticated)
+- **used**: `int | None` (`X-Discogs-Ratelimit-Used`)
+- **remaining**: `int | None` (`X-Discogs-Ratelimit-Remaining`)
+- **last_updated**: `float` (Epoch timestamp of the last update)
+- **peak_used**: `int` (High-water mark of `used` across the session)
+
 ### AudioFile
 Represents a physical file on the user's disk.
 - **path**: `pathlib.Path`

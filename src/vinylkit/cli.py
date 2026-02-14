@@ -5,6 +5,7 @@ import logging
 import re
 import shutil
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -697,6 +698,21 @@ def _extract_id(folder_name: str) -> int | None:
     return None
 
 
+def _maybe_log_rate_limit(
+    client: DiscogsClient, log_entries: list[str], last_log_time: float
+) -> float:
+    """Append a rate limit snapshot to the log if 5+ seconds have elapsed."""
+    now = time.time()
+    if now - last_log_time < 5.0:
+        return last_log_time
+    info = client.rate_limit_info
+    if info.used is not None and info.limit is not None:
+        log_entries.append(
+            f"  [Rate Limit] {info.used}/{info.limit} used, {info.remaining} remaining"
+        )
+    return now
+
+
 @cli.command()
 @click.argument(
     "source",
@@ -716,7 +732,10 @@ def _extract_id(folder_name: str) -> int | None:
     help="Replace existing artwork in tags (default uses config).",
 )
 @click.option(
-    "--id", "filter_ids", type=str, help="Only migrate specific Discogs IDs (comma-separated)."
+    "--id",
+    "filter_ids",
+    type=str,
+    help="Only migrate specific Discogs IDs (comma-separated).",
 )
 @click.option(
     "--dry-run", is_flag=True, help="Display changes without performing migration."
@@ -745,9 +764,12 @@ def migrate(
         try:
             target_ids = [int(i.strip()) for i in filter_ids.split(",")]
         except ValueError:
-            raise click.UsageError("Invalid format for --id. Use comma-separated numbers.")
+            raise click.UsageError(
+                "Invalid format for --id. Use comma-separated numbers."
+            )
 
     client = get_client(config)
+    rate_log_time = time.time()
     log_file = destination / "00-Migration-Results.txt"
     log_entries: list[str] = [
         f"Migration Log - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
@@ -772,7 +794,9 @@ def migrate(
 
         # Apply filtering if enabled
         if target_ids and rid is not None and rid not in target_ids:
-            console.print(f"[yellow]Skipping {folder.name} (ID {rid} not in filter list)[/yellow]")
+            console.print(
+                f"[yellow]Skipping {folder.name} (ID {rid} not in filter list)[/yellow]"
+            )
             continue
 
         while rid is None:
@@ -796,6 +820,7 @@ def migrate(
 
         try:
             release = client.get_release(rid)
+            rate_log_time = _maybe_log_rate_limit(client, log_entries, rate_log_time)
             audio_files = _collect_audio_files(folder)
 
             if not audio_files:
@@ -805,7 +830,7 @@ def migrate(
 
             # Mapping logic
             mapping: list[tuple[Path, int]] = []  # (Source Path, Track Index)
-            
+
             # Create a lookup for release track positions and numbers
             pos_map: dict[str, int] = {}
             num_map: dict[str, int] = {}
@@ -829,7 +854,7 @@ def migrate(
                     # Try exact match, normalized numeric match, and position match
                     tn_norm = str(int(tn)) if tn.isdigit() else tn
                     tn_lower = tn.lower()
-                    
+
                     if tn_lower in pos_map:
                         tagged_map[pos_map[tn_lower]] = f
                     elif tn in num_map:
@@ -846,14 +871,16 @@ def migrate(
                     mapping.append((tagged_map[idx], idx))
             else:
                 # Provide detailed feedback on why auto-mapping failed
-                console.print(f"\n[yellow]Automatic mapping failed for {folder.name}:[/yellow]")
+                console.print(
+                    f"\n[yellow]Automatic mapping failed for {folder.name}:[/yellow]"
+                )
                 console.print(f"  Source files: {len(audio_files)}")
                 console.print(f"  Discogs tracks: {len(release.tracklist)}")
                 if unmatched_tags:
                     console.print("  Unmatched or missing tags in source:")
                     for fname, tag in unmatched_tags[:5]:
                         console.print(f"    - {fname} (Tag: '{tag}')")
-                
+
                 # Use alphabetical if counts match
                 if len(audio_files) == len(release.tracklist):
                     prompt = (
@@ -864,7 +891,9 @@ def migrate(
                         for i, f in enumerate(audio_files):
                             mapping.append((f, i))
                     else:
-                        msg = "User refused alphabetical mapping after auto-match failed"
+                        msg = (
+                            "User refused alphabetical mapping after auto-match failed"
+                        )
                         log_entries.append(f"SKIPPED: {folder.name} ({msg})")
                         continue
                 else:
@@ -878,7 +907,9 @@ def migrate(
 
             # Execution
             log_entries.append(f"PROCESSING: {folder.name} (ID: {rid})")
-            log_entries.append(f"  Release: {', '.join(release.artists)} - {release.title}")
+            log_entries.append(
+                f"  Release: {', '.join(release.artists)} - {release.title}"
+            )
 
             # Planned moves for logging
             planned_moves: list[tuple[Path, Path, int]] = []
@@ -895,7 +926,9 @@ def migrate(
                 log_entries.append(f"    {src.name} -> {rel_dst}")
 
             if dry_run:
-                console.print("[yellow]Dry-run: Migration steps logged to memory.[/yellow]")
+                console.print(
+                    "[yellow]Dry-run: Migration steps logged to memory.[/yellow]"
+                )
                 log_entries.append("  (Dry-run: No files were moved or modified)")
                 log_entries.append("")
                 continue
@@ -928,11 +961,15 @@ def migrate(
                         except DiscogsAPIError:
                             pass
 
+                rate_log_time = _maybe_log_rate_limit(
+                    client, log_entries, rate_log_time
+                )
+
                 # 2. Copy and tag
                 for src, dst, idx in planned_moves:
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src, dst)
-                    
+
                     # Clear and re-tag
                     clear_audio_tags(dst, preserve_artwork=not do_replace_art)
                     tag_audio_file(
@@ -947,8 +984,13 @@ def migrate(
 
                 # 3. Supplementary files
                 write_release_info(dst.parent, release, filename=config.info_filename)
-                if artwork_data and config.image_handling in (ImageHandling.SAVE, ImageHandling.BOTH):
-                    save_artwork(dst.parent, artwork_data, filename=config.artwork_filename)
+                if artwork_data and config.image_handling in (
+                    ImageHandling.SAVE,
+                    ImageHandling.BOTH,
+                ):
+                    save_artwork(
+                        dst.parent, artwork_data, filename=config.artwork_filename
+                    )
                     if config.collect_all_artwork:
                         save_artwork(
                             dst.parent,
@@ -971,7 +1013,7 @@ def migrate(
                 console.print(f"[green]Migrated and deleted: {folder.name}[/green]")
             else:
                 console.print(f"[green]Migrated: {folder.name}[/green]")
-            
+
             log_entries.append("  STATUS: Success")
             log_entries.append("")
 
@@ -980,13 +1022,32 @@ def migrate(
             log_entries.append(f"FAILED: {folder.name} ({e})")
             log_entries.append("")
 
+    # Append rate limit summary
+    info = client.rate_limit_info
+    if info.limit is not None:
+        log_entries.append(
+            "================================================================================"
+        )
+        log_entries.append("Rate Limit Summary")
+        log_entries.append(f"  Peak usage: {info.peak_used}/{info.limit}")
+        used_str = str(info.used) if info.used is not None else "?"
+        remaining_str = str(info.remaining) if info.remaining is not None else "?"
+        log_entries.append(
+            f"  Final state: {used_str}/{info.limit} used, {remaining_str} remaining"
+        )
+        log_entries.append("")
+
     # Write log file
     if not dry_run:
         destination.mkdir(parents=True, exist_ok=True)
         log_file.write_text("\n".join(log_entries), encoding="utf-8")
-        console.print(f"\n[bold green]Migration complete![/bold green] Results in {log_file.name}")
+        console.print(
+            f"\n[bold green]Migration complete![/bold green] Results in {log_file.name}"
+        )
     else:
-        console.print("\n[bold yellow]Dry-run complete.[/bold yellow] Migration log would have been saved.")
+        console.print(
+            "\n[bold yellow]Dry-run complete.[/bold yellow] Migration log would have been saved."
+        )
 
 
 @cli.group()

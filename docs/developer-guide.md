@@ -119,7 +119,7 @@ VinylKit is a synchronous CLI built on **Click** with **httpx** `SyncClient` for
 |---|---|
 | `cli.py` | Click command definitions, shared helpers (`_collect_audio_files`, `_display_relative`, `_plan_supplementary_moves`), `_CONFIG_CONVERTERS` dict |
 | `config.py` | TOML config loading/saving via `tomllib` / `tomli-w`, path resolution via `platformdirs` |
-| `discogs.py` | Discogs API client, OAuth flow, response caching |
+| `discogs.py` | Discogs API client, OAuth flow, response caching, rate limit header tracking and dynamic throttling |
 | `models.py` | Frozen dataclasses with `slots=True` (e.g. `DiscogsRelease`, `AppConfig`, `AudioFile`) and enums (`TagMode`, `AuthMode`, etc.) |
 | `naming.py` | Filename template rendering, path generation, and safe file moves |
 | `tagging.py` | Mutagen-based tagging for MP3 (ID3v2) and FLAC (Vorbis comments), artwork embedding |
