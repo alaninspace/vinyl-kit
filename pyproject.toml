@@ -59,15 +59,7 @@ no_implicit_optional = true
 warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
-
-[[tool.mypy.overrides]]
-module = ["mutagen.*", "authlib.*"]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["vinylkit.tagging"]
-disallow_untyped_calls = false
-disable_error_code = ["attr-defined"]
+mypy_path = "stubs"
 
 [dependency-groups]
 dev = [
@@ -77,4 +69,5 @@ dev = [
     "pytest-mock>=3.15.1",
     "respx>=0.22.0",
     "ruff>=0.15.0",
+    "types-authlib>=1.6.7.20260208",
 ]

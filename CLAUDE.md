@@ -15,17 +15,24 @@ uv run pytest -k "test_name"         # run tests matching pattern
 uv run ruff check .                  # lint
 uv run ruff check . --fix            # auto-fix lint
 uv run ruff format .                 # format
-uv run mypy src/                     # type check (use src/, not .)
+uv run mypy src/                     # type check (must target src/, not .)
 uv run vinylkit [COMMAND]            # run the CLI locally
 ```
 
-## Known Pre-existing Warnings
+## Zero-Warning Policy
 
-These are expected and should NOT be "fixed":
-- **mypy**: `mutagen` and `authlib` lack type stubs, producing `no-untyped-call` and `attr-defined` errors across `tagging.py` and `discogs.py`. Suppressed via `pyproject.toml` overrides.
-- **ruff TC003**: Suggests moving imports to `TYPE_CHECKING` blocks, but `Path` is used in dataclass defaults so this is unsafe.
-- **ruff SIM102**: Nested-if in `discogs.py` auth chain is intentional for readability.
-- **ruff PERF401**: `list.append` in loops in `tagging.py` is clearer than `list.extend`.
+All ruff and mypy checks MUST pass clean — **zero warnings, zero errors**. No exceptions. The full check suite (step 4 in the workflow below) includes `mypy src/`. Do not introduce new warnings or leave existing ones unfixed.
+
+Type stubs: `stubs/mutagen/` provides local stubs (no PyPI package exists). `types-authlib` is a dev dependency. Two `# type: ignore` comments in `discogs.py` work around bugs in the authlib stubs (documented inline).
+
+Common pitfalls to avoid:
+
+- **`raise` inside `except`**: Always use `raise ... from err` (or `from None`) to chain exceptions (B904).
+- **Line length**: Keep lines under 88 characters. Split long strings with implicit concatenation.
+- **Unused variables**: Prefix with `_` or omit (e.g., `_, disc = calculate_track_and_disc(...)`).
+- **`os.path` in tests**: Use `Path(...) / "segment"` instead of `os.path.join()` (PTH118).
+- **Type narrowing**: When a variable is assigned in multiple scopes (e.g., two loops), use distinct names to avoid mypy `no-redef` / `assignment` conflicts.
+- **Imports**: Move type-only imports into `TYPE_CHECKING` blocks (TC002/TC003). Exception: imports used at runtime in defaults (e.g., `Path` in dataclass fields) must stay top-level.
 
 ## Architecture
 
@@ -90,7 +97,7 @@ CLI command (click, ctx.obj=AppConfig)
 3. **Example parity**: Any new example added to `docs/examples.md` MUST have a corresponding test in `tests/test_examples_coverage.py`.
 4. **Run the full check suite** before considering work complete:
    ```bash
-   uv run pytest && uv run ruff check . && uv run ruff format --check .
+   uv run pytest && uv run ruff check . && uv run ruff format --check . && uv run mypy src/
    ```
 
 ### Code Style

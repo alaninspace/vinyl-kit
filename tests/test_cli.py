@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import logging as stdlogging
 from pathlib import Path  # noqa: TC003
+from typing import TYPE_CHECKING
 
-from click.testing import CliRunner
 from conftest import create_mock_release
+
+if TYPE_CHECKING:
+    from click.testing import CliRunner
 
 from vinylkit.cli import cli
 

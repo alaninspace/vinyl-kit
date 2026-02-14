@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from types import FrameType
 
 import click
 from loguru import logger
@@ -56,6 +57,7 @@ class _InterceptHandler(logging.Handler):
         except ValueError:
             level = record.levelno
 
+        frame: FrameType | None
         frame, depth = logging.currentframe(), 2
         while frame and frame.f_code.co_filename == logging.__file__:
             frame = frame.f_back
@@ -849,10 +851,10 @@ def migrate(
     if filter_ids:
         try:
             target_ids = [int(i.strip()) for i in filter_ids.split(",")]
-        except ValueError:
+        except ValueError as err:
             raise click.UsageError(
                 "Invalid format for --id. Use comma-separated numbers."
-            )
+            ) from err
 
     client = get_client(config)
     log_file = destination / "00-Migration-Results.txt"
@@ -887,7 +889,8 @@ def migrate(
 
         while rid is None:
             choice = click.prompt(
-                f"No ID found for '{folder.name}'. Enter Discogs ID, 's' to skip, or 'q' to quit",
+                f"No ID found for '{folder.name}'. "
+                "Enter Discogs ID, 's' to skip, or 'q' to quit",
                 type=str,
             )
             if choice.lower() == "q":
@@ -941,26 +944,27 @@ def migrate(
             unmatched_tags: list[tuple[str, str]] = []  # (Filename, Tag)
 
             for f in audio_files:
-                tn = get_track_number(f)
-                if tn:
+                tag = get_track_number(f)
+                if tag:
                     # Try exact match, normalized numeric match, and position match
-                    tn_norm = str(int(tn)) if tn.isdigit() else tn
-                    tn_lower = tn.lower()
+                    tag_norm = str(int(tag)) if tag.isdigit() else tag
+                    tag_lower = tag.lower()
 
-                    if tn_lower in pos_map:
-                        tagged_map[pos_map[tn_lower]] = f
-                    elif tn in num_map:
-                        tagged_map[num_map[tn]] = f
-                    elif tn_norm in num_map:
-                        tagged_map[num_map[tn_norm]] = f
+                    if tag_lower in pos_map:
+                        tagged_map[pos_map[tag_lower]] = f
+                    elif tag in num_map:
+                        tagged_map[num_map[tag]] = f
+                    elif tag_norm in num_map:
+                        tagged_map[num_map[tag_norm]] = f
                     else:
-                        unmatched_tags.append((f.name, tn))
+                        unmatched_tags.append((f.name, tag))
                 else:
                     unmatched_tags.append((f.name, "None"))
 
             if len(tagged_map) == len(audio_files):
-                for idx in sorted(tagged_map.keys()):
-                    mapping.append((tagged_map[idx], idx))
+                mapping.extend(
+                    (tagged_map[idx], idx) for idx in sorted(tagged_map.keys())
+                )
             else:
                 # Provide detailed feedback on why auto-mapping failed
                 console.print(
@@ -1006,7 +1010,7 @@ def migrate(
             # Planned moves for logging
             planned_moves: list[tuple[Path, Path, int]] = []
             for src, idx in mapping:
-                track_num, _ = calculate_track_and_disc(
+                _, _ = calculate_track_and_disc(
                     release, idx, config.track_numbering, config.disc_mapping
                 )
                 dst = generate_path(
@@ -1030,28 +1034,27 @@ def migrate(
                 # 1. Download artwork if needed
                 artwork_data = None
                 all_images_data: list[bytes] = []
-                if do_replace_art or config.image_handling != ImageHandling.NONE:
-                    if release.images:
-                        primary = next(
-                            (i for i in release.images if i.type == "primary"),
-                            release.images[0],
-                        )
-                        try:
-                            artwork_data = client.download_image(primary.resource_url)
+                if (
+                    do_replace_art or config.image_handling != ImageHandling.NONE
+                ) and release.images:
+                    primary = next(
+                        (i for i in release.images if i.type == "primary"),
+                        release.images[0],
+                    )
+                    try:
+                        artwork_data = client.download_image(primary.resource_url)
 
-                            if config.collect_all_artwork and len(release.images) > 1:
-                                for img in release.images:
-                                    if img.resource_url == primary.resource_url:
-                                        continue
-                                    try:
-                                        img_data = client.download_image(
-                                            img.resource_url
-                                        )
-                                        all_images_data.append(img_data)
-                                    except DiscogsAPIError:
-                                        pass
-                        except DiscogsAPIError:
-                            pass
+                        if config.collect_all_artwork and len(release.images) > 1:
+                            for img in release.images:
+                                if img.resource_url == primary.resource_url:
+                                    continue
+                                try:
+                                    img_data = client.download_image(img.resource_url)
+                                    all_images_data.append(img_data)
+                                except DiscogsAPIError:
+                                    pass
+                    except DiscogsAPIError:
+                        pass
 
                 # 2. Copy and tag
                 for src, dst, idx in planned_moves:
@@ -1173,7 +1176,8 @@ def migrate(
         )
     else:
         console.print(
-            "\n[bold yellow]Dry-run complete.[/bold yellow] Migration log would have been saved."
+            "\n[bold yellow]Dry-run complete.[/bold yellow] "
+            "Migration log would have been saved."
         )
 
 

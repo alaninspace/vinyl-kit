@@ -196,7 +196,7 @@ class DiscogsClient:
             self._last_request_time = time.time()
 
             try:
-                resp = self.client.request(method, url, **kwargs)
+                resp = self.client.request(method, url, **kwargs)  # type: ignore[union-attr]  # OAuth1Client inherits httpx.Client.request at runtime
                 self._update_rate_limit_info(resp)
                 if resp.status_code == 429:
                     retry_after = int(resp.headers.get("Retry-After", 60))
@@ -250,7 +250,7 @@ class DiscogsClient:
                 "oauth_token": req_token,
                 "oauth_token_secret": req_token_secret,
             }
-            token = self.client.fetch_access_token(ACCESS_TOKEN_URL, verifier=verifier)
+            token = self.client.fetch_access_token(ACCESS_TOKEN_URL, verifier=verifier)  # type: ignore[no-untyped-call]  # types-authlib stub missing return type
             return token["oauth_token"], token["oauth_token_secret"]
         except Exception as e:
             raise AuthError(f"Failed to fetch access token: {e}") from e

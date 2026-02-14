@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+from pathlib import Path
 
 from conftest import create_mock_release
 
@@ -38,7 +38,7 @@ def test_migrate_basic_success(runner, tmp_path, mock_discogs, mocker):
 
     # Check mapping in log with platform-specific separator
     # Default is A1 if NUMERIC is not working as expected in tests
-    expected_rel = os.path.join("Artist", "2000 - Title", "A1 - Track 1.mp3")
+    expected_rel = Path("Artist") / "2000 - Title" / "A1 - Track 1.mp3"
     assert f"01.mp3 -> {expected_rel}" in log_content
 
     # Check destination file
@@ -65,8 +65,8 @@ def test_migrate_prompt_for_id(runner, tmp_path, mock_discogs):
     assert "No ID found for 'No ID Here'" in result.output
     assert "Migrated: No ID Here" in result.output
     # Match whatever output we got (A1 or 1)
-    expected_rel_a1 = os.path.join("A", "2000 - T", "A1 - Track 1.mp3")
-    expected_rel_1 = os.path.join("A", "2000 - T", "1 - Track 1.mp3")
+    expected_rel_a1 = Path("A") / "2000 - T" / "A1 - Track 1.mp3"
+    expected_rel_1 = Path("A") / "2000 - T" / "1 - Track 1.mp3"
     assert (dest / expected_rel_a1).exists() or (dest / expected_rel_1).exists()
 
 
@@ -88,8 +88,8 @@ def test_migrate_delete_after(runner, tmp_path, mock_discogs):
     assert result.exit_code == 0
     assert not album_dir.exists()
     assert "Migrated and deleted: Delete Me [999]" in result.output
-    expected_rel_a1 = os.path.join("Del", "2000 - Me", "A1 - Track 1.mp3")
-    expected_rel_1 = os.path.join("Del", "2000 - Me", "1 - Track 1.mp3")
+    expected_rel_a1 = Path("Del") / "2000 - Me" / "A1 - Track 1.mp3"
+    expected_rel_1 = Path("Del") / "2000 - Me" / "1 - Track 1.mp3"
     assert (dest / expected_rel_a1).exists() or (dest / expected_rel_1).exists()
 
 
@@ -161,7 +161,7 @@ def test_migrate_filter_ids(runner, tmp_path, mock_discogs):
 
 
 def test_migrate_collect_all_artwork(runner, tmp_path, mock_discogs, mocker):
-    """Test that migrate downloads and saves secondary artwork when collect_all_artwork is True."""
+    """Test that migrate downloads and saves secondary artwork."""
     source = tmp_path / "source"
     source.mkdir()
     album_dir = source / "Art [100]"
@@ -340,7 +340,7 @@ def test_migrate_replace_tags_false(runner, tmp_path, mock_discogs, mocker):
     clear_audio_tags.assert_not_called()
 
     # But files should still be copied
-    expected_rel = os.path.join("A", "2000 - T", "A1 - Track 1.mp3")
+    expected_rel = Path("A") / "2000 - T" / "A1 - Track 1.mp3"
     assert (dest / expected_rel).exists()
 
     # And supplementary files should still be written

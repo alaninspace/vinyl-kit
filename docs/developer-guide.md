@@ -221,13 +221,12 @@ uv run mypy src/
 
 mypy runs in **strict mode**. All new code must be fully type-hinted.
 
-**Known overrides in `pyproject.toml`:**
+**Type stubs:**
 
-| Override | Reason |
+| Library | Source |
 |---|---|
-| `mutagen.*`, `authlib.*` — `ignore_missing_imports = true` | These libraries do not ship type stubs |
-| `vinylkit.tagging` — `disallow_untyped_calls = false` | Mutagen's API is untyped |
-| `vinylkit.tagging` — `disable_error_code = ["attr-defined"]` | Mutagen uses dynamic attribute access |
+| `mutagen` | Local stubs in `stubs/mutagen/` (no PyPI package exists) |
+| `authlib` | `types-authlib` dev dependency |
 
 ---
 

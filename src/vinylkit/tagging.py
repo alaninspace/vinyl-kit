@@ -209,39 +209,40 @@ def clear_audio_tags(path: Path, preserve_artwork: bool = False) -> None:
     """Clear all tags from an audio file, optionally preserving artwork."""
     ext = path.suffix.lower()
     if ext == ".mp3":
-        audio = MP3(path)
-        if audio.tags is None:
+        mp3 = MP3(path)
+        if mp3.tags is None:
             return
 
         if preserve_artwork:
             # Keep only APIC frames
-            pics = audio.tags.getall("APIC")
-            audio.delete()
-            audio.save()
+            pics = mp3.tags.getall("APIC")
+            mp3.delete()
+            mp3.save()
             # Restore pics
-            audio = MP3(path)
-            if audio.tags is None:
-                audio.add_tags()
+            mp3 = MP3(path)
+            if mp3.tags is None:
+                mp3.add_tags()
+            assert mp3.tags is not None
             for p in pics:
-                audio.tags.add(p)
-            audio.save()
+                mp3.tags.add(p)
+            mp3.save()
         else:
-            audio.delete()
-            audio.save()
+            mp3.delete()
+            mp3.save()
     elif ext == ".flac":
-        audio = FLAC(path)
+        flac = FLAC(path)
         if preserve_artwork:
             # FLAC.delete() only removes Vorbis comment blocks, NOT picture
             # metadata blocks — so pictures naturally survive and no
             # save/restore cycle is needed (that would double them).
-            audio.delete()
-            audio.save()
+            flac.delete()
+            flac.save()
         else:
             # Must clear pictures explicitly before delete() since
             # FLAC.delete() does not touch PICTURE metadata blocks.
-            audio.clear_pictures()
-            audio.delete()
-            audio.save()
+            flac.clear_pictures()
+            flac.delete()
+            flac.save()
 
 
 def get_track_number(path: Path) -> str | None:
@@ -249,15 +250,15 @@ def get_track_number(path: Path) -> str | None:
     ext = path.suffix.lower()
     try:
         if ext == ".mp3":
-            audio = MP3(path)
-            if audio.tags and "TRCK" in audio.tags:
+            mp3 = MP3(path)
+            if mp3.tags and "TRCK" in mp3.tags:
                 # TRCK can be "1", "1/10", etc.
-                val = str(audio.tags["TRCK"])
+                val = str(mp3.tags["TRCK"])
                 return val.split("/")[0]
         elif ext == ".flac":
-            audio = FLAC(path)
-            if "tracknumber" in audio:
-                val = str(audio["tracknumber"][0])
+            flac = FLAC(path)
+            if "tracknumber" in flac:
+                val = str(flac["tracknumber"][0])
                 return val.split("/")[0]
     except Exception:
         pass
