@@ -103,6 +103,7 @@ User settings stored in TOML.
 - **replace_artwork_on_migration**: `bool` (Default: true)
 - **replace_tags_on_migration**: `bool` (Default: true)
 - **skip_tags**: `list[str]` (Canonical tag names to exclude from writing; default: empty)
+- **cache_enabled**: `bool` (Default: true)
 - **log_level**: `str` (Default: "INFO")
 - **log_to_file**: `bool` (Default: true)
 - **log_file**: `pathlib.Path | None`

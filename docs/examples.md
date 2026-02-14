@@ -236,3 +236,44 @@ vinylkit migrate ~/Music/Old ~/Music/New --dry-run
 # Example: Preview migration for "Peace Division [33511]"
 vinylkit migrate "C:\Music\Old" "C:\Music\New" --dry-run
 ```
+
+---
+
+## 9. Cache Management
+
+### List Cached Releases
+See what Discogs API responses are stored locally.
+```bash
+# Bash / PowerShell
+vinylkit cache list
+```
+
+### Clear All Cached Releases (Interactive)
+Delete all cached API responses. You will be asked to confirm.
+```bash
+# Bash / PowerShell
+vinylkit cache clear
+```
+
+### Clear All Cached Releases (Skip Confirmation)
+Use `--yes` (or `-y`) to skip the confirmation prompt.
+```bash
+# Bash / PowerShell
+vinylkit cache clear --yes
+vinylkit cache clear -y
+```
+
+### Clear a Single Cached Release
+Remove the cached response for a specific Discogs Release ID using `--id`.
+```bash
+# Bash / PowerShell
+# Example: Clear cached data for Green Velvet - Flash (Remixes)
+vinylkit cache clear --id 19983
+```
+
+### Disable Caching
+Turn off API response caching entirely.
+```bash
+# Bash / PowerShell
+vinylkit config set cache_enabled false
+```

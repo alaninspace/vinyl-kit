@@ -80,6 +80,7 @@ src/
 tests/
     ├── conftest.py                # Shared fixtures (runner, mock_discogs, mp3_file, flac_file)
     ├── test_auth_logic.py         # Authentication priority chain tests
+    ├── test_cache.py              # Cache list and clear command tests
     ├── test_cli.py                # Core CLI interaction tests (CliRunner)
     ├── test_cli_commands.py       # rename, scan, auth, config command tests
     ├── test_collisions.py         # File collision detection and overwrite tests

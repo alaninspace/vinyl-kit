@@ -115,6 +115,14 @@ Manages your connection to Discogs.
 > [!IMPORTANT]
 > `auth login` requires `consumer_key` and `consumer_secret` to be configured first. For most users, setting a personal access token via `vinylkit config set discogs_token <TOKEN>` is simpler. See the **[Authentication Guide](auth.md)** for details.
 
+### `cache`
+Manages the Discogs API response cache stored in the platform cache directory.
+
+- `cache list`: Lists all cached releases with ID, artist, album, and age.
+- `cache clear`: Deletes all cached releases (prompts for confirmation).
+  - `--id <INTEGER>`: Clear a single release by its Discogs ID.
+  - `--yes` / `-y`: Skip the confirmation prompt.
+
 ### `config`
 Manages your persistent settings.
 
@@ -160,7 +168,8 @@ When viewing results, you can use the following commands:
 
 VinylKit's settings are grouped into the following categories:
 
-- **General** — `library_root`, `recordings_root`, `auto_move`, `auth_mode`
+- **General** — `library_root`, `recordings_root`, `auto_move`
+- **Cache** — `cache_enabled`
 - **Tagging & Numbering** — `tag_mode`, `track_numbering`, `disc_mapping`, `skip_tags`
 - **Naming & Organization** — `naming_pattern`
 - **Artwork & Metadata** — `image_handling`, `artwork_filename`, `collect_all_artwork`, `artwork_subdir`, `info_filename`

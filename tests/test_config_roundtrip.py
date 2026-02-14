@@ -46,6 +46,17 @@ def test_skip_tags_config_roundtrip(runner: CliRunner) -> None:
     assert "barcode" in show.output
 
 
+def test_cache_enabled_roundtrip(runner: CliRunner) -> None:
+    """Verify cache_enabled survives a set -> show cycle."""
+    result = runner.invoke(cli, ["config", "set", "cache_enabled", "false"])
+    assert result.exit_code == 0
+
+    show = runner.invoke(cli, ["config", "show"])
+    assert show.exit_code == 0
+    assert "cache_enabled" in show.output
+    assert "False" in show.output
+
+
 def test_skip_tags_none_clears(runner: CliRunner) -> None:
     """Setting skip_tags to 'none' produces an empty list."""
     runner.invoke(cli, ["config", "set", "skip_tags", "genre,style"])

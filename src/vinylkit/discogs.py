@@ -63,6 +63,11 @@ def describe_throttle_strategy(info: RateLimitInfo) -> str:
     )
 
 
+def get_cache_dir() -> Path:
+    """Return the platform-appropriate cache directory."""
+    return Path(user_cache_dir(APP_NAME))
+
+
 class DiscogsClient:
     def __init__(
         self,
@@ -74,7 +79,7 @@ class DiscogsClient:
         auth_mode: str = "auto",
     ) -> None:
         self.cache_enabled = cache_enabled
-        self.cache_dir = Path(user_cache_dir(APP_NAME))
+        self.cache_dir = get_cache_dir()
         if self.cache_enabled:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 

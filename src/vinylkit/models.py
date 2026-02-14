@@ -175,6 +175,7 @@ class AppConfig:
     replace_artwork_on_migration: bool = True
     replace_tags_on_migration: bool = True
     skip_tags: list[str] = field(default_factory=list)
+    cache_enabled: bool = True
     log_level: str = "INFO"
     log_to_file: bool = True
     log_file: Path | None = None

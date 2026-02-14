@@ -5,6 +5,7 @@ from pathlib import Path  # noqa: TC003
 from typing import TYPE_CHECKING
 
 from conftest import create_mock_release
+from loguru import logger
 
 if TYPE_CHECKING:
     from click.testing import CliRunner
@@ -207,8 +208,11 @@ def test_httpcore_debug_suppressed(tmp_path):
     config = AppConfig(library_root=tmp_path, log_to_file=False)
     initialise_logging(config)
 
-    assert stdlogging.getLogger("httpcore").level == stdlogging.WARNING
-    assert stdlogging.getLogger("httpx").level == stdlogging.WARNING
+    try:
+        assert stdlogging.getLogger("httpcore").level == stdlogging.WARNING
+        assert stdlogging.getLogger("httpx").level == stdlogging.WARNING
+    finally:
+        logger.remove()
 
 
 def test_tag_summary_output(runner, tmp_path, mock_discogs):

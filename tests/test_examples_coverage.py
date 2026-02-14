@@ -395,6 +395,78 @@ def test_ex_8_1_basic_migration(runner, tmp_path, mock_discogs, mocker):
     assert "Migration complete!" in result.output
 
 
+## 9. Cache Management
+
+
+def test_ex_9_1_cache_list(runner, tmp_path, mocker):
+    """Covers: vinylkit cache list"""
+    import json
+
+    mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)
+    data = {"id": 19983, "artists": [{"name": "Green Velvet"}], "title": "Flash"}
+    (tmp_path / "release_19983.json").write_text(json.dumps(data))
+    result = runner.invoke(cli, ["cache", "list"])
+    assert result.exit_code == 0
+    assert "19983" in result.output
+
+
+def test_ex_9_2_cache_clear(runner, tmp_path, mocker):
+    """Covers: vinylkit cache clear --yes"""
+    import json
+
+    mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)
+    data = {"id": 19983, "artists": [{"name": "Green Velvet"}], "title": "Flash"}
+    (tmp_path / "release_19983.json").write_text(json.dumps(data))
+    result = runner.invoke(cli, ["cache", "clear", "--yes"])
+    assert result.exit_code == 0
+    assert "Cleared 1" in result.output
+
+
+def test_ex_9_3_cache_clear_single(runner, tmp_path, mocker):
+    """Covers: vinylkit cache clear --id 19983"""
+    import json
+
+    mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)
+    data = {"id": 19983, "artists": [{"name": "Green Velvet"}], "title": "Flash"}
+    (tmp_path / "release_19983.json").write_text(json.dumps(data))
+    result = runner.invoke(cli, ["cache", "clear", "--id", "19983"])
+    assert result.exit_code == 0
+    assert "Cleared cache for release 19983" in result.output
+
+
+def test_ex_9_4_cache_clear_interactive(runner, tmp_path, mocker):
+    """Covers: vinylkit cache clear (interactive confirmation)"""
+    import json
+
+    mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)
+    data = {"id": 19983, "artists": [{"name": "Green Velvet"}], "title": "Flash"}
+    (tmp_path / "release_19983.json").write_text(json.dumps(data))
+    result = runner.invoke(cli, ["cache", "clear"], input="y\n")
+    assert result.exit_code == 0
+    assert "Cleared 1" in result.output
+
+
+def test_ex_9_5_cache_clear_short_flag(runner, tmp_path, mocker):
+    """Covers: vinylkit cache clear -y"""
+    import json
+
+    mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)
+    data = {"id": 53088, "artists": [{"name": "The Prodigy"}], "title": "Wind It Up"}
+    (tmp_path / "release_53088.json").write_text(json.dumps(data))
+    result = runner.invoke(cli, ["cache", "clear", "-y"])
+    assert result.exit_code == 0
+    assert "Cleared 1" in result.output
+
+
+def test_ex_9_6_config_cache_disabled(runner):
+    """Covers: vinylkit config set cache_enabled false"""
+    result = runner.invoke(cli, ["config", "set", "cache_enabled", "false"])
+    assert result.exit_code == 0
+    show = runner.invoke(cli, ["config", "show"])
+    assert show.exit_code == 0
+    assert "False" in show.output
+
+
 def test_ex_8_2_migration_with_delete(runner, tmp_path, mock_discogs, mocker):
     """Covers: vinylkit migrate ... --delete"""
     source = tmp_path / "source"

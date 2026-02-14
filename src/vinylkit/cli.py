@@ -20,7 +20,11 @@ from rich.console import Console
 from rich.table import Table
 
 from vinylkit.config import get_config_path, load_config, save_config
-from vinylkit.discogs import DiscogsClient, describe_throttle_strategy
+from vinylkit.discogs import (
+    DiscogsClient,
+    describe_throttle_strategy,
+    get_cache_dir,
+)
 from vinylkit.exceptions import DiscogsAPIError, VinylkitError
 from vinylkit.models import (
     AppConfig,
@@ -121,6 +125,7 @@ def get_client(config: AppConfig) -> DiscogsClient:
         secret,
         config.discogs_token,
         config.discogs_secret,
+        cache_enabled=config.cache_enabled,
         auth_mode=config.auth_mode.value,
     )
 
@@ -1415,6 +1420,12 @@ def config_show(config_obj: AppConfig) -> None:
             ],
         ),
         (
+            "Cache",
+            [
+                ("cache_enabled", str(config_obj.cache_enabled)),
+            ],
+        ),
+        (
             "Library Migration",
             [
                 (
@@ -1502,6 +1513,7 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "replace_artwork_on_migration": _parse_bool,
     "replace_tags_on_migration": _parse_bool,
     "skip_tags": _parse_format_list,
+    "cache_enabled": _parse_bool,
     "log_level": str,
     "log_to_file": _parse_bool,
     "log_file": Path,
@@ -1529,6 +1541,114 @@ def config_set(config_obj: AppConfig, key: str, value: str) -> None:
     new_config = AppConfig(**new_data)
     save_config(new_config)
     console.print(f"[green]Successfully set {key} to {value}[/green]")
+
+
+def _format_age(mtime: float) -> str:
+    """Format a file modification time as a human-readable age string."""
+    import time
+
+    delta = time.time() - mtime
+    if delta < 0:
+        delta = 0
+    minutes = delta / 60
+    if minutes < 60:
+        return f"{int(minutes)}m ago"
+    hours = minutes / 60
+    if hours < 24:
+        return f"{int(hours)}h ago"
+    days = hours / 24
+    if days < 14:
+        return f"{int(days)}d ago"
+    weeks = days / 7
+    if weeks < 8:
+        return f"{int(weeks)}w ago"
+    months = days / 30.44
+    if months < 12:
+        return f"{int(months)}mo ago"
+    years = days / 365.25
+    return f"{int(years)}y ago"
+
+
+@cli.group()
+def cache() -> None:
+    """Manage the Discogs API response cache."""
+
+
+@cache.command(name="list")
+def cache_list() -> None:
+    """List cached Discogs releases."""
+    import json
+
+    cache_dir = get_cache_dir()
+    if not cache_dir.exists():
+        console.print("[yellow]Cache directory does not exist.[/yellow]")
+        return
+
+    files = sorted(cache_dir.glob("release_*.json"))
+    if not files:
+        console.print("[yellow]Cache is empty.[/yellow]")
+        return
+
+    table = Table(title="Cached Releases")
+    table.add_column("ID", style="magenta", no_wrap=True)
+    table.add_column("Artist", style="cyan", max_width=30, overflow="ellipsis")
+    table.add_column("Album", style="green", max_width=40, overflow="ellipsis")
+    table.add_column("Age", style="dim", no_wrap=True)
+
+    count = 0
+    for f in files:
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            rid = str(data.get("id", "?"))
+            artists_list = data.get("artists", [])
+            artist = (
+                ", ".join(a.get("name", "?") for a in artists_list)
+                if artists_list
+                else "Unknown"
+            )
+            title = data.get("title", "Unknown")
+            age = _format_age(f.stat().st_mtime)
+            table.add_row(rid, artist, title, age)
+            count += 1
+        except (OSError, json.JSONDecodeError, KeyError):
+            table.add_row("?", "?", f"[red]{f.name} (corrupt)[/red]", "?")
+            count += 1
+
+    console.print(table)
+    console.print(f"\n[bold]{count} cached release(s)[/bold]")
+
+
+@cache.command(name="clear")
+@click.option("--id", "release_id", type=int, help="Clear a single release by ID.")
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt.")
+def cache_clear(release_id: int | None, yes: bool) -> None:
+    """Clear cached Discogs API responses."""
+    cache_dir = get_cache_dir()
+    if not cache_dir.exists():
+        console.print("[yellow]Cache directory does not exist.[/yellow]")
+        return
+
+    if release_id is not None:
+        target = cache_dir / f"release_{release_id}.json"
+        if not target.exists():
+            console.print(f"[yellow]No cache entry for release {release_id}.[/yellow]")
+            return
+        target.unlink()
+        console.print(f"[green]Cleared cache for release {release_id}.[/green]")
+        return
+
+    files = list(cache_dir.glob("release_*.json"))
+    if not files:
+        console.print("[yellow]Cache is already empty.[/yellow]")
+        return
+
+    if not yes and not click.confirm(f"Delete {len(files)} cached release(s)?"):
+        console.print("[yellow]Aborted.[/yellow]")
+        return
+
+    for f in files:
+        f.unlink()
+    console.print(f"[green]Cleared {len(files)} cached release(s).[/green]")
 
 
 def main() -> None:

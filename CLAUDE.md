@@ -81,6 +81,7 @@ CLI command (click, ctx.obj=AppConfig)
 - Every new feature or bug fix must include tests.
 - Real audio fixtures (`_make_mp3_bytes`, `_make_flac_bytes`) create minimal valid files — no test data files on disk.
 - API calls are always mocked. `respx` is available for HTTP-level mocking in `test_discogs.py`.
+- **Test data isolation**: ALL test data MUST be written to `tmp_path` or equivalent temporary directories — never to real platform directories (cache, config, logs). The autouse `_isolate_cache_dir` fixture in `conftest.py` redirects the cache dir for every test. If a new module introduces platform-specific directories, add a similar autouse fixture to prevent leakage.
 
 ## Development Workflow Requirements
 
@@ -88,13 +89,14 @@ CLI command (click, ctx.obj=AppConfig)
 
 1. **Write tests first or alongside the change.** Every new behavior needs a test case.
 2. **Documentation sweep**: Check ALL `docs/*.md` files for any content that needs updating. Key docs and what they cover:
-   - `configuration.md` — authoritative config key reference (new settings MUST be added here)
+   - `configuration.md` — authoritative reference for ALL settings AND command flags. Every new config key, CLI flag, and option MUST be documented here with allowed values and at least one example.
    - `user-guide.md` — authoritative command and feature reference
-   - `examples.md` — real-world command examples
+   - `examples.md` — real-world command examples. Every new command and every new flag MUST have at least one example.
    - `developer-guide.md` — architecture, test patterns, dev setup
    - `data-model.md` — data structures and schemas
    - `auth.md`, `quickstart.md` — if auth or setup flow changed
 3. **Example parity**: Any new example added to `docs/examples.md` MUST have a corresponding test in `tests/test_examples_coverage.py`.
+4. **Flag coverage rule**: Every CLI flag/option introduced by a new command MUST be: (a) documented in `configuration.md` with allowed values and an example, (b) shown in at least one example in `examples.md`, and (c) covered by a test in `test_examples_coverage.py`.
 4. **Run the full check suite** before considering work complete:
    ```bash
    uv run pytest && uv run ruff check . && uv run ruff format --check . && uv run mypy src/

@@ -145,6 +145,49 @@ The default media format filter(s) applied to all searches. Multiple formats can
 
 ---
 
+## Cache
+
+Discogs API responses are cached locally as JSON files in the platform cache directory. This avoids redundant API calls when you re-tag or re-process a release you've already fetched.
+
+| Platform | Default Cache Path |
+|---|---|
+| **Windows** | `%LOCALAPPDATA%\vinylkit\vinylkit\Cache` |
+| **macOS** | `~/Library/Caches/vinylkit` |
+| **Linux** | `~/.cache/vinylkit` |
+
+### `cache_enabled`
+Controls whether Discogs API responses are cached locally.
+- **Default:** `true`
+- **Example:** `vinylkit config set cache_enabled false`
+
+### `cache list`
+Lists all cached releases with their Discogs ID, artist, album, and age.
+- **Example:** `vinylkit cache list`
+
+### `cache clear`
+Deletes cached Discogs API responses. Prompts for confirmation by default (destructive operation).
+
+- `--yes` / `-y`: Skip the confirmation prompt.
+- `--id <INTEGER>`: Clear only the cached response for a single Discogs Release ID instead of all cached releases.
+
+**Examples:**
+```bash
+# Interactive confirmation (default)
+vinylkit cache clear
+
+# Skip confirmation
+vinylkit cache clear --yes
+vinylkit cache clear -y
+
+# Clear a single release
+vinylkit cache clear --id 19983
+
+# Clear a single release without confirmation
+vinylkit cache clear --id 53088
+```
+
+---
+
 ## Library Migration
 
 These settings apply to the `vinylkit migrate` command.

@@ -24,6 +24,16 @@ def _suppress_loguru_file_sink() -> None:
     logger.remove()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_cache_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Redirect the cache directory to tmp_path for every test.
+
+    Prevents test data from leaking into the real platform cache directory.
+    """
+    cache_dir = tmp_path / "cache"
+    monkeypatch.setattr("vinylkit.discogs.get_cache_dir", lambda: cache_dir)
+
+
 @pytest.fixture
 def caplog(caplog: pytest.LogCaptureFixture) -> pytest.LogCaptureFixture:
     """Bridge loguru to pytest's caplog handler for log capture in tests."""
