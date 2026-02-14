@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from types import FrameType
 
+    from vinylkit.models import DiscogsRelease
+
 import click
 from loguru import logger
 from platformdirs import user_log_dir
@@ -221,6 +223,116 @@ def _plan_supplementary_moves(
             )
 
     return dir_moves
+
+
+def _get_rate_limit_str(client: DiscogsClient) -> str:
+    """Return a rate-limit suffix string and log it, or ``""``."""
+    rl = client.rate_limit_info
+    if rl.remaining is not None and rl.limit is not None:
+        logger.info(
+            "Rate limit: {}/{} remaining",
+            rl.remaining,
+            rl.limit,
+        )
+        return f" | Rate limit: {rl.remaining}/{rl.limit} remaining"
+    return ""
+
+
+def _count_artwork_saved(
+    artwork_data: bytes | None,
+    all_images_data: list[bytes],
+    config: AppConfig,
+) -> int:
+    """Return how many artwork files were (or would be) saved."""
+    if not artwork_data:
+        return 0
+    if config.image_handling not in (
+        ImageHandling.SAVE,
+        ImageHandling.BOTH,
+    ):
+        return 0
+    count = 1  # primary artwork
+    if config.collect_all_artwork:
+        count += 1 + len(all_images_data)  # primary_01 + secondaries
+    return count
+
+
+def _download_artwork(
+    client: DiscogsClient,
+    release: DiscogsRelease,
+    config: AppConfig,
+    *,
+    silent: bool = False,
+) -> tuple[bytes | None, list[bytes]]:
+    """Download primary image and optional secondaries.
+
+    When *silent* is ``True``, download failures are swallowed.
+    Otherwise warnings are printed to the console.
+    """
+    artwork_data: bytes | None = None
+    all_images_data: list[bytes] = []
+    if not release.images:
+        return artwork_data, all_images_data
+
+    primary = next(
+        (i for i in release.images if i.type == "primary"),
+        release.images[0],
+    )
+    try:
+        artwork_data = client.download_image(primary.resource_url)
+
+        if config.collect_all_artwork and len(release.images) > 1:
+            for img in release.images:
+                if img.resource_url == primary.resource_url:
+                    continue
+                try:
+                    img_data = client.download_image(img.resource_url)
+                    all_images_data.append(img_data)
+                except DiscogsAPIError as exc:
+                    if not silent:
+                        console.print(
+                            "[yellow]Warning: Failed"
+                            " to download additional"
+                            f" artwork: {exc}[/yellow]"
+                        )
+    except DiscogsAPIError as exc:
+        if not silent:
+            console.print(
+                f"[yellow]Warning: Failed to download artwork: {exc}[/yellow]"
+            )
+    return artwork_data, all_images_data
+
+
+def _save_release_files(
+    dest: Path,
+    release: DiscogsRelease,
+    artwork_data: bytes | None,
+    all_images_data: list[bytes],
+    config: AppConfig,
+) -> None:
+    """Write the release info file and save artwork into *dest*."""
+    write_release_info(dest, release, filename=config.info_filename)
+    if artwork_data and config.image_handling in (
+        ImageHandling.SAVE,
+        ImageHandling.BOTH,
+    ):
+        save_artwork(dest, artwork_data, filename=config.artwork_filename)
+        if config.collect_all_artwork:
+            save_artwork(
+                dest,
+                artwork_data,
+                filename="primary_01.jpg",
+                is_primary=False,
+                subdir=config.artwork_subdir,
+            )
+            for idx, img_data in enumerate(all_images_data, start=1):
+                save_artwork(
+                    dest,
+                    img_data,
+                    filename=f"secondary_{idx:02d}.jpg",
+                    is_primary=False,
+                    subdir=config.artwork_subdir,
+                )
 
 
 @click.group()
@@ -504,33 +616,12 @@ def tag(
             console.print(release_display)
 
             # Artwork handling
-            artwork_data = None
-            all_images_data = []
-            if not no_artwork and release.images:
-                primary_image = next(
-                    (i for i in release.images if i.type == "primary"),
-                    release.images[0],
-                )
-                try:
-                    with console.status("[bold green]Downloading artwork..."):
-                        artwork_data = client.download_image(primary_image.resource_url)
-
-                        if config.collect_all_artwork and len(release.images) > 1:
-                            for img in release.images:
-                                if img.resource_url == primary_image.resource_url:
-                                    continue
-                                try:
-                                    img_data = client.download_image(img.resource_url)
-                                    all_images_data.append(img_data)
-                                except DiscogsAPIError as e:
-                                    console.print(
-                                        "[yellow]Warning: Failed"
-                                        " to download additional"
-                                        f" artwork: {e}[/yellow]"
-                                    )
-                except DiscogsAPIError as e:
-                    console.print(
-                        f"[yellow]Warning: Failed to download artwork: {e}[/yellow]"
+            artwork_data: bytes | None = None
+            all_images_data: list[bytes] = []
+            if not no_artwork:
+                with console.status("[bold green]Downloading artwork..."):
+                    artwork_data, all_images_data = _download_artwork(
+                        client, release, config
                     )
 
             audio_files = _collect_audio_files(path)
@@ -584,57 +675,21 @@ def tag(
                     )
                     tagged_paths.append(file_path)
 
-            # Create info file
+            # Save supplementary files
             if not dry_run:
-                write_release_info(path, release, filename=config.info_filename)
-                if artwork_data and config.image_handling in (
-                    ImageHandling.SAVE,
-                    ImageHandling.BOTH,
-                ):
-                    save_artwork(path, artwork_data, filename=config.artwork_filename)
-                    if config.collect_all_artwork:
-                        save_artwork(
-                            path,
-                            artwork_data,
-                            filename="primary_01.jpg",
-                            is_primary=False,
-                            subdir=config.artwork_subdir,
-                        )
-                        for idx, img_data in enumerate(all_images_data, start=1):
-                            save_artwork(
-                                path,
-                                img_data,
-                                filename=f"secondary_{idx:02d}.jpg",
-                                is_primary=False,
-                                subdir=config.artwork_subdir,
-                            )
+                _save_release_files(
+                    path, release, artwork_data, all_images_data, config
+                )
 
             # Count artwork files saved
-            artwork_count = 0
-            if (
-                not dry_run
-                and artwork_data
-                and config.image_handling
-                in (
-                    ImageHandling.SAVE,
-                    ImageHandling.BOTH,
-                )
-            ):
-                artwork_count = 1  # primary artwork
-                if config.collect_all_artwork:
-                    # primary_01 + secondaries
-                    artwork_count += 1 + len(all_images_data)
+            artwork_count = (
+                _count_artwork_saved(artwork_data, all_images_data, config)
+                if not dry_run
+                else 0
+            )
 
             # Build and display summary
-            rl = client.rate_limit_info
-            rate_str = ""
-            if rl.remaining is not None and rl.limit is not None:
-                rate_str = f" | Rate limit: {rl.remaining}/{rl.limit} remaining"
-                logger.info(
-                    "Rate limit: {}/{} remaining",
-                    rl.remaining,
-                    rl.limit,
-                )
+            rate_str = _get_rate_limit_str(client)
 
             if dry_run:
                 console.print(
@@ -1058,29 +1113,12 @@ def migrate(
             # Real implementation
             with console.status(f"[green]Migrating {folder.name}..."):
                 # 1. Download artwork if needed
-                artwork_data = None
+                artwork_data: bytes | None = None
                 all_images_data: list[bytes] = []
-                if (
-                    do_replace_art or config.image_handling != ImageHandling.NONE
-                ) and release.images:
-                    primary = next(
-                        (i for i in release.images if i.type == "primary"),
-                        release.images[0],
+                if do_replace_art or config.image_handling != ImageHandling.NONE:
+                    artwork_data, all_images_data = _download_artwork(
+                        client, release, config, silent=True
                     )
-                    try:
-                        artwork_data = client.download_image(primary.resource_url)
-
-                        if config.collect_all_artwork and len(release.images) > 1:
-                            for img in release.images:
-                                if img.resource_url == primary.resource_url:
-                                    continue
-                                try:
-                                    img_data = client.download_image(img.resource_url)
-                                    all_images_data.append(img_data)
-                                except DiscogsAPIError:
-                                    pass
-                    except DiscogsAPIError:
-                        pass
 
                 # 2. Copy and tag
                 for src, dst, idx in planned_moves:
@@ -1101,41 +1139,12 @@ def migrate(
                         )
 
                 # 3. Supplementary files
-                write_release_info(dst.parent, release, filename=config.info_filename)
-                if artwork_data and config.image_handling in (
-                    ImageHandling.SAVE,
-                    ImageHandling.BOTH,
-                ):
-                    save_artwork(
-                        dst.parent, artwork_data, filename=config.artwork_filename
-                    )
-                    if config.collect_all_artwork:
-                        save_artwork(
-                            dst.parent,
-                            artwork_data,
-                            filename="primary_01.jpg",
-                            is_primary=False,
-                            subdir=config.artwork_subdir,
-                        )
-                        for idx, img_data in enumerate(all_images_data, start=1):
-                            save_artwork(
-                                dst.parent,
-                                img_data,
-                                filename=f"secondary_{idx:02d}.jpg",
-                                is_primary=False,
-                                subdir=config.artwork_subdir,
-                            )
+                dest_dir = planned_moves[-1][1].parent
+                _save_release_files(
+                    dest_dir, release, artwork_data, all_images_data, config
+                )
 
-            # Count artwork files saved
-            artwork_count = 0
-            if artwork_data and config.image_handling in (
-                ImageHandling.SAVE,
-                ImageHandling.BOTH,
-            ):
-                artwork_count = 1  # primary artwork
-                if config.collect_all_artwork:
-                    # primary_01 + secondaries
-                    artwork_count += 1 + len(all_images_data)
+            artwork_count = _count_artwork_saved(artwork_data, all_images_data, config)
 
             if do_delete:
                 shutil.rmtree(folder)
@@ -1144,15 +1153,7 @@ def migrate(
                 console.print(f"[green]Migrated: {folder.name}[/green]")
 
             # Display per-release summary
-            rl = client.rate_limit_info
-            rate_str = ""
-            if rl.remaining is not None and rl.limit is not None:
-                rate_str = f" | Rate limit: {rl.remaining}/{rl.limit} remaining"
-                logger.info(
-                    "Rate limit: {}/{} remaining",
-                    rl.remaining,
-                    rl.limit,
-                )
+            rate_str = _get_rate_limit_str(client)
             if do_replace_tags:
                 summary = (
                     f"  Tagged {len(planned_moves)} tracks"
