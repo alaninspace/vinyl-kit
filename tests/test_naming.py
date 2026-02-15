@@ -79,3 +79,46 @@ def test_move_file_dry_run(tmp_path: Path) -> None:
 
     assert source.exists()
     assert not target.exists()
+
+
+def test_move_file_creates_parent_dirs(tmp_path: Path) -> None:
+    """move_file creates intermediate directories as needed."""
+    from vinylkit.naming import move_file
+
+    source = tmp_path / "source.flac"
+    source.write_text("audio")
+    target = tmp_path / "deep" / "nested" / "dir" / "track.flac"
+
+    move_file(source, target, dry_run=False)
+
+    assert not source.exists()
+    assert target.read_text() == "audio"
+
+
+def test_move_file_cross_root(tmp_path: Path) -> None:
+    """move_file works when source and target are on different roots.
+
+    We simulate a cross-root move by monkeypatching os.rename to raise
+    the same error Windows raises for cross-drive moves, verifying that
+    the shutil.move fallback (copy + delete) handles it.
+    """
+    from unittest.mock import patch
+
+    from vinylkit.naming import move_file
+
+    source = tmp_path / "src" / "track.flac"
+    source.parent.mkdir()
+    source.write_bytes(b"audio data")
+
+    target = tmp_path / "dst" / "Artist" / "Album" / "track.flac"
+
+    # Patch os.rename to raise the cross-device error that Windows gives
+    def fake_rename(_src: str, _dst: str) -> None:
+        raise OSError(17, "The system cannot move the file to a different disk drive")
+
+    with patch("os.rename", side_effect=fake_rename):
+        move_file(source, target, dry_run=False)
+
+    assert not source.exists()
+    assert target.exists()
+    assert target.read_bytes() == b"audio data"

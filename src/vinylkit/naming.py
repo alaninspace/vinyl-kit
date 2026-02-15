@@ -68,8 +68,7 @@ def move_file(source: Path, target: Path, dry_run: bool = False) -> None:
 
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        # atomic replace
-        source.replace(target)
+        shutil.move(str(source), str(target))
         logger.debug(f"Moved: {source.name} -> {target}")
     except Exception as e:
         raise FileOperationError(f"Failed to move {source} to {target}: {e}") from e

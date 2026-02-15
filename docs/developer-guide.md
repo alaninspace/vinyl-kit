@@ -142,7 +142,7 @@ VinylKit is a synchronous CLI built on **Click** with **httpx** `Client` for API
 | `config.py` | TOML config loading/saving via `tomllib` / `tomli-w`, path resolution via `platformdirs` |
 | `discogs.py` | Discogs API client, OAuth flow, response caching, rate limit header tracking and dynamic throttling |
 | `models.py` | Frozen dataclasses with `slots=True` (e.g. `DiscogsRelease`, `AppConfig`, `AudioFile`) and enums (`TagMode`, `AuthMode`, etc.). Exception: `RateLimitInfo` is intentionally mutable |
-| `naming.py` | Filename template rendering, path generation, and safe file moves |
+| `naming.py` | Filename template rendering, path generation, and safe file moves (cross-drive via `shutil.move`) |
 | `tagging.py` | Mutagen-based tagging for MP3 (ID3v2) and FLAC (Vorbis comments), artwork embedding/saving, folder scanning (`scan_folder`), tag clearing (`clear_audio_tags`), track/disc calculation (`calculate_track_and_disc`), release info writing (`write_release_info`) |
 | `utils.py` | Backup file creation, filename sanitization, and path resolution (`ensure_absolute`) |
 | `exceptions.py` | Custom exception hierarchy rooted at `VinylkitError` |
@@ -164,6 +164,8 @@ CLI command (click, ctx.obj=AppConfig)
 - **Custom exceptions** for user-facing errors — never leak raw library exceptions to the CLI
 - **`VinylkitError`** hierarchy: `ConfigError`, `AuthError`, `DiscogsAPIError`, `TaggingError`, `FileOperationError`, `ValidationError`
 - **Loguru logging**: Use `from loguru import logger` — no `logging.getLogger(__name__)`. The global `logger` instance routes to both console and file sinks configured in `initialise_logging()`. Stdlib loggers (httpx, authlib) are bridged through an `_InterceptHandler`
+- **Two-phase rename**: The `tag` command's post-tagging rename uses two phases — (1) rename files in-place within the source folder so they always have correct names, then (2) move to `library_root`. If phase 2 fails (e.g. permissions), files are still tagged and properly named in the source folder
+- **Cross-drive moves**: `move_file` uses `shutil.move` (not `Path.replace`) so that moves between different drives/filesystems work correctly (copy + delete fallback)
 - **Logging convention**: Per-file operations in modules (`tagging.py`, `naming.py`) use `logger.debug()` so they only appear in the log file. Command-level summaries and release separators in `cli.py` use `logger.info()`. HTTP request tracing in `discogs.py` uses `logger.debug()`. Third-party HTTP loggers (httpx, httpcore) are suppressed to WARNING
 
 ---

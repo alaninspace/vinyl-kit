@@ -452,14 +452,22 @@ def _tag_folder(
         _helpers.console.print(f"\n[bold green]{summary}[/bold green]")
 
         if do_rename:
-            _rename_after_tag(
-                path,
-                tagged_paths,
-                release,
-                config,
-                lib_root,
-                auto_move=auto_move,
-            )
+            try:
+                _rename_after_tag(
+                    path,
+                    tagged_paths,
+                    release,
+                    config,
+                    lib_root,
+                    auto_move=auto_move,
+                )
+            except VinylkitError as e:
+                _helpers.console.print(
+                    f"[bold red]Rename failed for"
+                    f" {path.name}:[/bold red] {e}"
+                    f"\n[yellow]Note: Files were"
+                    " tagged successfully.[/yellow]"
+                )
 
 
 def _rename_after_tag(
@@ -471,9 +479,20 @@ def _rename_after_tag(
     *,
     auto_move: bool,
 ) -> None:
-    """Rename/move files after tagging."""
+    """Rename/move files after tagging.
+
+    Uses a two-phase approach:
+
+    1. **Rename in-place** — audio files are renamed to their final
+       filenames inside the source folder so that they always have
+       correct names, even if the subsequent move fails.
+    2. **Move to library** — renamed files (and supplementary files
+       like artwork / release info) are moved to *lib_root*.
+    """
     _helpers.console.print(f"\n[bold blue]Renaming files in {path.name}...[/bold blue]")
-    moves: list[tuple[Path, Path]] = []
+
+    # Plan audio file moves
+    audio_moves: list[tuple[Path, Path]] = []
     for i, source in enumerate(tagged_paths):
         target = _helpers.generate_path(
             lib_root,
@@ -482,26 +501,57 @@ def _rename_after_tag(
             i,
             source.suffix,
         )
-        moves.append((source, target))
+        audio_moves.append((source, target))
         rel = _helpers.display_relative(target, lib_root)
         _helpers.console.print(f"[cyan]{source.name}[/cyan] -> [green]{rel}[/green]")
 
+    # moves includes audio + supplementary files (appended below)
+    moves: list[tuple[Path, Path]] = list(audio_moves)
     target_dir = moves[0][1].parent if moves else path
     dir_moves = _helpers.plan_supplementary_moves(
         path, target_dir, lib_root, config, moves
     )
 
-    if auto_move or config.auto_move or click.confirm("\nProceed with moving files?"):
-        if _helpers.check_collisions(moves, dir_moves):
-            for src, dst in moves:
-                _helpers.move_file(src, dst, dry_run=False)
-            for src, dst in dir_moves:
-                _helpers.move_directory(src, dst, dry_run=False)
-            _helpers.console.print(
-                "\n[bold green]Files moved successfully.[/bold green]"
-            )
-        else:
-            _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
+    if not (
+        auto_move or config.auto_move or click.confirm("\nProceed with moving files?")
+    ):
+        _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
+        return
+
+    if not _helpers.check_collisions(moves, dir_moves):
+        _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
+        return
+
+    # Phase 1: Rename audio files in-place so they have correct
+    # names even if the cross-drive move in Phase 2 fails.
+    renamed: list[tuple[Path, Path]] = []
+    for src, dst in audio_moves:
+        local_dst = src.parent / dst.name
+        if src != local_dst:
+            _helpers.move_file(src, local_dst, dry_run=False)
+        renamed.append((local_dst, dst))
+
+    # Supplementary file moves (info, artwork) appended by
+    # plan_supplementary_moves — they already have correct names.
+    supp_moves = moves[len(audio_moves) :]
+
+    # Phase 2: Move renamed files + supplementary files to library.
+    try:
+        for local_src, dst in renamed:
+            if local_src != dst:
+                _helpers.move_file(local_src, dst, dry_run=False)
+        for src, dst in supp_moves:
+            _helpers.move_file(src, dst, dry_run=False)
+        for src, dst in dir_moves:
+            _helpers.move_directory(src, dst, dry_run=False)
+        _helpers.console.print("\n[bold green]Files moved successfully.[/bold green]")
+    except VinylkitError as exc:
+        _helpers.console.print(
+            f"\n[bold red]Move to library"
+            f" failed:[/bold red] {exc}"
+            f"\n[yellow]Files were tagged and"
+            f" renamed in {path}.[/yellow]"
+        )
 
 
 @click.command()

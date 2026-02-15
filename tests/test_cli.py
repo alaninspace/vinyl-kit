@@ -261,3 +261,75 @@ def test_release_separator_in_log(runner, tmp_path, mock_discogs, caplog):
 
     assert result.exit_code == 0
     assert "=== Release: Artist - Title (ID: 100) ===" in caplog.text
+
+
+def test_tag_rename_two_phase_files_renamed_on_move_failure(
+    runner: CliRunner, tmp_path: Path, mocker
+) -> None:
+    """When the library move fails, files should still be renamed in-place."""
+    from vinylkit.exceptions import FileOperationError
+    from vinylkit.models import RateLimitInfo, TrackInfo
+    from vinylkit.naming import move_file as real_move_file
+
+    src = tmp_path / "needledrop"
+    src.mkdir()
+    (src / "1.flac").write_text("track-a")
+    (src / "2.flac").write_text("track-b")
+
+    lib = tmp_path / "library"
+
+    release = create_mock_release(
+        999,
+        "Artist",
+        "Album",
+        tracklist=[
+            TrackInfo(position="A1", title="Side A"),
+            TrackInfo(position="B1", title="Side B"),
+        ],
+    )
+
+    mock_client = mocker.patch("vinylkit.commands._helpers.get_client").return_value
+    mock_client.get_release.return_value = release
+    mock_client.rate_limit_info = RateLimitInfo()
+    mocker.patch("vinylkit.commands._helpers.tag_audio_file")
+    mocker.patch("vinylkit.commands._helpers.write_release_info")
+    mocker.patch("vinylkit.commands._helpers.save_artwork")
+
+    # Allow same-dir renames (Phase 1), fail cross-dir moves (Phase 2)
+    def selective_move(source: Path, target: Path, *, dry_run: bool = False) -> None:
+        if source.parent == target.parent:
+            real_move_file(source, target, dry_run=dry_run)
+        else:
+            raise FileOperationError(f"Cross-drive error: {source} -> {target}")
+
+    mocker.patch(
+        "vinylkit.commands._helpers.move_file",
+        side_effect=selective_move,
+    )
+
+    result = runner.invoke(
+        cli,
+        [
+            "tag",
+            str(src),
+            "--id",
+            "999",
+            "--auto-move",
+            "--rename",
+            "--library-root",
+            str(lib),
+        ],
+    )
+
+    assert result.exit_code == 0
+
+    # Phase 1 completed: files renamed in-place
+    renamed = sorted(p.name for p in src.iterdir() if p.suffix == ".flac")
+    assert "1.flac" not in renamed
+    assert "2.flac" not in renamed
+    assert "A1 - Side A.flac" in renamed
+    assert "B1 - Side B.flac" in renamed
+
+    # Phase 2 failed: helpful error message shown
+    assert "Move to library failed" in result.output
+    assert "tagged and renamed" in result.output
