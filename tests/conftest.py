@@ -67,13 +67,13 @@ def mock_discogs(mocker):
     Does NOT mock move_file/move_directory — tests that need file
     movement suppressed should patch those themselves.
     """
-    mock_get_client = mocker.patch("vinylkit.cli.get_client")
+    mock_get_client = mocker.patch("vinylkit.commands._helpers.get_client")
     mock_client = mock_get_client.return_value
     mock_client.rate_limit_info = RateLimitInfo()
-    mocker.patch("vinylkit.cli.tag_audio_file")
-    mocker.patch("vinylkit.cli.clear_audio_tags")
-    mocker.patch("vinylkit.cli.write_release_info")
-    mocker.patch("vinylkit.cli.save_artwork")
+    mocker.patch("vinylkit.commands._helpers.tag_audio_file")
+    mocker.patch("vinylkit.commands._helpers.clear_audio_tags")
+    mocker.patch("vinylkit.commands._helpers.write_release_info")
+    mocker.patch("vinylkit.commands._helpers.save_artwork")
     return mock_client
 
 

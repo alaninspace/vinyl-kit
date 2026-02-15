@@ -11,7 +11,8 @@ from click.testing import CliRunner  # noqa: TC002
 if TYPE_CHECKING:
     from pathlib import Path
 
-from vinylkit.cli import _format_age, cli
+from vinylkit.cli import cli
+from vinylkit.commands.cache import _format_age
 
 
 class TestFormatAge:
@@ -63,7 +64,7 @@ class TestCacheList:
     def test_empty_cache(
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
         result = runner.invoke(cli, ["cache", "list"])
         assert result.exit_code == 0
         assert "empty" in result.output.lower()
@@ -72,7 +73,7 @@ class TestCacheList:
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
         missing = tmp_path / "nonexistent"
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=missing)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=missing)  # type: ignore[union-attr]
         result = runner.invoke(cli, ["cache", "list"])
         assert result.exit_code == 0
         assert "does not exist" in result.output.lower()
@@ -80,7 +81,7 @@ class TestCacheList:
     def test_lists_releases(
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
         _write_cache_file(tmp_path, 12345, "Daft Punk", "Homework")
         result = runner.invoke(cli, ["cache", "list"])
         assert result.exit_code == 0
@@ -92,7 +93,7 @@ class TestCacheList:
     def test_corrupt_file(
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
         bad = tmp_path / "release_99999.json"
         bad.write_text("NOT JSON", encoding="utf-8")
         result = runner.invoke(cli, ["cache", "list"])
@@ -102,7 +103,7 @@ class TestCacheList:
     def test_multiple_releases(
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
         _write_cache_file(tmp_path, 100, "A", "Album A")
         _write_cache_file(tmp_path, 200, "B", "Album B")
         _write_cache_file(tmp_path, 300, "C", "Album C")
@@ -117,7 +118,7 @@ class TestCacheClear:
     def test_clear_all_with_yes(
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
         _write_cache_file(tmp_path, 100, "A", "T")
         _write_cache_file(tmp_path, 200, "B", "T")
         result = runner.invoke(cli, ["cache", "clear", "--yes"])
@@ -128,7 +129,7 @@ class TestCacheClear:
     def test_clear_all_with_prompt(
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
         _write_cache_file(tmp_path, 100, "A", "T")
         result = runner.invoke(cli, ["cache", "clear"], input="y\n")
         assert result.exit_code == 0
@@ -137,7 +138,7 @@ class TestCacheClear:
     def test_clear_all_abort(
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
         _write_cache_file(tmp_path, 100, "A", "T")
         result = runner.invoke(cli, ["cache", "clear"], input="n\n")
         assert result.exit_code == 0
@@ -147,7 +148,7 @@ class TestCacheClear:
     def test_clear_single_found(
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
         _write_cache_file(tmp_path, 100, "A", "T")
         _write_cache_file(tmp_path, 200, "B", "T")
         result = runner.invoke(cli, ["cache", "clear", "--id", "100"])
@@ -159,7 +160,7 @@ class TestCacheClear:
     def test_clear_single_not_found(
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
         result = runner.invoke(cli, ["cache", "clear", "--id", "999"])
         assert result.exit_code == 0
         assert "No cache entry" in result.output
@@ -167,7 +168,7 @@ class TestCacheClear:
     def test_clear_empty_cache(
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)  # type: ignore[union-attr]
         result = runner.invoke(cli, ["cache", "clear", "--yes"])
         assert result.exit_code == 0
         assert "already empty" in result.output.lower()
@@ -176,7 +177,7 @@ class TestCacheClear:
         self, runner: CliRunner, tmp_path: Path, mocker: object
     ) -> None:
         missing = tmp_path / "nonexistent"
-        mocker.patch("vinylkit.cli.get_cache_dir", return_value=missing)  # type: ignore[union-attr]
+        mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=missing)  # type: ignore[union-attr]
         result = runner.invoke(cli, ["cache", "clear", "--yes"])
         assert result.exit_code == 0
         assert "does not exist" in result.output.lower()

@@ -22,7 +22,7 @@ def test_migrate_basic_success(runner, tmp_path, mock_discogs, mocker):
     mock_discogs.get_release.return_value = create_mock_release(123, "Artist", "Title")
     # Mock get_track_number to return a valid track number
     # If calculate_track_and_disc is returning A1, then we should return A1 here too
-    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
 
     result = runner.invoke(cli, ["migrate", str(source), str(dest)])
 
@@ -107,7 +107,7 @@ def test_migrate_leading_zero_normalization(runner, tmp_path, mock_discogs, mock
     mock_discogs.get_release.return_value = create_mock_release(123, "A", "T")
 
     # File has tag '01'
-    mocker.patch("vinylkit.cli.get_track_number", return_value="01")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="01")
 
     # Should NOT prompt for alphabetical because 01 -> 1 is normalized
     result = runner.invoke(cli, ["migrate", str(source), str(dest)])
@@ -181,7 +181,7 @@ def test_migrate_collect_all_artwork(runner, tmp_path, mock_discogs, mocker):
     mock_discogs.get_release.return_value = release
     mock_discogs.download_image.side_effect = [b"primary", b"secondary1", b"secondary2"]
 
-    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
 
     # Enable collect_all_artwork and image_handling=both via config
     config_path = tmp_path / "config.toml"
@@ -191,7 +191,9 @@ def test_migrate_collect_all_artwork(runner, tmp_path, mock_discogs, mocker):
 
     assert result.exit_code == 0
 
-    from vinylkit.cli import save_artwork
+    from vinylkit.commands import _helpers
+
+    save_artwork = _helpers.save_artwork
 
     save_calls = save_artwork.call_args_list
     # 4 calls: folder primary + subdir primary_01 + secondary_01 + secondary_02
@@ -222,7 +224,7 @@ def test_migrate_rate_limit_logging(runner, tmp_path, mock_discogs, mocker):
     dest = tmp_path / "dest"
 
     mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
-    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
 
     # Simulate rate limit info being populated by API responses
     info = mock_discogs.rate_limit_info
@@ -262,7 +264,7 @@ def test_migrate_rate_limit_fallback_when_cached(
     dest = tmp_path / "dest"
 
     mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
-    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
 
     # Leave rate_limit_info at defaults (all None) to simulate fully-cached scenario
 
@@ -295,7 +297,7 @@ def test_migrate_logs_rate_limit_info_per_release(
     dest = tmp_path / "dest"
 
     mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
-    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
 
     info = mock_discogs.rate_limit_info
     info.limit = 60
@@ -323,7 +325,7 @@ def test_migrate_replace_tags_false(runner, tmp_path, mock_discogs, mocker):
     dest = tmp_path / "dest"
 
     mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
-    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
 
     # Disable tag replacement via config
     config_path = tmp_path / "config.toml"
@@ -334,7 +336,10 @@ def test_migrate_replace_tags_false(runner, tmp_path, mock_discogs, mocker):
     assert result.exit_code == 0
 
     # tag_audio_file and clear_audio_tags should NOT have been called
-    from vinylkit.cli import clear_audio_tags, tag_audio_file
+    from vinylkit.commands import _helpers as _h
+
+    tag_audio_file = _h.tag_audio_file
+    clear_audio_tags = _h.clear_audio_tags
 
     tag_audio_file.assert_not_called()
     clear_audio_tags.assert_not_called()
@@ -344,7 +349,9 @@ def test_migrate_replace_tags_false(runner, tmp_path, mock_discogs, mocker):
     assert (dest / expected_rel).exists()
 
     # And supplementary files should still be written
-    from vinylkit.cli import write_release_info
+    from vinylkit.commands import _helpers as _hlp
+
+    write_release_info = _hlp.write_release_info
 
     write_release_info.assert_called_once()
 
@@ -360,7 +367,7 @@ def test_migrate_replace_tags_false_summary(runner, tmp_path, mock_discogs, mock
     dest = tmp_path / "dest"
 
     mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
-    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
 
     config_path = tmp_path / "config.toml"
     config_path.write_text("replace_tags_on_migration = false\n")
@@ -383,7 +390,7 @@ def test_migrate_summary_output(runner, tmp_path, mock_discogs, mocker):
     dest = tmp_path / "dest"
 
     mock_discogs.get_release.return_value = create_mock_release(100, "A", "T")
-    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
 
     info = mock_discogs.rate_limit_info
     info.limit = 60
@@ -413,7 +420,7 @@ def test_migrate_progress_display(runner, tmp_path, mock_discogs, mocker):
         create_mock_release(1, "A", "T1"),
         create_mock_release(2, "B", "T2"),
     ]
-    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
 
     result = runner.invoke(cli, ["migrate", str(source), str(dest)])
 
@@ -447,7 +454,7 @@ def test_migrate_progress_recalculates_on_folder_removal(
         return rel
 
     mock_discogs.get_release.side_effect = _get_release_removing_c
-    mocker.patch("vinylkit.cli.get_track_number", return_value="A1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
 
     result = runner.invoke(cli, ["migrate", str(source), str(dest)])
 

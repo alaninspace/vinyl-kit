@@ -71,7 +71,16 @@ src/
 └── vinylkit/
     ├── __init__.py     # Package marker
     ├── __main__.py     # Entry point for `python -m vinylkit`
-    ├── cli.py          # Click commands, helpers, and main entry point
+    ├── cli.py          # Root Click group, logging setup, main() entry point
+    ├── commands/
+    │   ├── __init__.py     # Package marker
+    │   ├── _helpers.py     # Shared helpers, constants, and re-exported deps
+    │   ├── tag.py          # scan, tag, rename commands
+    │   ├── migrate.py      # migrate command
+    │   ├── auth.py         # auth group: login, identity
+    │   ├── collection.py   # collection group: download
+    │   ├── config_cmd.py   # config group: show, set + _CONFIG_CONVERTERS
+    │   └── cache.py        # cache group: list, clear
     ├── config.py       # TOML config loading and saving (platformdirs)
     ├── discogs.py      # Discogs API client, OAuth, and response caching
     ├── exceptions.py   # Custom exception hierarchy
@@ -122,7 +131,14 @@ VinylKit is a synchronous CLI built on **Click** with **httpx** `Client` for API
 
 | Module | Responsibility |
 |---|---|
-| `cli.py` | Click command definitions, shared helpers (`_collect_audio_files`, `_display_relative`, `_plan_supplementary_moves`, `_check_collisions`, `_download_artwork`, `_save_release_files`, `_extract_id`, `initialise_logging`), `_CONFIG_CONVERTERS` dict |
+| `cli.py` | Root Click group, `initialise_logging()`, `main()` entry point. Registers commands from `commands/` subpackage |
+| `commands/_helpers.py` | Shared helpers (`collect_audio_files`, `display_relative`, `plan_supplementary_moves`, `check_collisions`, `download_artwork`, `save_release_files`), re-exported deps for single-point mocking |
+| `commands/tag.py` | `scan`, `tag`, `rename` commands |
+| `commands/migrate.py` | `migrate` command, `_extract_id` helper |
+| `commands/auth.py` | `auth` group with `login`, `identity` |
+| `commands/collection.py` | `collection` group with `download` |
+| `commands/config_cmd.py` | `config` group with `show`, `set`, `_CONFIG_CONVERTERS` dict |
+| `commands/cache.py` | `cache` group with `list`, `clear`, `_format_age` helper |
 | `config.py` | TOML config loading/saving via `tomllib` / `tomli-w`, path resolution via `platformdirs` |
 | `discogs.py` | Discogs API client, OAuth flow, response caching, rate limit header tracking and dynamic throttling |
 | `models.py` | Frozen dataclasses with `slots=True` (e.g. `DiscogsRelease`, `AppConfig`, `AudioFile`) and enums (`TagMode`, `AuthMode`, etc.). Exception: `RateLimitInfo` is intentionally mutable |
@@ -236,10 +252,11 @@ mypy runs in **strict mode**. All new code must be fully type-hinted.
 
 ## Adding a New CLI Command
 
-1. **Define the command** in `cli.py` using Click decorators:
+1. **Create a command** in the appropriate `commands/` module (or a new module). Use `@click.command()` (not `@cli.command()`) and register it in `cli.py` via `cli.add_command(my_command)`:
 
 ```python
-@cli.command()
+# commands/my_module.py
+@click.command()
 @click.argument("path", type=click.Path(exists=True))
 @click.pass_obj
 def my_command(config: AppConfig, path: str) -> None:
@@ -247,9 +264,16 @@ def my_command(config: AppConfig, path: str) -> None:
     ...
 ```
 
+```python
+# cli.py
+from vinylkit.commands.my_module import my_command
+cli.add_command(my_command)
+```
+
 2. **Use `@click.pass_obj`** to access the `AppConfig` instance.
-3. **Raise custom exceptions** from `vinylkit.exceptions` for user-facing errors — the `main()` wrapper catches `VinylkitError` and prints it cleanly.
-4. **Add tests** using the shared `runner` fixture from `conftest.py`:
+3. **Access mockable deps through `_helpers`** (e.g. `_helpers.tag_audio_file`) so tests can patch `vinylkit.commands._helpers.X` in one place.
+4. **Raise custom exceptions** from `vinylkit.exceptions` for user-facing errors — the `main()` wrapper catches `VinylkitError` and prints it cleanly.
+5. **Add tests** using the shared `runner` fixture from `conftest.py`:
 
 ```python
 from vinylkit.cli import cli
@@ -274,7 +298,7 @@ class AppConfig:
 
 2. **Update `load_config()`** in `config.py` to read the new field from TOML.
 3. **Update `save_config()`** in `config.py` to write it back.
-4. **Add a converter entry** in `_CONFIG_CONVERTERS` in `cli.py` so `config set` works:
+4. **Add a converter entry** in `_CONFIG_CONVERTERS` in `commands/config_cmd.py` so `config set` works:
 
 ```python
 _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
@@ -283,7 +307,7 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
 }
 ```
 
-5. **Add to `config show` output** in `cli.py`.
+5. **Add to `config show` output** in `commands/config_cmd.py`.
 6. **Update [`docs/configuration.md`](configuration.md)** with the new option.
 
 ---

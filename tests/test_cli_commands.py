@@ -26,11 +26,11 @@ class TestRenameCommand:
         folder.mkdir()
         (folder / "01.mp3").write_text("audio")
 
-        mock_client = mocker.patch("vinylkit.cli.get_client").return_value
+        mock_client = mocker.patch("vinylkit.commands._helpers.get_client").return_value
         mock_client.get_release.return_value = create_mock_release(
             123, "Artist", "Album"
         )
-        spy_move = mocker.patch("vinylkit.cli.move_file")
+        spy_move = mocker.patch("vinylkit.commands._helpers.move_file")
 
         result = runner.invoke(cli, ["rename", str(folder), "--id", "123"])
 
@@ -46,12 +46,12 @@ class TestRenameCommand:
         folder.mkdir()
         (folder / "01.mp3").write_text("audio")
 
-        mock_client = mocker.patch("vinylkit.cli.get_client").return_value
+        mock_client = mocker.patch("vinylkit.commands._helpers.get_client").return_value
         mock_client.get_release.return_value = create_mock_release(
             123, "Artist", "Album"
         )
-        spy_move = mocker.patch("vinylkit.cli.move_file")
-        mocker.patch("vinylkit.cli.move_directory")
+        spy_move = mocker.patch("vinylkit.commands._helpers.move_file")
+        mocker.patch("vinylkit.commands._helpers.move_directory")
 
         result = runner.invoke(
             cli,
@@ -70,7 +70,7 @@ class TestRenameCommand:
         folder.mkdir()
         (folder / "01.mp3").write_text("audio")
 
-        mock_client = mocker.patch("vinylkit.cli.get_client").return_value
+        mock_client = mocker.patch("vinylkit.commands._helpers.get_client").return_value
         mock_client.get_release.return_value = create_mock_release(456, "Foo", "Bar")
 
         result = runner.invoke(cli, ["rename", str(folder)], input="456\n")
@@ -129,7 +129,7 @@ class TestScanCommand:
 
 class TestAuthCommands:
     def test_identity_success(self, runner: CliRunner, mocker) -> None:
-        mock_client = mocker.patch("vinylkit.cli.get_client").return_value
+        mock_client = mocker.patch("vinylkit.commands._helpers.get_client").return_value
         mock_client.get_identity.return_value = {
             "username": "testuser",
             "name": "Test User",
@@ -144,7 +144,7 @@ class TestAuthCommands:
     def test_identity_not_authenticated(self, runner: CliRunner, mocker) -> None:
         from vinylkit.exceptions import DiscogsAPIError
 
-        mock_client = mocker.patch("vinylkit.cli.get_client").return_value
+        mock_client = mocker.patch("vinylkit.commands._helpers.get_client").return_value
         mock_client.get_identity.side_effect = DiscogsAPIError("Not authenticated")
 
         result = runner.invoke(cli, ["auth", "identity"])

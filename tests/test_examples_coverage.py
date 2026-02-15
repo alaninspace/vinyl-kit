@@ -12,14 +12,14 @@ from vinylkit.models import AppConfig, RateLimitInfo
 @pytest.fixture
 def mock_discogs(mocker):
     """Override shared mock_discogs to also suppress file movement."""
-    mock_get_client = mocker.patch("vinylkit.cli.get_client")
+    mock_get_client = mocker.patch("vinylkit.commands._helpers.get_client")
     mock_client = mock_get_client.return_value
-    mocker.patch("vinylkit.cli.tag_audio_file")
-    mocker.patch("vinylkit.cli.clear_audio_tags")
-    mocker.patch("vinylkit.cli.write_release_info")
-    mocker.patch("vinylkit.cli.save_artwork")
-    mocker.patch("vinylkit.cli.move_file")
-    mocker.patch("vinylkit.cli.move_directory")
+    mocker.patch("vinylkit.commands._helpers.tag_audio_file")
+    mocker.patch("vinylkit.commands._helpers.clear_audio_tags")
+    mocker.patch("vinylkit.commands._helpers.write_release_info")
+    mocker.patch("vinylkit.commands._helpers.save_artwork")
+    mocker.patch("vinylkit.commands._helpers.move_file")
+    mocker.patch("vinylkit.commands._helpers.move_directory")
     mock_client.rate_limit_info = RateLimitInfo()
     return mock_client
 
@@ -227,7 +227,7 @@ def test_ex_4_3_dry_run(runner, tmp_path, mock_discogs, mocker):
     mock_discogs.get_release.return_value = create_mock_release(
         1480380, "Massive Attack", "Unfinished Sympathy"
     )
-    spy = mocker.patch("vinylkit.cli.tag_audio_file")
+    spy = mocker.patch("vinylkit.commands._helpers.tag_audio_file")
     result = runner.invoke(
         cli, ["tag", str(tmp_path), "--id", "1480380", "--rename", "--dry-run"]
     )
@@ -264,7 +264,7 @@ def test_ex_4_5_no_artwork(runner, tmp_path, mock_discogs, mocker):
     mock_discogs.get_release.return_value = create_mock_release(
         31, "Aphex Twin", "Selected Ambient Works 85-92"
     )
-    spy = mocker.patch("vinylkit.cli.tag_audio_file")
+    spy = mocker.patch("vinylkit.commands._helpers.tag_audio_file")
     result = runner.invoke(cli, ["tag", str(tmp_path), "--id", "31", "--no-artwork"])
     assert result.exit_code == 0
     assert spy.call_args[1]["artwork_data"] is None
@@ -282,7 +282,7 @@ def test_ex_4_6_no_rename(runner, tmp_path, mock_discogs, mocker):
     mock_discogs.get_release.return_value = create_mock_release(
         62122, "Orbital", "Chime"
     )
-    spy_move = mocker.patch("vinylkit.cli.move_file")
+    spy_move = mocker.patch("vinylkit.commands._helpers.move_file")
     result = runner.invoke(cli, ["tag", "--id", "62122", "--no-rename"])
     assert result.exit_code == 0
     spy_move.assert_not_called()
@@ -388,7 +388,7 @@ def test_ex_6_2_merge_mode(runner, tmp_path, mock_discogs, mocker):
     mock_discogs.get_release.return_value = create_mock_release(
         28203, "Satoshi Tomiie", "Love In Traffic"
     )
-    spy = mocker.patch("vinylkit.cli.tag_audio_file")
+    spy = mocker.patch("vinylkit.commands._helpers.tag_audio_file")
     result = runner.invoke(cli, ["tag", str(tmp_path), "--id", "28203", "--merge"])
     assert result.exit_code == 0
     from vinylkit.models import TagMode
@@ -472,7 +472,7 @@ def test_ex_10_1_basic_migration(runner, tmp_path, mock_discogs, mocker):
 
     dest = tmp_path / "dest"
     mock_discogs.get_release.return_value = create_mock_release(49135, "J&S", "T")
-    mocker.patch("vinylkit.cli.get_track_number", return_value="1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="1")
 
     result = runner.invoke(cli, ["migrate", str(source), str(dest)], input="y\n")
     assert result.exit_code == 0
@@ -498,7 +498,7 @@ def test_ex_10_3_migration_filter_ids(runner, tmp_path, mock_discogs, mocker):
         create_mock_release(49135, "A", "T"),
         create_mock_release(37623, "B", "T"),
     ]
-    mocker.patch("vinylkit.cli.get_track_number", return_value="1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="1")
 
     result = runner.invoke(
         cli,
@@ -519,7 +519,7 @@ def test_ex_10_4_migration_dry_run(runner, tmp_path, mock_discogs, mocker):
 
     dest = tmp_path / "dest"
     mock_discogs.get_release.return_value = create_mock_release(33511, "PD", "T")
-    mocker.patch("vinylkit.cli.get_track_number", return_value="1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="1")
 
     result = runner.invoke(cli, ["migrate", str(source), str(dest), "--dry-run"])
     assert result.exit_code == 0
@@ -538,7 +538,7 @@ def test_ex_10_5_migration_replace_artwork_tags(runner, tmp_path, mock_discogs, 
 
     dest = tmp_path / "dest"
     mock_discogs.get_release.return_value = create_mock_release(12345, "A", "T")
-    mocker.patch("vinylkit.cli.get_track_number", return_value="1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="1")
 
     result = runner.invoke(
         cli,
@@ -562,7 +562,7 @@ def test_ex_11_1_cache_list(runner, tmp_path, mocker):
     """Covers: vinylkit cache list"""
     import json
 
-    mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)
+    mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)
     data = {"id": 19983, "artists": [{"name": "Green Velvet"}], "title": "Flash"}
     (tmp_path / "release_19983.json").write_text(json.dumps(data))
     result = runner.invoke(cli, ["cache", "list"])
@@ -574,7 +574,7 @@ def test_ex_11_2_cache_clear(runner, tmp_path, mocker):
     """Covers: vinylkit cache clear --yes"""
     import json
 
-    mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)
+    mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)
     data = {"id": 19983, "artists": [{"name": "Green Velvet"}], "title": "Flash"}
     (tmp_path / "release_19983.json").write_text(json.dumps(data))
     result = runner.invoke(cli, ["cache", "clear", "--yes"])
@@ -586,7 +586,7 @@ def test_ex_11_3_cache_clear_single(runner, tmp_path, mocker):
     """Covers: vinylkit cache clear --id 19983"""
     import json
 
-    mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)
+    mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)
     data = {"id": 19983, "artists": [{"name": "Green Velvet"}], "title": "Flash"}
     (tmp_path / "release_19983.json").write_text(json.dumps(data))
     result = runner.invoke(cli, ["cache", "clear", "--id", "19983"])
@@ -598,7 +598,7 @@ def test_ex_11_4_cache_clear_interactive(runner, tmp_path, mocker):
     """Covers: vinylkit cache clear (interactive confirmation)"""
     import json
 
-    mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)
+    mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)
     data = {"id": 19983, "artists": [{"name": "Green Velvet"}], "title": "Flash"}
     (tmp_path / "release_19983.json").write_text(json.dumps(data))
     result = runner.invoke(cli, ["cache", "clear"], input="y\n")
@@ -610,7 +610,7 @@ def test_ex_11_5_cache_clear_short_flag(runner, tmp_path, mocker):
     """Covers: vinylkit cache clear -y"""
     import json
 
-    mocker.patch("vinylkit.cli.get_cache_dir", return_value=tmp_path)
+    mocker.patch("vinylkit.commands._helpers.get_cache_dir", return_value=tmp_path)
     data = {"id": 53088, "artists": [{"name": "The Prodigy"}], "title": "Wind It Up"}
     (tmp_path / "release_53088.json").write_text(json.dumps(data))
     result = runner.invoke(cli, ["cache", "clear", "-y"])
@@ -637,7 +637,7 @@ def test_ex_10_2_migration_with_delete(runner, tmp_path, mock_discogs, mocker):
 
     dest = tmp_path / "dest"
     mock_discogs.get_release.return_value = create_mock_release(33511, "PD", "T")
-    mocker.patch("vinylkit.cli.get_track_number", return_value="1")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="1")
 
     result = runner.invoke(
         cli, ["migrate", str(source), str(dest), "--delete"], input="y\n"

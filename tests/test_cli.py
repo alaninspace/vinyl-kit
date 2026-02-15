@@ -29,7 +29,7 @@ def test_tag_interactive_search_options(
     runner: CliRunner, tmp_path: Path, mocker
 ) -> None:
     # Mock the DiscogsClient so it doesn't make real requests
-    mock_client = mocker.patch("vinylkit.cli.get_client")
+    mock_client = mocker.patch("vinylkit.commands._helpers.get_client")
     mock_inst = mock_client.return_value
     mock_inst.search_releases.return_value = [
         {
@@ -56,7 +56,7 @@ def test_tag_auto_move_skips_confirm(runner: CliRunner, tmp_path: Path, mocker) 
     (tmp_path / "song.mp3").write_text("data")
 
     # Mock Discogs client and responses
-    mock_get_client = mocker.patch("vinylkit.cli.get_client")
+    mock_get_client = mocker.patch("vinylkit.commands._helpers.get_client")
     mock_client = mock_get_client.return_value
 
     from vinylkit.models import DiscogsRelease, TrackInfo
@@ -81,9 +81,9 @@ def test_tag_auto_move_skips_confirm(runner: CliRunner, tmp_path: Path, mocker) 
     mock_client.get_release.return_value = mock_release
 
     # Mock tagging and moving functions
-    mocker.patch("vinylkit.cli.tag_audio_file")
-    mocker.patch("vinylkit.cli.write_release_info")
-    mock_move = mocker.patch("vinylkit.cli.move_file")
+    mocker.patch("vinylkit.commands._helpers.tag_audio_file")
+    mocker.patch("vinylkit.commands._helpers.write_release_info")
+    mock_move = mocker.patch("vinylkit.commands._helpers.move_file")
 
     # Mock click.confirm to ensure it's NOT called
     mock_confirm = mocker.patch("click.confirm", return_value=True)
@@ -119,7 +119,7 @@ def test_tag_filtered_search_real_collection_example(
     (tmp_path / "track1.flac").write_text("audio")
 
     # Mock DiscogsClient
-    mock_get_client = mocker.patch("vinylkit.cli.get_client")
+    mock_get_client = mocker.patch("vinylkit.commands._helpers.get_client")
     mock_client = mock_get_client.return_value
 
     # 1. Mock the search results (Faithless - Insomnia, ID 61232)
@@ -156,9 +156,9 @@ def test_tag_filtered_search_real_collection_example(
     mock_client.get_release.return_value = mock_release
 
     # Mock operations
-    mocker.patch("vinylkit.cli.tag_audio_file")
-    mocker.patch("vinylkit.cli.write_release_info")
-    mocker.patch("vinylkit.cli.move_file")
+    mocker.patch("vinylkit.commands._helpers.tag_audio_file")
+    mocker.patch("vinylkit.commands._helpers.write_release_info")
+    mocker.patch("vinylkit.commands._helpers.move_file")
 
     # Run command with --artist and --album
     # Input "1" to select the first result
@@ -233,7 +233,7 @@ def test_tag_passes_skip_tags(runner, tmp_path, mock_discogs, mocker):
     mock_discogs.get_release.return_value = create_mock_release(100, "Artist", "Title")
 
     # Patch tag_audio_file to capture kwargs
-    mock_tag = mocker.patch("vinylkit.cli.tag_audio_file")
+    mock_tag = mocker.patch("vinylkit.commands._helpers.tag_audio_file")
 
     # Set skip_tags via config file
     from vinylkit.config import get_config_path, save_config
