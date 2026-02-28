@@ -3,7 +3,9 @@
 ## Core Entities
 
 ### DiscogsRelease
+
 Represents metadata fetched from the Discogs API.
+
 - **id**: `int` (Primary Key from Discogs)
 - **artists**: `list[str]`
 - **title**: `str`
@@ -30,34 +32,42 @@ Represents metadata fetched from the Discogs API.
 - **format_quantity**: `int | None` (Number of physical items in the release)
 
 ### LabelInfo
+
 - **name**: `str`
 - **catno**: `str | None`
 
 ### CompanyInfo
+
 - **name**: `str`
 - **entity_type_name**: `str`
 
 ### FormatInfo
+
 - **name**: `str`
 - **qty**: `str`
 - **descriptions**: `list[str]`
 
 ### IdentifierInfo
+
 - **type**: `str`
 - **value**: `str`
 - **description**: `str | None`
 
 ### ExtraArtistInfo
+
 - **name**: `str`
 - **role**: `str`
 
 ### ImageInfo
+
 Represents a single image associated with a Discogs release.
+
 - **uri**: `str` (URL to fetch the image)
 - **type**: `str` (e.g., "primary", "secondary")
 - **resource_url**: `str` (Discogs API resource URL)
 
 ### TrackInfo
+
 - **position**: `str` (e.g., "A1", "B2")
 - **title**: `str`
 - **artists**: `list[str]` (Track-specific artists)
@@ -66,7 +76,9 @@ Represents a single image associated with a Discogs release.
 - **duration**: `str | None` (Track duration from Discogs, e.g., "5:32")
 
 ### RateLimitInfo
+
 Live rate limit telemetry updated on every Discogs API response. Intentionally **mutable** (not frozen) since fields are updated in-place.
+
 - **limit**: `int | None` (`X-Discogs-Ratelimit` — 60 for authenticated, 25 for unauthenticated)
 - **used**: `int | None` (`X-Discogs-Ratelimit-Used`)
 - **remaining**: `int | None` (`X-Discogs-Ratelimit-Remaining`)
@@ -74,7 +86,9 @@ Live rate limit telemetry updated on every Discogs API response. Intentionally *
 - **peak_used**: `int` (High-water mark of `used` across the session)
 
 ### AudioFile
+
 Represents a physical file on the user's disk.
+
 - **path**: `pathlib.Path`
 - **extension**: `str` (mp3, flac)
 - **tag_status**: `TagStatus` (UNTAGGED, PARTIAL, TAGGED)
@@ -83,7 +97,9 @@ Represents a physical file on the user's disk.
 - **duration**: `float | None`
 
 ### AppConfig
+
 User settings stored in TOML.
+
 - **library_root**: `pathlib.Path`
 - **recordings_root**: `pathlib.Path | None`
 - **consumer_key**: `str | None`
@@ -119,13 +135,17 @@ User settings stored in TOML.
 ## Enums
 
 ### TagStatus
+
 Tagging state of an audio file.
+
 - `UNTAGGED` — No tags detected.
 - `PARTIAL` — Some tags present but incomplete.
 - `TAGGED` — Fully tagged.
 
 ### AuthMode
+
 Authentication method for the Discogs API.
+
 - `auto` — (Default) Try OAuth, then token, then key/secret.
 - `token` — Personal access token only.
 - `oauth` — Full OAuth 1.0a.
@@ -133,25 +153,33 @@ Authentication method for the Discogs API.
 - `none` — No authentication.
 
 ### TagMode
+
 Controls how tags are written.
+
 - `replace` — (Default) Clear existing tags and write fresh.
 - `merge` — Preserve existing tags, only add/update from Discogs.
 
 ### ImageHandling
+
 Controls where artwork is placed.
+
 - `both` — (Default) Embed in audio files and save as file.
 - `embed` — Only embed inside audio files.
 - `save` — Only save as standalone file.
 - `none` — Disable artwork processing.
 
 ### TrackNumbering
+
 Controls how track numbers are written.
+
 - `numeric` — (Default) Sequential numbers (1, 2, 3...).
 - `original` — Keep original Discogs position (e.g., "A1").
 - `per_side` — Reset count per side (A1→1, B1→1).
 
 ### DiscMapping
+
 Controls how vinyl sides map to disc numbers.
+
 - `physical` — (Default) Pairs of sides (A/B, C/D) → Disc 1, 2, etc.
 - `single` — All tracks on Disc 1.
 - `per_side` — Each side is a separate disc.
@@ -161,19 +189,18 @@ Controls how vinyl sides map to disc numbers.
 
 All custom exceptions inherit from `VinylkitError`:
 
-```
 VinylkitError (base)
 ├── ConfigError          — Configuration issues
 ├── AuthError            — Authentication failures
 ├── DiscogsAPIError      — Discogs API errors
 ├── TaggingError         — Audio file tagging issues
 ├── FileOperationError   — File move/rename failures
-└── ValidationError      — Data validation failures
-```
+└── ValidationError      — Data validation failure
 
 ## State Transitions
 
 ### Tagging Flow
+
 1. **Unidentified**: Audio files in a folder.
 2. **Matched**: Files mapped to a `DiscogsRelease`.
 3. **Previewed**: User sees changes via dry-run.
@@ -181,6 +208,7 @@ VinylkitError (base)
 5. **Organized**: Files moved to final location based on `NamingTemplate`.
 
 ## Validation Rules
+
 - **Filenames**: Must not contain `<>:"/\|?*` or control characters.
 - **Paths**: Must be absolute when processed; relative to `library_root` in config.
 - **Rate Limits**: Max 60 requests per minute for Discogs API.

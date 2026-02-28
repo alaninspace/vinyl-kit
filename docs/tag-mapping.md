@@ -19,7 +19,7 @@ All tag names below use their **canonical name** — the lowercase identifier us
 ## Standard Tags
 
 | Canonical Name | MP3 Frame | FLAC Key | Source |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `artist` | TPE1 | `artist` | `release.artists` (comma-separated for MP3, list for FLAC) |
 | `albumartist` | TPE2 | `albumartist` | `release.artists` (always set; comma-separated string in both MP3 and FLAC, unlike `artist` which uses a multi-value list in FLAC) |
 | `title` | TIT2 | `title` | `track.title` |
@@ -43,7 +43,7 @@ All tag names below use their **canonical name** — the lowercase identifier us
 These use naming conventions shared by MusicBrainz Picard, beets, foobar2000, and other tools. They are stored as TXXX frames (MP3) or Vorbis comment keys (FLAC).
 
 | Canonical Name | MP3 TXXX desc | FLAC Key | Source |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `style` | STYLE | `style` | `release.styles` |
 | `catalognumber` | CATALOGNUMBER | `catalognumber` | Primary catno or all label catnos |
 | `side` | SIDE | `side` | `track.side` (extracted from position) |
@@ -62,7 +62,7 @@ These use naming conventions shared by MusicBrainz Picard, beets, foobar2000, an
 These carry metadata unique to Discogs and use the `DISCOGS_` prefix to clearly identify their origin.
 
 | Canonical Name | MP3 TXXX desc | FLAC Key | Source |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `discogs_release_id` | DISCOGS_RELEASE_ID | `discogs_release_id` | `release.id` |
 | `discogs_release_url` | DISCOGS_RELEASE_URL | `discogs_release_url` | `release.uri` |
 | `discogs_master_id` | DISCOGS_MASTER_ID | `discogs_master_id` | `release.master_id` |
@@ -76,7 +76,7 @@ These carry metadata unique to Discogs and use the `DISCOGS_` prefix to clearly 
 ## Artwork
 
 | Canonical Name | MP3 Frame | FLAC Block | Source |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `artwork` | APIC | PICTURE | Downloaded image bytes (front cover, type 3) |
 
 ---
@@ -103,7 +103,7 @@ Role matching is case-insensitive and uses substring matching (e.g. "Co-Written-
 These fields are available in the Discogs API but are **not** written as tags:
 
 | Field | Reason |
-|---|---|
+| --- | --- |
 | `videos` | Not audio metadata |
 | `community` (have/want/rating) | Volatile social data, not release metadata |
 | `series` | Extremely rare, no standard tag mapping |

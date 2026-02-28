@@ -133,10 +133,12 @@ As a user with an existing digital library, I want to migrate my files into the 
 ## Dependencies & Assumptions
 
 ### Dependencies
+
 - **Discogs API**: The tool relies on the availability and stability of the Discogs API.
 - **Tagging Libraries**: Relies on underlying libraries for writing ID3 and Vorbis tags.
 
 ### Assumptions
+
 - **User Authentication**: Users are expected to have a Discogs account for API access.
 - **File Integrity**: The tool assumes audio files are not corrupted and are writable by the current user.
 - **Internet Connection**: A stable internet connection is required for metadata retrieval and OAuth login.
@@ -163,16 +165,21 @@ As a user with an existing digital library, I want to migrate my files into the 
 ## Future Enhancements (Low-Hanging Fruit)
 
 ### `vinylkit info` — Display Existing Tags
+
 Read and display the current tags from a file or folder in a formatted table. The scanning/reading infrastructure already exists in `tagging.py`; this just needs a new Click command that presents the data instead of writing it. Useful for verifying tags without opening a separate editor.
 
 ### Wantlist Export
+
 Same pattern as `collection download` but hitting the Discogs wantlist API endpoint. The HTTP client, CSV export logic, and pagination handling are already in place — this is essentially a second route on the same infrastructure.
 
 ### Undo Last Tag Operation
+
 The backup system (`backup_enabled` / `backup_dir`) already copies files before tagging. A `vinylkit undo` command could restore from the most recent backup. The backup directory and file-copy logic exist; the missing piece is a manifest file recording what was backed up and where it came from.
 
 ### ID3v2.3 Output Option
+
 Some older car stereos and portable players only support ID3v2.3. Mutagen supports writing v2.3 via the `v2_version` parameter on `save()`. A `id3_version` config key (`"2.3"` or `"2.4"`) would feed into a single parameter change in `tagging.py`.
 
 ### Scan Output Formats
+
 Export `scan` results as CSV or JSON instead of only the Rich table. Useful for piping into other tools or generating reports. The scan data is already structured as `AudioFile` dataclasses — serialization would be straightforward.

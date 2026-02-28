@@ -12,11 +12,13 @@ This guide covers everything you need to set up a development environment, run t
 Install `uv` if you haven't already:
 
 **Bash (macOS / Linux):**
+
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 **PowerShell (Windows):**
+
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
@@ -130,7 +132,7 @@ VinylKit is a synchronous CLI built on **Click** with **httpx** `Client` for API
 ### Module Responsibilities
 
 | Module | Responsibility |
-|---|---|
+| --- | --- |
 | `cli.py` | Root Click group, `initialise_logging()`, `main()` entry point. Registers commands from `commands/` subpackage |
 | `commands/_helpers.py` | Shared helpers (`collect_audio_files`, `display_relative`, `plan_supplementary_moves`, `check_collisions`, `download_artwork`, `save_release_files`), re-exported deps for single-point mocking |
 | `commands/tag.py` | `scan`, `tag`, `rename` commands |
@@ -149,13 +151,11 @@ VinylKit is a synchronous CLI built on **Click** with **httpx** `Client` for API
 
 ### Data Flow
 
-```
 CLI command (click, ctx.obj=AppConfig)
   → DiscogsClient (httpx)
     → DiscogsRelease model (frozen dataclass)
       → tagging.py (write tags to audio files)
       → naming.py (generate paths, move/rename files)
-```
 
 ### Key Conventions
 
@@ -196,7 +196,7 @@ uv run pytest -k "test_name"
 ### Testing Stack
 
 | Tool | Purpose |
-|---|---|
+| --- | --- |
 | `pytest` | Test runner |
 | `pytest-mock` | Mocking via `mocker` fixture |
 | `pytest-cov` | Coverage reporting |
@@ -246,7 +246,7 @@ mypy runs in **strict mode**. All new code must be fully type-hinted.
 **Type stubs:**
 
 | Library | Source |
-|---|---|
+| --- | --- |
 | `mutagen` | Local stubs in `stubs/mutagen/` (no PyPI package exists) |
 | `authlib` | `types-authlib` dev dependency |
 
@@ -272,10 +272,10 @@ from vinylkit.commands.my_module import my_command
 cli.add_command(my_command)
 ```
 
-2. **Use `@click.pass_obj`** to access the `AppConfig` instance.
-3. **Access mockable deps through `_helpers`** (e.g. `_helpers.tag_audio_file`) so tests can patch `vinylkit.commands._helpers.X` in one place.
-4. **Raise custom exceptions** from `vinylkit.exceptions` for user-facing errors — the `main()` wrapper catches `VinylkitError` and prints it cleanly.
-5. **Add tests** using the shared `runner` fixture from `conftest.py`:
+1. **Use `@click.pass_obj`** to access the `AppConfig` instance.
+2. **Access mockable deps through `_helpers`** (e.g. `_helpers.tag_audio_file`) so tests can patch `vinylkit.commands._helpers.X` in one place.
+3. **Raise custom exceptions** from `vinylkit.exceptions` for user-facing errors — the `main()` wrapper catches `VinylkitError` and prints it cleanly.
+4. **Add tests** using the shared `runner` fixture from `conftest.py`:
 
 ```python
 from vinylkit.cli import cli
@@ -298,9 +298,9 @@ class AppConfig:
     my_option: str = "default_value"
 ```
 
-2. **Update `load_config()`** in `config.py` to read the new field from TOML.
-3. **Update `save_config()`** in `config.py` to write it back.
-4. **Add a converter entry** in `_CONFIG_CONVERTERS` in `commands/config_cmd.py` so `config set` works:
+1. **Update `load_config()`** in `config.py` to read the new field from TOML.
+2. **Update `save_config()`** in `config.py` to write it back.
+3. **Add a converter entry** in `_CONFIG_CONVERTERS` in `commands/config_cmd.py` so `config set` works:
 
 ```python
 _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
@@ -309,8 +309,8 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
 }
 ```
 
-5. **Add to `config show` output** in `commands/config_cmd.py`.
-6. **Update [`docs/configuration.md`](configuration.md)** with the new option.
+1. **Add to `config show` output** in `commands/config_cmd.py`.
+2. **Update [`docs/configuration.md`](configuration.md)** with the new option.
 
 ---
 
@@ -324,7 +324,7 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
 ## Code Conventions
 
 | Convention | Detail |
-|---|---|
+| --- | --- |
 | Future annotations | `from __future__ import annotations` in every file |
 | Type hints | All functions fully type-hinted; must pass `mypy --strict` |
 | Error handling | Custom exceptions from `vinylkit.exceptions`; never leak raw library exceptions |

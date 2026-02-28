@@ -3,6 +3,7 @@
 ## Installation
 
 ### From Source (For Developers)
+
 Ensure you have `uv` installed. From the project root, run:
 
 ```bash
@@ -11,6 +12,7 @@ uv tool install . --force
 ```
 
 ### From Git (For Users)
+
 Users can install VinylKit directly from the repository:
 
 ```bash
@@ -19,6 +21,7 @@ uv tool install git+https://github.com/alaninspace/vinyl-kit.git
 ```
 
 ### Updating VinylKit
+
 If you pull new changes or modify the code yourself, simply run the install command again with the `--force` and `--no-cache` flags. This ensures `uv` rebuilds the tool from your latest local source without affecting your saved settings.
 
 ```bash
@@ -33,35 +36,43 @@ uv tool install . --force --no-cache
 VinylKit needs to know where your music library is, where you put your new recordings, and how to talk to Discogs.
 
 ### 1. Set your Library Location
+
 This is the final destination for your tagged and organized music.
 
 **Bash:**
+
 ```bash
 vinylkit config set library_root ~/Music/VinylLibrary
 ```
 
 **PowerShell:**
+
 ```powershell
 vinylkit config set library_root "D:\Music\VinylLibrary"
 ```
 
 ### 2. Set your Recordings Location (The "Inbox")
+
 This is where you drop your fresh vinyl recordings (e.g. `01.flac`, `02.flac`) before tagging them. Setting this allows you to run commands without typing the path every time.
 
 **Bash:**
+
 ```bash
 vinylkit config set recordings_root ~/Recordings/Vinyl
 ```
 
 **PowerShell:**
+
 ```powershell
 vinylkit config set recordings_root "C:\Temp\RecordedVinyl"
 ```
 
 ### 3. Authenticate with Discogs
+
 See the [Authentication Guide](auth.md) for detailed steps.
 
 **Quick Start (Personal Access Token):**
+
 ```bash
 # Bash / PowerShell
 vinylkit config set discogs_token "YOUR_TOKEN"
@@ -71,6 +82,7 @@ vinylkit config set discogs_token "YOUR_TOKEN"
 > For a full list of all settings (backups, custom filenames, tagging modes), see the **[Configuration Guide](configuration.md)**.
 
 ### 4. Advanced Artwork Collection
+
 By default, VinylKit only downloads the primary cover. You can enable full collection:
 
 ```bash
@@ -83,9 +95,11 @@ vinylkit config set artwork_subdir "Scans"
 ```
 
 ### 5. Folder Structure & Naming
+
 You can control exactly how your library is organized and how deep the folders are by changing the `naming_pattern`.
 
 **Available Placeholders:**
+
 - `{artist}`, `{album}`, `{year}`
 - `{id}` (Discogs Release ID), `{discogs_id}`
 - `{track_number}`, `{title}`
@@ -94,25 +108,29 @@ You can control exactly how your library is organized and how deep the folders a
 
 **Examples:**
 
-*   **Standard Chronological (Default):** `Artist / Year - Album / Track - Title`
+- **Standard Chronological (Default):** `Artist / Year - Album / Track - Title`
+
     ```bash
     # Bash / PowerShell
     vinylkit config set naming_pattern "{artist}/{year} - {album}/{track_number} - {title}"
     ```
 
-*   **Deep Parentheses:** `Artist / Album (Year) / Track - Title`
+- **Deep Parentheses:** `Artist / Album (Year) / Track - Title`
+
     ```bash
     # Bash / PowerShell
     vinylkit config set naming_pattern "{artist}/{album} ({year})/{track_number} - {title}"
     ```
 
-*   **Flat Album Folders:** `Year - Artist - Album / Track - Title` (One folder per album)
+- **Flat Album Folders:** `Year - Artist - Album / Track - Title` (One folder per album)
+
     ```bash
     # Bash / PowerShell
     vinylkit config set naming_pattern "{year} - {artist} - {album}/{track_number} - {title}"
     ```
 
-*   **Completely Flat:** Everything in one folder
+- **Completely Flat:** Everything in one folder
+
     ```bash
     # Bash / PowerShell
     vinylkit config set naming_pattern "{year} - {id} - {artist} - {album} - {track_number} - {title}"
@@ -125,6 +143,7 @@ You can control exactly how your library is organized and how deep the folders a
 If you have configured your `recordings_root`, your daily workflow becomes much simpler.
 
 ### Scenario: Tagging and Moving a New Recording
+
 You just finished recording an album and the files are in your recordings folder.
 
 ```bash
@@ -139,9 +158,11 @@ vinylkit tag --id 165
 ```
 
 ### Scenario: Overriding the defaults
+
 If you want to tag files in a *specific* folder instead of your default recordings folder:
 
 **Bash:**
+
 ```bash
 # Explicit path provided: --rename is NOT automatic in this workflow, must be added
 # (Example: Krafty Kuts - Lost Plates E.P.)
@@ -149,6 +170,7 @@ vinylkit tag ~/Downloads/vinyl-rip --id 56903 --rename
 ```
 
 **PowerShell:**
+
 ```powershell
 # Explicit path provided: --rename is NOT automatic in this workflow, must be added
 # (Example: Krafty Kuts - Lost Plates E.P.)
@@ -181,7 +203,9 @@ For full syntax, options, and search tips, see the **[User Guide — Command Ref
 - **[Configuration Guide](configuration.md)** — Full list of all settings with defaults and examples.
 
 ## Where is my config?
+
 Your settings and keys are stored in a persistent location:
+
 - **Windows**: `%LOCALAPPDATA%\vinylkit\config.toml`
 - **macOS**: `~/Library/Application Support/vinylkit/config.toml`
 - **Linux**: `~/.config/vinylkit/config.toml`
