@@ -85,7 +85,7 @@ These carry metadata unique to Discogs and use the `DISCOGS_` prefix to clearly 
 
 The `credits` tag combines **release-level** and **track-level** extraartists from Discogs into a single field. For example, a release with a mastering engineer and a track with a remix credit will produce:
 
-```
+```text
 Mastered By: Bob Ludwig, Remix: DJ Shadow
 ```
 

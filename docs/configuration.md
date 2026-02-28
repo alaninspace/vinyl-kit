@@ -58,7 +58,7 @@ Automatically move files to your library after successful tagging and renaming w
 The template used to generate folder and file paths.
 
 - **Default:** `{artist}/{year} - {album}/{track_number} - {title}`
-- **Placeholders:** `{artist}`, `{album}`, `{year}`, `{id}`, `{track_number}`, `{title}`, `{label}`, `{catalogue_number}`, `{side}`, `{genre}`, `{style}`, `{country}`.
+- **Placeholders:** `{artist}`, `{album}`, `{year}`, `{id}` / `{discogs_id}`, `{track_number}`, `{title}`, `{label}`, `{catalogue_number}`, `{side}`, `{genre}`, `{style}`, `{country}`.
 - **Example:** `vinylkit config set naming_pattern "{artist}/{year} - {album} [{label}]/{track_number} - {title}"`
 
 ### `tag_mode`

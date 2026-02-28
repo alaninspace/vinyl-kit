@@ -189,6 +189,7 @@ Controls how vinyl sides map to disc numbers.
 
 All custom exceptions inherit from `VinylkitError`:
 
+```text
 VinylkitError (base)
 ├── ConfigError          — Configuration issues
 ├── AuthError            — Authentication failures
@@ -196,6 +197,7 @@ VinylkitError (base)
 ├── TaggingError         — Audio file tagging issues
 ├── FileOperationError   — File move/rename failures
 └── ValidationError      — Data validation failure
+```
 
 ## State Transitions
 

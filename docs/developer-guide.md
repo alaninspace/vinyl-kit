@@ -151,11 +151,13 @@ VinylKit is a synchronous CLI built on **Click** with **httpx** `Client` for API
 
 ### Data Flow
 
+```text
 CLI command (click, ctx.obj=AppConfig)
   → DiscogsClient (httpx)
     → DiscogsRelease model (frozen dataclass)
       → tagging.py (write tags to audio files)
       → naming.py (generate paths, move/rename files)
+```
 
 ### Key Conventions
 
