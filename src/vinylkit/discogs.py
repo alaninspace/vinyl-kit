@@ -89,11 +89,9 @@ class DiscogsClient:
         self.consumer_secret = consumer_secret
         user_agent = "VinylKit/0.1.0"
 
-        # Initialize Default (None)
-        self.mode = "none"
-        self.client: httpx.Client | OAuth1Client = httpx.Client(
-            headers={"User-Agent": user_agent}
-        )
+        # Build the correct client once — no throwaway default.
+        client: httpx.Client | OAuth1Client
+        mode: str
 
         # 1. Try Full OAuth 1.0a
         if (
@@ -103,40 +101,45 @@ class DiscogsClient:
             and consumer_key
             and consumer_secret
         ):
-            self.mode = "oauth"
-            self.client = OAuth1Client(
+            mode = "oauth"
+            client = OAuth1Client(
                 client_id=consumer_key,
                 client_secret=consumer_secret,
                 token=token,
                 token_secret=secret,
                 headers={"User-Agent": user_agent},
             )
-            return
 
         # 2. Try Personal Access Token
-        if auth_mode in ("auto", "token") and token:
-            self.mode = "token"
-            self.client = httpx.Client(
+        elif auth_mode in ("auto", "token") and token:
+            mode = "token"
+            client = httpx.Client(
                 headers={
                     "Authorization": f"Discogs token={token}",
                     "User-Agent": user_agent,
                 }
             )
-            return
 
         # 3. Try Key/Secret (Discogs Auth or Login Prep)
-        if (
+        elif (
             auth_mode in ("auto", "key_secret", "oauth")
             and consumer_key
             and consumer_secret
         ):
-            self.mode = "key_secret"
-            self.client = OAuth1Client(
+            mode = "key_secret"
+            client = OAuth1Client(
                 client_id=consumer_key,
                 client_secret=consumer_secret,
                 headers={"User-Agent": user_agent},
             )
-            return
+
+        # 4. Unauthenticated fallback
+        else:
+            mode = "none"
+            client = httpx.Client(headers={"User-Agent": user_agent})
+
+        self.mode = mode
+        self.client = client
 
     def _get_cache_path(self, release_id: int) -> Path:
         return self.cache_dir / f"release_{release_id}.json"
@@ -192,8 +195,18 @@ class DiscogsClient:
     def _request_with_retry(
         self, method: str, url: str, **kwargs: Any
     ) -> httpx.Response:
-        """Execute a request with dynamic rate limiting and retry logic."""
-        for attempt in range(3):
+        """Execute a request with dynamic rate limiting and retry logic.
+
+        Rate-limit (429) responses are retried separately and do not
+        consume the error-retry budget used for 5xx / network errors.
+        """
+        max_error_retries = 3
+        max_rate_limit_retries = 3
+
+        error_attempt = 0
+        rate_limit_attempt = 0
+
+        while True:
             delay = self._calculate_delay()
             elapsed = time.time() - self._last_request_time
             if elapsed < delay:
@@ -204,6 +217,9 @@ class DiscogsClient:
                 resp = self.client.request(method, url, **kwargs)  # type: ignore[union-attr]  # OAuth1Client inherits httpx.Client.request at runtime
                 self._update_rate_limit_info(resp)
                 if resp.status_code == 429:
+                    rate_limit_attempt += 1
+                    if rate_limit_attempt >= max_rate_limit_retries:
+                        raise DiscogsAPIError("Rate limited after maximum retries")
                     retry_after = int(resp.headers.get("Retry-After", 60))
                     logger.warning(f"Rate limited. Waiting {retry_after} seconds...")
                     time.sleep(retry_after)
@@ -212,20 +228,21 @@ class DiscogsClient:
                 return resp
             except httpx.HTTPStatusError as e:
                 self._update_rate_limit_info(e.response)
-                if e.response.status_code >= 500 and attempt < 2:
+                error_attempt += 1
+                if e.response.status_code >= 500 and error_attempt < max_error_retries:
                     logger.warning(
                         f"Server error {e.response.status_code}. Retrying..."
                     )
-                    time.sleep(2**attempt)
+                    time.sleep(2 ** (error_attempt - 1))
                     continue
                 raise DiscogsAPIError(f"Discogs API error: {e}") from e
             except httpx.RequestError as e:
-                if attempt < 2:
+                error_attempt += 1
+                if error_attempt < max_error_retries:
                     logger.warning(f"Request failed: {e}. Retrying...")
-                    time.sleep(2**attempt)
+                    time.sleep(2 ** (error_attempt - 1))
                     continue
                 raise DiscogsAPIError(f"Network error: {e}") from e
-        raise DiscogsAPIError("Failed after maximum retries")
 
     def get_authorize_url(self) -> tuple[str, str, str]:
         """Start the OAuth flow."""
@@ -306,7 +323,10 @@ class DiscogsClient:
                     side = side_match.group(1)
 
                 track_extraartists = [
-                    ExtraArtistInfo(name=a.get("name"), role=a.get("role"))
+                    ExtraArtistInfo(
+                        name=a.get("name") or "",
+                        role=a.get("role") or "",
+                    )
                     for a in t.get("extraartists", [])
                 ]
                 tracklist.append(
@@ -323,40 +343,44 @@ class DiscogsClient:
                 )
             images = [
                 ImageInfo(
-                    uri=i.get("uri"),
-                    type=i.get("type"),
-                    resource_url=i.get("resource_url"),
+                    uri=i.get("uri") or "",
+                    type=i.get("type") or "",
+                    resource_url=i.get("resource_url") or "",
                 )
                 for i in data.get("images", [])
             ]
             labels_data = [
-                LabelInfo(name=lbl.get("name"), catno=lbl.get("catno"))
+                LabelInfo(name=lbl.get("name") or "", catno=lbl.get("catno"))
                 for lbl in data.get("labels", [])
             ]
             companies_data = [
                 CompanyInfo(
-                    name=comp.get("name"), entity_type_name=comp.get("entity_type_name")
+                    name=comp.get("name") or "",
+                    entity_type_name=comp.get("entity_type_name") or "",
                 )
                 for comp in data.get("companies", [])
             ]
             formats_data = [
                 FormatInfo(
-                    name=f.get("name"),
-                    qty=f.get("qty"),
+                    name=f.get("name") or "",
+                    qty=f.get("qty") or "1",
                     descriptions=f.get("descriptions", []),
                 )
                 for f in data.get("formats", [])
             ]
             identifiers_data = [
                 IdentifierInfo(
-                    type=i.get("type"),
-                    value=i.get("value"),
+                    type=i.get("type") or "",
+                    value=i.get("value") or "",
                     description=i.get("description"),
                 )
                 for i in data.get("identifiers", [])
             ]
             extraartists_data = [
-                ExtraArtistInfo(name=a.get("name"), role=a.get("role"))
+                ExtraArtistInfo(
+                    name=a.get("name") or "",
+                    role=a.get("role") or "",
+                )
                 for a in data.get("extraartists", [])
             ]
 

@@ -20,9 +20,17 @@ def backup_file(source: Path, backup_dir: Path) -> Path:
     backup_dir.mkdir(parents=True, exist_ok=True)
     target = backup_dir / source.name
 
-    # Avoid overwriting if backup exists (add suffix)
+    # Find a unique backup name to avoid overwriting existing backups
     if target.exists():
-        target = backup_dir / f"{source.stem}_backup{source.suffix}"
+        stem = source.stem
+        suffix = source.suffix
+        for n in range(1, 1000):
+            candidate = backup_dir / f"{stem}_backup{n}{suffix}"
+            if not candidate.exists():
+                target = candidate
+                break
+        else:
+            raise OSError(f"Cannot find a free backup name for {source.name}")
 
     shutil.copy2(source, target)
     return target

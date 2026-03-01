@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path  # noqa: TC003
+
+import pytest
 from click.testing import CliRunner  # noqa: TC002
 
 from vinylkit.cli import cli
+from vinylkit.exceptions import ConfigError
 
 
 def test_config_round_trip(runner: CliRunner) -> None:
@@ -67,3 +71,23 @@ def test_skip_tags_none_clears(runner: CliRunner) -> None:
     assert show.exit_code == 0
     # With an empty list, the display should show "None"
     assert "skip_tags" in show.output
+
+
+# ---------------------------------------------------------------------------
+# Specific exception catching in config.py
+# ---------------------------------------------------------------------------
+
+
+def test_corrupt_toml_raises_config_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """config.py should catch specific exception types."""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text("this is not valid TOML [[[")
+
+    monkeypatch.setenv("VINYLKIT_CONFIG", str(config_path))
+
+    from vinylkit.config import load_config
+
+    with pytest.raises(ConfigError, match="Failed to read"):
+        load_config()

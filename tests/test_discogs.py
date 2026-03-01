@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 import respx
 from httpx import Response
 
@@ -9,6 +10,7 @@ from vinylkit.discogs import (
     DiscogsClient,
     describe_throttle_strategy,
 )
+from vinylkit.exceptions import DiscogsAPIError
 from vinylkit.models import RateLimitInfo
 
 
@@ -456,3 +458,190 @@ def test_describe_throttle_strategy_exhausted() -> None:
     result = describe_throttle_strategy(info)
     assert "Exhausted" in result
     assert "10.0s" in result
+
+
+# ---------------------------------------------------------------------------
+# None fallbacks in model construction from API data
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+def test_missing_image_fields_default_to_empty() -> None:
+    """Fields missing from API JSON should fall back to empty strings."""
+    release_id = 55555
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "A"}],
+        "title": "T",
+        "tracklist": [],
+        "images": [{}],
+    }
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+    img = release.images[0]
+    assert img.uri == ""
+    assert img.type == ""
+    assert img.resource_url == ""
+
+
+@respx.mock
+def test_missing_format_qty_defaults_to_one() -> None:
+    release_id = 55556
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "A"}],
+        "title": "T",
+        "tracklist": [],
+        "formats": [{"name": "Vinyl"}],
+    }
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+    assert release.formats[0].qty == "1"
+    assert release.formats[0].name == "Vinyl"
+
+
+@respx.mock
+def test_missing_company_fields_default_to_empty() -> None:
+    release_id = 55557
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "A"}],
+        "title": "T",
+        "tracklist": [],
+        "companies": [{}],
+    }
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+    assert release.companies[0].name == ""
+    assert release.companies[0].entity_type_name == ""
+
+
+@respx.mock
+def test_missing_extraartist_fields_default_to_empty() -> None:
+    release_id = 55558
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "A"}],
+        "title": "T",
+        "tracklist": [
+            {
+                "position": "A1",
+                "title": "T1",
+                "extraartists": [{}],
+            }
+        ],
+        "extraartists": [{}],
+    }
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+    assert release.extraartists[0].name == ""
+    assert release.extraartists[0].role == ""
+    assert release.tracklist[0].extraartists[0].name == ""
+    assert release.tracklist[0].extraartists[0].role == ""
+
+
+@respx.mock
+def test_missing_identifier_fields_default_to_empty() -> None:
+    release_id = 55559
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "A"}],
+        "title": "T",
+        "tracklist": [],
+        "identifiers": [{}],
+    }
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+    assert release.identifiers[0].type == ""
+    assert release.identifiers[0].value == ""
+
+
+# ---------------------------------------------------------------------------
+# 429 retry budget separation
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+def test_429_then_success() -> None:
+    """A 429 followed by a 200 should succeed."""
+    release_id = 77777
+    client = DiscogsClient("key", "secret", cache_enabled=False)
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "Test"}],
+        "title": "T",
+        "tracklist": [],
+    }
+
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        side_effect=[
+            Response(429, headers={"Retry-After": "0"}),
+            Response(200, json=mock_data),
+        ]
+    )
+
+    release = client.get_release(release_id)
+    assert release.id == release_id
+
+
+@respx.mock
+def test_429_does_not_consume_error_budget() -> None:
+    """429s should not prevent retrying a subsequent 500."""
+    client = DiscogsClient("key", "secret", cache_enabled=False)
+    url = "https://example.com/test"
+
+    respx.get(url).mock(
+        side_effect=[
+            Response(429, headers={"Retry-After": "0"}),
+            Response(429, headers={"Retry-After": "0"}),
+            Response(500),
+            Response(200, content=b"ok"),
+        ]
+    )
+
+    resp = client._request_with_retry("GET", url)
+    assert resp.status_code == 200
+
+
+@respx.mock
+def test_exhausted_429_retries_raises() -> None:
+    """Three consecutive 429s should raise a rate-limit error."""
+    client = DiscogsClient("key", "secret", cache_enabled=False)
+    url = "https://example.com/test"
+
+    respx.get(url).mock(
+        side_effect=[
+            Response(429, headers={"Retry-After": "0"}),
+            Response(429, headers={"Retry-After": "0"}),
+            Response(429, headers={"Retry-After": "0"}),
+        ]
+    )
+
+    with pytest.raises(DiscogsAPIError, match="Rate limited"):
+        client._request_with_retry("GET", url)

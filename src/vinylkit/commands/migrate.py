@@ -12,7 +12,7 @@ from loguru import logger
 
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import VinylkitError
-from vinylkit.models import AppConfig, ImageHandling, TagMode
+from vinylkit.models import AppConfig, DiscogsRelease, ImageHandling, TagMode
 
 
 def _extract_id(folder_name: str) -> int | None:
@@ -133,9 +133,12 @@ def migrate(
         completed += 1
         rid = _extract_id(folder.name)
 
-        if target_ids and rid is not None and rid not in target_ids:
+        if target_ids and (rid is None or rid not in target_ids):
+            reason = (
+                f"ID {rid} not in filter list" if rid is not None else "no embedded ID"
+            )
             _helpers.console.print(
-                f"[yellow]Skipping {folder.name} (ID {rid} not in filter list)[/yellow]"
+                f"[yellow]Skipping {folder.name} ({reason})[/yellow]"
             )
             continue
 
@@ -334,16 +337,13 @@ def _migrate_folder(
 
 def _build_mapping(
     audio_files: list[Path],
-    release: object,
+    release: DiscogsRelease,
     config: AppConfig,
     folder: Path,
     dry_run: bool,
     log_entries: list[str],
 ) -> list[tuple[Path, int]] | None:
     """Build file-to-track mapping. Returns None to skip folder."""
-    from vinylkit.models import DiscogsRelease
-
-    assert isinstance(release, DiscogsRelease)
 
     pos_map: dict[str, int] = {}
     num_map: dict[str, int] = {}

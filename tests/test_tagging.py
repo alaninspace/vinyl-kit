@@ -4,12 +4,20 @@ from pathlib import Path  # noqa: TC003
 
 import pytest
 
-from vinylkit.models import DiscogsRelease, ExtraArtistInfo, TrackInfo
+from vinylkit.models import (
+    DiscMapping,
+    DiscogsRelease,
+    ExtraArtistInfo,
+    TrackInfo,
+    TrackNumbering,
+)
 from vinylkit.tagging import (
     _COMPOSER_ROLES,
     _REMIXER_ROLES,
     _extract_by_role,
     _should_write,
+    calculate_track_and_disc,
+    get_track_number,
     tag_audio_file,
 )
 
@@ -208,3 +216,101 @@ def test_extract_by_role_case_insensitive() -> None:
     eas = [ExtraArtistInfo(name="Bach", role="WRITTEN-BY")]
     result = _extract_by_role(eas, _COMPOSER_ROLES)
     assert result == ["Bach"]
+
+
+# ---------------------------------------------------------------------------
+# get_track_number exception handling
+# ---------------------------------------------------------------------------
+
+
+def test_get_track_number_corrupt_mp3_returns_none(tmp_path: Path) -> None:
+    """A corrupt MP3 file should return None, not raise."""
+    bad = tmp_path / "corrupt.mp3"
+    bad.write_bytes(b"\x00" * 100)
+    assert get_track_number(bad) is None
+
+
+def test_get_track_number_corrupt_flac_returns_none(tmp_path: Path) -> None:
+    """A corrupt FLAC file should return None, not raise."""
+    bad = tmp_path / "corrupt.flac"
+    bad.write_bytes(b"\x00" * 100)
+    assert get_track_number(bad) is None
+
+
+def test_get_track_number_missing_file_returns_none(tmp_path: Path) -> None:
+    """A non-existent file should return None (OSError caught)."""
+    missing = tmp_path / "missing.mp3"
+    assert get_track_number(missing) is None
+
+
+def test_get_track_number_valid_mp3(mp3_file: Path) -> None:
+    """A properly tagged MP3 should return the track number."""
+    release = DiscogsRelease(
+        id=1,
+        artists=["A"],
+        title="T",
+        tracklist=[TrackInfo(position="A1", title="T1")],
+    )
+    tag_audio_file(mp3_file, release, track_index=0)
+    assert get_track_number(mp3_file) == "1"
+
+
+# ---------------------------------------------------------------------------
+# PER_SIDE numbering with side=None fallback
+# ---------------------------------------------------------------------------
+
+
+def test_per_side_side_none_falls_back_to_numeric() -> None:
+    """Tracks with side=None should get global numeric track numbers."""
+    release = DiscogsRelease(
+        id=1,
+        artists=["A"],
+        title="T",
+        tracklist=[
+            TrackInfo(position="1", title="T1", side=None),
+            TrackInfo(position="2", title="T2", side=None),
+            TrackInfo(position="3", title="T3", side=None),
+        ],
+    )
+
+    t1, _ = calculate_track_and_disc(
+        release, 0, TrackNumbering.PER_SIDE, DiscMapping.SINGLE
+    )
+    t2, _ = calculate_track_and_disc(
+        release, 1, TrackNumbering.PER_SIDE, DiscMapping.SINGLE
+    )
+    t3, _ = calculate_track_and_disc(
+        release, 2, TrackNumbering.PER_SIDE, DiscMapping.SINGLE
+    )
+
+    assert t1 == "1"
+    assert t2 == "2"
+    assert t3 == "3"
+
+
+def test_per_side_mixed_side_and_none() -> None:
+    """Tracks mixing side=None and real sides should number correctly."""
+    release = DiscogsRelease(
+        id=1,
+        artists=["A"],
+        title="T",
+        tracklist=[
+            TrackInfo(position="A1", title="T1", side="A"),
+            TrackInfo(position="A2", title="T2", side="A"),
+            TrackInfo(position="", title="Bonus", side=None),
+        ],
+    )
+
+    t1, _ = calculate_track_and_disc(
+        release, 0, TrackNumbering.PER_SIDE, DiscMapping.SINGLE
+    )
+    t2, _ = calculate_track_and_disc(
+        release, 1, TrackNumbering.PER_SIDE, DiscMapping.SINGLE
+    )
+    t3, _ = calculate_track_and_disc(
+        release, 2, TrackNumbering.PER_SIDE, DiscMapping.SINGLE
+    )
+
+    assert t1 == "1"
+    assert t2 == "2"
+    assert t3 == "3"  # global index, not "1"

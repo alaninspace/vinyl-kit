@@ -832,3 +832,231 @@ class TestSkipTagsFLAC:
         )
         audio = FLAC(flac_file)
         assert "country" not in audio
+
+
+# ---------------------------------------------------------------------------
+# PER_SIDE round-trip with side=None
+# ---------------------------------------------------------------------------
+
+
+class TestPerSideNullSideRoundTrip:
+    def test_per_side_numbering_with_side_none_mp3(self, mp3_file: Path) -> None:
+        """Round-trip: PER_SIDE with side=None writes correct track number."""
+        release = DiscogsRelease(
+            id=1,
+            artists=["A"],
+            title="T",
+            tracklist=[
+                TrackInfo(position="1", title="T1", side=None),
+                TrackInfo(position="2", title="T2", side=None),
+            ],
+        )
+        tag_audio_file(
+            mp3_file,
+            release,
+            track_index=1,
+            track_numbering=TrackNumbering.PER_SIDE,
+        )
+
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TRCK"]) == "2"
+
+
+# ---------------------------------------------------------------------------
+# MERGE mode union-merges classification tags
+# ---------------------------------------------------------------------------
+
+
+class TestMergeUnionMP3:
+    """MERGE mode should union-merge genre/style, not replace them (MP3)."""
+
+    def test_genre_union_merged(self, mp3_file: Path) -> None:
+        first = DiscogsRelease(
+            id=1,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="A1", title="T1")],
+            genres=["Jazz"],
+        )
+        tag_audio_file(mp3_file, first, 0, tag_mode=TagMode.REPLACE)
+
+        second = DiscogsRelease(
+            id=2,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="1", title="T1")],
+            genres=["Rock"],
+        )
+        tag_audio_file(mp3_file, second, 0, tag_mode=TagMode.MERGE)
+
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        genre_str = str(tags["TCON"])
+        assert "Jazz" in genre_str
+        assert "Rock" in genre_str
+
+    def test_genre_deduplicates(self, mp3_file: Path) -> None:
+        first = DiscogsRelease(
+            id=1,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="A1", title="T1")],
+            genres=["Electronic"],
+        )
+        tag_audio_file(mp3_file, first, 0, tag_mode=TagMode.REPLACE)
+
+        second = DiscogsRelease(
+            id=2,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="1", title="T1")],
+            genres=["Electronic"],
+        )
+        tag_audio_file(mp3_file, second, 0, tag_mode=TagMode.MERGE)
+
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TCON"]) == "Electronic"
+
+    def test_style_union_merged_txxx(self, mp3_file: Path) -> None:
+        first = DiscogsRelease(
+            id=1,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="A1", title="T1")],
+            styles=["Techno"],
+        )
+        tag_audio_file(mp3_file, first, 0, tag_mode=TagMode.REPLACE)
+
+        second = DiscogsRelease(
+            id=2,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="1", title="T1")],
+            styles=["House"],
+        )
+        tag_audio_file(mp3_file, second, 0, tag_mode=TagMode.MERGE)
+
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        style_str = str(tags["TXXX:STYLE"])
+        assert "Techno" in style_str
+        assert "House" in style_str
+
+    def test_artist_replaced_not_merged(self, mp3_file: Path) -> None:
+        """Artist is an identity tag and should be replaced, not merged."""
+        first = DiscogsRelease(
+            id=1,
+            artists=["Old Artist"],
+            title="T",
+            tracklist=[TrackInfo(position="A1", title="T1")],
+        )
+        tag_audio_file(mp3_file, first, 0, tag_mode=TagMode.REPLACE)
+
+        second = DiscogsRelease(
+            id=2,
+            artists=["New Artist"],
+            title="T",
+            tracklist=[TrackInfo(position="1", title="T1")],
+        )
+        tag_audio_file(mp3_file, second, 0, tag_mode=TagMode.MERGE)
+
+        tags = MP3(mp3_file).tags
+        assert tags is not None
+        assert str(tags["TPE1"]) == "New Artist"
+
+
+class TestMergeUnionFLAC:
+    """MERGE mode should union-merge genre/style, not replace them (FLAC)."""
+
+    def test_genre_union_merged(self, flac_file: Path) -> None:
+        first = DiscogsRelease(
+            id=1,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="A1", title="T1")],
+            genres=["Jazz"],
+        )
+        tag_audio_file(flac_file, first, 0, tag_mode=TagMode.REPLACE)
+
+        second = DiscogsRelease(
+            id=2,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="1", title="T1")],
+            genres=["Rock"],
+        )
+        tag_audio_file(flac_file, second, 0, tag_mode=TagMode.MERGE)
+
+        audio = FLAC(flac_file)
+        genres = audio["genre"]
+        assert "Jazz" in genres
+        assert "Rock" in genres
+
+    def test_genre_deduplicates(self, flac_file: Path) -> None:
+        first = DiscogsRelease(
+            id=1,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="A1", title="T1")],
+            genres=["Electronic"],
+        )
+        tag_audio_file(flac_file, first, 0, tag_mode=TagMode.REPLACE)
+
+        second = DiscogsRelease(
+            id=2,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="1", title="T1")],
+            genres=["Electronic"],
+        )
+        tag_audio_file(flac_file, second, 0, tag_mode=TagMode.MERGE)
+
+        audio = FLAC(flac_file)
+        assert audio["genre"] == ["Electronic"]
+
+    def test_style_union_merged(self, flac_file: Path) -> None:
+        first = DiscogsRelease(
+            id=1,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="A1", title="T1")],
+            styles=["Techno"],
+        )
+        tag_audio_file(flac_file, first, 0, tag_mode=TagMode.REPLACE)
+
+        second = DiscogsRelease(
+            id=2,
+            artists=["A"],
+            title="T",
+            tracklist=[TrackInfo(position="1", title="T1")],
+            styles=["House"],
+        )
+        tag_audio_file(flac_file, second, 0, tag_mode=TagMode.MERGE)
+
+        audio = FLAC(flac_file)
+        styles = audio["style"]
+        assert "Techno" in styles
+        assert "House" in styles
+
+    def test_artist_replaced_not_merged(self, flac_file: Path) -> None:
+        """Artist is an identity tag and should be replaced, not merged."""
+        first = DiscogsRelease(
+            id=1,
+            artists=["Old Artist"],
+            title="T",
+            tracklist=[TrackInfo(position="A1", title="T1")],
+        )
+        tag_audio_file(flac_file, first, 0, tag_mode=TagMode.REPLACE)
+
+        second = DiscogsRelease(
+            id=2,
+            artists=["New Artist"],
+            title="T",
+            tracklist=[TrackInfo(position="1", title="T1")],
+        )
+        tag_audio_file(flac_file, second, 0, tag_mode=TagMode.MERGE)
+
+        audio = FLAC(flac_file)
+        assert audio["artist"] == ["New Artist"]

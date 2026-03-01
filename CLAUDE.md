@@ -206,6 +206,7 @@ Uses **loguru** (`from loguru import logger`), not stdlib `logging`. `initialise
 ### Conventions
 
 - Every new feature or bug fix must include tests.
+- **Test organization**: Tests belong in the existing file that matches their logical subject — e.g., tagging unit tests go in `test_tagging.py`, Discogs API tests in `test_discogs.py`, naming/move tests in `test_naming.py`, etc. Never create ad-hoc files like `test_bugfixes.py` or `test_fixes_round2.py`. If no existing file fits, create one named after the module or feature (e.g., `test_<module>.py`).
 - Real audio fixtures (`_make_mp3_bytes`, `_make_flac_bytes`) create minimal valid files — no test data files on disk.
 - API calls are always mocked. `respx` is available for HTTP-level mocking in `test_discogs.py`.
 - **Test data isolation**: ALL test data MUST be written to `tmp_path` or equivalent temporary directories — never to real platform directories (cache, config, logs). The autouse `_isolate_cache_dir` fixture in `conftest.py` redirects the cache dir for every test. If a new module introduces platform-specific directories, add a similar autouse fixture to prevent leakage.

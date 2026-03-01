@@ -42,7 +42,7 @@ def load_config() -> AppConfig:
     try:
         with path.open("rb") as f:
             data = tomllib.load(f)
-    except Exception as e:
+    except (OSError, ValueError) as e:
         raise ConfigError(f"Failed to read config at {path}: {e}") from e
 
     return AppConfig(
@@ -134,5 +134,5 @@ def save_config(config: AppConfig) -> None:
     try:
         with path.open("wb") as f:
             tomli_w.dump(data, f)
-    except Exception as e:
+    except (OSError, TypeError) as e:
         raise ConfigError(f"Failed to write config at {path}: {e}") from e

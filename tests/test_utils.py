@@ -39,7 +39,7 @@ class TestBackupFile:
 
         result = backup_file(source, backup_dir)
 
-        assert result.name == "song_backup.mp3"
+        assert result.name == "song_backup1.mp3"
         assert result.read_text() == "v2"
         assert (backup_dir / "song.mp3").read_text() == "v1"
 
@@ -71,6 +71,39 @@ class TestSanitizeFilename:
         result = sanitize_filename("bad\x00name\x1f")
         assert "\x00" not in result
         assert "\x1f" not in result
+
+
+class TestBackupFileUniqueNaming:
+    """backup_file must find unique names for multiple backups."""
+
+    def test_multiple_backups_get_unique_names(self, tmp_path: Path) -> None:
+        source = tmp_path / "song.mp3"
+        backup_dir = tmp_path / "backups"
+        backup_dir.mkdir()
+
+        # Pre-populate: original + first backup
+        (backup_dir / "song.mp3").write_text("v1")
+        (backup_dir / "song_backup1.mp3").write_text("v2")
+
+        source.write_text("v3")
+        result = backup_file(source, backup_dir)
+
+        assert result.name == "song_backup2.mp3"
+        assert result.read_text() == "v3"
+        assert (backup_dir / "song.mp3").read_text() == "v1"
+        assert (backup_dir / "song_backup1.mp3").read_text() == "v2"
+
+    def test_first_backup_gets_backup1_suffix(self, tmp_path: Path) -> None:
+        source = tmp_path / "track.flac"
+        source.write_text("audio")
+        backup_dir = tmp_path / "backups"
+        backup_dir.mkdir()
+
+        (backup_dir / "track.flac").write_text("old")
+
+        result = backup_file(source, backup_dir)
+
+        assert result.name == "track_backup1.flac"
 
 
 class TestEnsureAbsolute:

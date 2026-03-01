@@ -9,7 +9,7 @@ import click
 from rich.table import Table
 
 from vinylkit.commands import _helpers
-from vinylkit.exceptions import VinylkitError
+from vinylkit.exceptions import FileOperationError, VinylkitError
 from vinylkit.models import AppConfig, TagMode
 
 if TYPE_CHECKING:
@@ -242,7 +242,7 @@ def _search_loop(
             if result == -1:
                 # Quit entire tag session
                 _helpers.console.print("[yellow]Aborting tag session.[/yellow]")
-                raise SystemExit(0)
+                raise click.exceptions.Exit(0)
             return result
 
         current_query = None
@@ -524,6 +524,18 @@ def _rename_after_tag(
 
     # Phase 1: Rename audio files in-place so they have correct
     # names even if the cross-drive move in Phase 2 fails.
+    # Pre-flight: detect collisions among Phase 1 local targets.
+    phase1_seen: set[Path] = set()
+    for src, dst in audio_moves:
+        candidate = src.parent / dst.name
+        if candidate in phase1_seen:
+            raise FileOperationError(
+                "Two or more tracks would collide when renamed"
+                " in-place. Check for duplicate track titles"
+                " in the release."
+            )
+        phase1_seen.add(candidate)
+
     renamed: list[tuple[Path, Path]] = []
     for src, dst in audio_moves:
         local_dst = src.parent / dst.name

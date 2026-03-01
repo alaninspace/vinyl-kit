@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from vinylkit.exceptions import FileOperationError
 from vinylkit.models import DiscogsRelease, TrackInfo
-from vinylkit.naming import generate_path
+from vinylkit.naming import generate_path, move_directory, move_file
 
 
 def test_generate_path_basic() -> None:
@@ -122,3 +125,63 @@ def test_move_file_cross_root(tmp_path: Path) -> None:
     assert not source.exists()
     assert target.exists()
     assert target.read_bytes() == b"audio data"
+
+
+# ---------------------------------------------------------------------------
+# move_directory safety
+# ---------------------------------------------------------------------------
+
+
+def test_move_directory_raises_when_target_exists(tmp_path: Path) -> None:
+    source = tmp_path / "src_dir"
+    source.mkdir()
+    (source / "file.txt").write_text("data")
+
+    target = tmp_path / "dst_dir"
+    target.mkdir()
+    (target / "existing.txt").write_text("precious")
+
+    with pytest.raises(FileOperationError, match="already exists"):
+        move_directory(source, target)
+
+    # Original target data must survive
+    assert (target / "existing.txt").read_text() == "precious"
+    # Source must also survive (move never happened)
+    assert (source / "file.txt").exists()
+
+
+def test_move_directory_succeeds_when_target_absent(tmp_path: Path) -> None:
+    source = tmp_path / "src_dir"
+    source.mkdir()
+    (source / "file.txt").write_text("data")
+
+    target = tmp_path / "dst_dir"
+
+    move_directory(source, target)
+
+    assert (target / "file.txt").read_text() == "data"
+    assert not source.exists()
+
+
+def test_move_directory_dry_run(tmp_path: Path) -> None:
+    source = tmp_path / "src_dir"
+    source.mkdir()
+    target = tmp_path / "dst_dir"
+
+    move_directory(source, target, dry_run=True)
+
+    assert source.exists()
+    assert not target.exists()
+
+
+# ---------------------------------------------------------------------------
+# move_file exception handling
+# ---------------------------------------------------------------------------
+
+
+def test_move_file_missing_source_raises(tmp_path: Path) -> None:
+    source = tmp_path / "nonexistent.mp3"
+    target = tmp_path / "dest.mp3"
+
+    with pytest.raises(FileOperationError, match="Failed to move"):
+        move_file(source, target)

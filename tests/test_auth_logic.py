@@ -60,3 +60,41 @@ def test_auth_mode_none():
     assert client.mode == "none"
     assert isinstance(client.client, httpx.Client)
     assert "Authorization" not in client.client.headers
+
+
+# ---------------------------------------------------------------------------
+# Single-client construction (no throwaway default)
+# ---------------------------------------------------------------------------
+
+
+def test_oauth_mode_sets_oauth():
+    client = DiscogsClient("ck", "cs", token="t", secret="s", cache_enabled=False)
+    assert client.mode == "oauth"
+
+
+def test_token_mode_sets_token():
+    client = DiscogsClient(token="t", cache_enabled=False)
+    assert client.mode == "token"
+
+
+def test_key_secret_mode_sets_key_secret():
+    client = DiscogsClient("ck", "cs", cache_enabled=False)
+    assert client.mode == "key_secret"
+
+
+def test_no_creds_sets_none():
+    client = DiscogsClient(cache_enabled=False)
+    assert client.mode == "none"
+
+
+def test_forced_auth_mode_token_ignores_oauth_creds():
+    """When auth_mode='token', full OAuth creds should not trigger oauth."""
+    client = DiscogsClient(
+        "ck",
+        "cs",
+        token="t",
+        secret="s",
+        auth_mode="token",
+        cache_enabled=False,
+    )
+    assert client.mode == "token"

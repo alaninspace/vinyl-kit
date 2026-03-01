@@ -209,3 +209,35 @@ class TestConfigCommands:
     def test_config_set_invalid_key(self, runner: CliRunner) -> None:
         result = runner.invoke(cli, ["config", "set", "nonexistent_key", "val"])
         assert "Unknown configuration key" in result.output
+
+
+# ---------------------------------------------------------------------------
+# tag search loop quit uses click.exceptions.Exit
+# ---------------------------------------------------------------------------
+
+
+class TestTagQuitBehavior:
+    def test_quit_exits_cleanly(self, runner, tmp_path, mock_discogs):
+        """Quitting the tag search loop should use click.exceptions.Exit."""
+        source = tmp_path / "inbox"
+        source.mkdir()
+        (source / "01.mp3").write_text("audio")
+
+        mock_discogs.search_releases.return_value = [
+            {
+                "id": 1,
+                "title": "Test",
+                "year": "2020",
+                "country": "US",
+                "format": ["Vinyl"],
+            }
+        ]
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(source)],
+            input="test query\nq\n",
+        )
+
+        assert result.exit_code == 0
+        assert "Aborting tag session" in result.output

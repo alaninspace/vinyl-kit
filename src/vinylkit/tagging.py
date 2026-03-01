@@ -4,6 +4,7 @@ import re
 from pathlib import Path  # noqa: TC003
 
 from loguru import logger
+from mutagen import MutagenError
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3
 from mutagen.id3._frames import (
@@ -263,8 +264,8 @@ def get_track_number(path: Path) -> str | None:
             if "tracknumber" in flac:
                 val = str(flac["tracknumber"][0])
                 return val.split("/")[0]
-    except Exception:
-        pass
+    except (OSError, MutagenError) as e:
+        logger.debug(f"Could not read track number from {path}: {e}")
     return None
 
 
@@ -381,14 +382,39 @@ def calculate_track_and_disc(
     if track_numbering == TrackNumbering.NUMERIC:
         track_num = str(track_index + 1)
     elif track_numbering == TrackNumbering.PER_SIDE:
-        # Count how many tracks before this one have the same side
-        side_count = 1
-        for i in range(track_index):
-            if release.tracklist[i].side == track.side:
-                side_count += 1
-        track_num = str(side_count)
+        if track.side is None:
+            # No side info — fall back to global numeric indexing
+            track_num = str(track_index + 1)
+        else:
+            # Count how many tracks before this one have the same side
+            side_count = 1
+            for i in range(track_index):
+                if release.tracklist[i].side == track.side:
+                    side_count += 1
+            track_num = str(side_count)
 
     return track_num, disc_num
+
+
+# Tags that should be union-merged (not replaced) in MERGE mode.
+# These are classification/additive tags where both old and new values
+# are meaningful.  Identity tags (artist, composer, remixer, copyright,
+# catalognumber) are always replaced because they belong to the release.
+_MERGE_UNION_TAGS = frozenset(
+    {
+        "genre",
+        "style",
+        "credits",
+        "companies",
+        "barcode",
+        "label",
+    }
+)
+
+
+def _union_merge(existing: list[str], new: list[str]) -> list[str]:
+    """Return order-preserving union of *existing* and *new* values."""
+    return list(dict.fromkeys(existing + new))
 
 
 # -- Lookup tables for format-specific tag writing ----------------------------
@@ -588,6 +614,26 @@ def _tag_mp3(
 
     for name, value in tag_values.items():
         text = ", ".join(value) if isinstance(value, list) else value
+
+        # In MERGE mode, union-merge classification tags with existing values
+        if (
+            tag_mode == TagMode.MERGE
+            and isinstance(value, list)
+            and name in _MERGE_UNION_TAGS
+        ):
+            existing_text: str | None = None
+            if name in _MP3_FRAMES:
+                frame_key = _MP3_FRAMES[name].__name__
+                if frame_key in tags:
+                    existing_text = str(tags[frame_key])
+            elif name in _MP3_TXXX:
+                txxx_key = f"TXXX:{_MP3_TXXX[name]}"
+                if txxx_key in tags:
+                    existing_text = str(tags[txxx_key])
+            if existing_text:
+                existing_vals = [v.strip() for v in existing_text.split(", ")]
+                text = ", ".join(_union_merge(existing_vals, list(value)))
+
         if name in _MP3_FRAMES:
             tags.add(_MP3_FRAMES[name](encoding=3, text=text))
         elif name in _MP3_TXXX:
@@ -647,7 +693,17 @@ def _tag_flac(
 
     for name, value in tag_values.items():
         key = _FLAC_KEY_OVERRIDES.get(name, name)
-        audio[key] = value
+
+        # In MERGE mode, union-merge classification tags with existing values
+        if (
+            tag_mode == TagMode.MERGE
+            and isinstance(value, list)
+            and name in _MERGE_UNION_TAGS
+            and key in audio
+        ):
+            audio[key] = _union_merge(list(audio[key]), list(value))
+        else:
+            audio[key] = value
 
     if _should_write("artwork", skip_tags) and artwork_data:
         pic = Picture()

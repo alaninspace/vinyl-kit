@@ -465,3 +465,33 @@ def test_migrate_progress_recalculates_on_folder_removal(
     assert "[2/2] Migrating:" in result.output
     # C should never appear in the output as a migration target
     assert "C [3]" not in result.output
+
+
+# ---------------------------------------------------------------------------
+# migrate --id filter skips folders with no embedded ID
+# ---------------------------------------------------------------------------
+
+
+def test_migrate_id_filter_skips_no_embedded_id(runner, tmp_path, mock_discogs):
+    """When --id is active, folders with no embedded ID should be skipped."""
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "Has ID [123]").mkdir()
+    (source / "No ID Here").mkdir()
+
+    mock_discogs.get_release.return_value = create_mock_release(123, "A", "T")
+
+    result = runner.invoke(
+        cli,
+        [
+            "migrate",
+            str(source),
+            str(tmp_path / "dest"),
+            "--id",
+            "123",
+            "--dry-run",
+        ],
+    )
+
+    assert "Skipping No ID Here (no embedded ID)" in result.output
+    assert "Enter Discogs ID" not in result.output
