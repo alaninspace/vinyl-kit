@@ -204,11 +204,20 @@ vinylkit config set naming_pattern "{artist}/{year} - {album} [{label}]/{track_n
 
 ### View Current Configuration
 
-Display all settings and the config file path.
+Display the VinylKit version, all settings, and the config file path.
 
 ```bash
 # Bash / PowerShell
 vinylkit config show
+```
+
+### Check Version
+
+Display the installed VinylKit version.
+
+```bash
+# Bash / PowerShell
+vinylkit --version
 ```
 
 ---

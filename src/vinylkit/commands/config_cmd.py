@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 import click
 from rich.table import Table
 
+from vinylkit import __version__
 from vinylkit.commands._helpers import console
 from vinylkit.config import get_config_path, save_config
 from vinylkit.models import (
@@ -36,6 +37,7 @@ def config_show(config_obj: AppConfig) -> None:
     if not path.exists():
         console.print("[yellow]Config file does not exist. Showing defaults.[/yellow]")
 
+    console.print(f"[bold]VinylKit[/bold] v{__version__}")
     console.print(f"[bold]Config Path:[/bold] {path}\n")
 
     default_fmt = (

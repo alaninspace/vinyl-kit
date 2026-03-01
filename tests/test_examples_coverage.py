@@ -354,6 +354,14 @@ def test_ex_6_4_config_show(runner):
     result = runner.invoke(cli, ["config", "show"])
     assert result.exit_code == 0
     assert "library_root" in result.output
+    assert "VinylKit" in result.output
+
+
+def test_ex_6_5_version(runner):
+    """Covers: vinylkit --version"""
+    result = runner.invoke(cli, ["--version"])
+    assert result.exit_code == 0
+    assert "version" in result.output
 
 
 ## 7. Advanced Overrides

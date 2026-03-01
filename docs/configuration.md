@@ -1,6 +1,13 @@
 # Configuration Guide: VinylKit
 
-VinylKit settings are stored in a TOML file. You can view your current configuration at any time with:
+You can check the installed version at any time with:
+
+```bash
+# Bash / PowerShell
+vinylkit --version
+```
+
+VinylKit settings are stored in a TOML file. You can view your current configuration (including version) at any time with:
 
 ```bash
 # Bash / PowerShell

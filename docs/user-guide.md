@@ -140,8 +140,14 @@ Manages the Discogs API response cache stored in the platform cache directory.
 
 Manages your persistent settings.
 
-- `config show`: Displays all current settings and the config file path.
+- `config show`: Displays the VinylKit version, all current settings, and the config file path.
 - `config set <KEY> <VALUE>`: Updates a setting.
+
+### `--version`
+
+Displays the installed VinylKit version.
+
+- **Usage**: `vinylkit --version`
 
 ### Interactive Search
 

@@ -15,6 +15,7 @@ import click
 from loguru import logger
 from platformdirs import user_log_dir
 
+from vinylkit import __version__
 from vinylkit.commands._helpers import console
 from vinylkit.commands.auth import auth
 from vinylkit.commands.cache import cache
@@ -91,7 +92,7 @@ def initialise_logging(config: AppConfig) -> None:
 
 
 @click.group()
-@click.version_option(version="0.1.0")
+@click.version_option(version=__version__)
 @click.pass_context
 def cli(ctx: click.Context) -> None:
     """VinylKit: Manage your digitized vinyl collection with Discogs metadata."""
