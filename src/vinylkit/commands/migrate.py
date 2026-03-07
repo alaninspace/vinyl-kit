@@ -8,6 +8,7 @@ from pathlib import Path
 
 import rich_click as click
 from loguru import logger
+from rich.panel import Panel
 
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import VinylkitError
@@ -202,13 +203,24 @@ def migrate(
     if not dry_run:
         destination.mkdir(parents=True, exist_ok=True)
         log_file.write_text("\n".join(log_entries), encoding="utf-8")
+        _helpers.console.print()
         _helpers.console.print(
-            f"\n[bold green]Migration complete![/bold green] Results in {log_file.name}"
+            Panel(
+                "[bold green]Migration complete![/bold green]"
+                f"\nResults in [cyan]{log_file.name}[/cyan]",
+                expand=False,
+                border_style="green",
+            )
         )
     else:
+        _helpers.console.print()
         _helpers.console.print(
-            "\n[bold yellow]Dry-run complete.[/bold yellow] "
-            "Migration log would have been saved."
+            Panel(
+                "Dry-run complete. Migration log would have been saved.",
+                title="[bold yellow]Dry-run[/bold yellow]",
+                expand=False,
+                border_style="yellow",
+            )
         )
 
 
@@ -321,15 +333,15 @@ def _migrate_folder(
     rate_str = _helpers.get_rate_limit_str(client)
     if do_replace_tags:
         summary = (
-            f"  Tagged {len(planned_moves)} tracks"
-            f", saved {artwork_count} artwork files"
-            f"{rate_str}"
+            f"  [cyan]Tagged {len(planned_moves)} tracks"
+            f", saved {artwork_count} artwork files[/cyan]"
+            f"[dim]{rate_str}[/dim]"
         )
     else:
         summary = (
-            f"  Copied {len(planned_moves)} files"
-            f", saved {artwork_count} artwork files"
-            f"{rate_str}"
+            f"  [cyan]Copied {len(planned_moves)} files"
+            f", saved {artwork_count} artwork files[/cyan]"
+            f"[dim]{rate_str}[/dim]"
         )
     _helpers.console.print(summary)
 
