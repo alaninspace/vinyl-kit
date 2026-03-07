@@ -147,7 +147,7 @@ As a user with an existing digital library, I want to migrate my files into the 
 
 - **AudioFile**: Represents a physical audio file on disk. Attributes: path, format, current tags, bit depth, sample rate, duration.
 - **DiscogsRelease**: Metadata retrieved from Discogs. Attributes: artist, title, tracklist, year, country, label, images, vinyl-specific info (side, matrix).
-- **NamingTemplate**: A pattern used to generate file paths. Attributes: template string (e.g., `{artist} - {title}`).
+- **NamingTemplate**: *(not implemented as a class — the actual implementation uses a `naming_pattern` string + `generate_path()` function in `naming.py`)* A pattern used to generate file paths. Attributes: template string (e.g., `{artist} - {title}`).
 - **Configuration**: User settings. Attributes: API credentials, default library path, naming patterns, backup settings.
 
 ## Success Criteria *(mandatory)*
@@ -163,6 +163,8 @@ As a user with an existing digital library, I want to migrate my files into the 
 - **SC-007**: Migration Traceability: Every migrated file is logged with its original and new paths in the migration results file.
 
 ## Future Enhancements (Low-Hanging Fruit)
+
+> **Note:** These are ideas from the original specification, not committed work. They may or may not be implemented.
 
 ### `vinylkit info` — Display Existing Tags
 

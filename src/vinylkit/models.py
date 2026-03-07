@@ -44,7 +44,7 @@ class DiscMapping(Enum):
     SINGLE = "single"  # All on Disc 1
     PER_SIDE = "per_side"  # Side A=1, B=2...
     PHYSICAL = "physical"  # A,B=1, C,D=2... (Standard Vinyl)
-    ORIGINAL = "original"  # Uses Discogs physical count
+    ORIGINAL = "original"  # Always disc 1 (format_quantity not yet used)
 
 
 @dataclass(slots=True, frozen=True)

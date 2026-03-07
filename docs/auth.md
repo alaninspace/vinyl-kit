@@ -115,3 +115,10 @@ To check which mode is active and if your credentials are valid:
 vinylkit config show
 vinylkit auth identity
 ```
+
+---
+
+## See Also
+
+- **[Configuration Guide](configuration.md)** — Full list of all settings including auth-related keys.
+- **[User Guide](user-guide.md)** — Command reference and workflows.

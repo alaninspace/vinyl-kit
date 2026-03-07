@@ -58,6 +58,7 @@ tests/
   test_collisions.py         # Rename collision detection
   test_edge_cases.py         # Corner-case coverage
   test_expanded_metadata.py  # Extended Discogs tags
+  test_help.py               # Help output and rich-click formatting tests
   test_logging.py            # Logging setup
   test_migrate.py            # Migration command
   test_utils.py              # Utility functions

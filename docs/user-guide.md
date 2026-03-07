@@ -13,7 +13,9 @@ A comprehensive guide to managing your digitized vinyl collection with VinylKit.
     - [tag](#tag)
     - [rename](#rename)
     - [migrate](#migrate)
+    - [collection](#collection)
     - [auth](#auth)
+    - [cache](#cache)
     - [config](#config)
 4. [Configuration Options](#4-configuration-options)
 5. [Naming Patterns & Placeholders](#5-naming-patterns--placeholders)
@@ -281,7 +283,7 @@ vinylkit config set skip_tags "none"
 
 1. Set `recordings_root` to your export folder.
 2. Run `vinylkit scan` to verify files are present.
-3. Run `vinylkit tag --id 12345` to tag and move the album to your library in one step.
+3. Run `vinylkit tag --id 12345` to tag and move the album to your library in one step. (`--rename` is automatic when using the inbox — no paths + `recordings_root` set.)
 
 ### Manual Processing
 
@@ -312,28 +314,13 @@ The log file is stored in the platform-specific log directory:
 
 | Platform | Default Path |
 | --- | --- |
-| **Windows** | `%LOCALAPPDATA%\vinylkit\Logs\vinylkit.log` |
+| **Windows** | `%LOCALAPPDATA%\vinylkit\vinylkit\Logs\vinylkit.log` |
 | **macOS** | `~/Library/Logs/vinylkit/vinylkit.log` |
 | **Linux** | `~/.local/state/vinylkit/log/vinylkit.log` |
 
 ### Customising Logging
 
-```bash
-# Show more detail in the console
-vinylkit config set log_level DEBUG
-
-# Disable file logging entirely
-vinylkit config set log_to_file false
-
-# Use a custom log file path
-vinylkit config set log_file ~/logs/vinylkit.log
-
-# Change rotation size (default: "5 MB")
-vinylkit config set log_rotation "10 MB"
-
-# Keep fewer rotated files (default: 5)
-vinylkit config set log_retention 3
-```
+For all logging settings (`log_level`, `log_to_file`, `log_file`, `log_rotation`, `log_retention`) with defaults, allowed values, and examples, see the **[Configuration Guide — Logging](configuration.md#logging)**.
 
 ---
 

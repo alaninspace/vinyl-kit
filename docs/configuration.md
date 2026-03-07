@@ -95,7 +95,7 @@ Controls how vinyl sides are mapped to the `DISCNUMBER` tag.
 - `physical`: (Default) Intelligently groups sides. Pairs of sides (A/B, C/D) are mapped to Discs 1, 2, etc. Also respects numeric prefixes (e.g., "1A" maps to Disc 1). **Best for multi-LP sets.**
 - `single`: All tracks are on Disc 1.
 - `per_side`: Each vinyl side is treated as a separate disc (Side A=1, B=2...).
-- `original`: Uses Discogs physical count if available.
+- `original`: Always disc 1 (Discogs format_quantity support is not yet implemented).
 - **Example:** `vinylkit config set disc_mapping single`
 
 ### `info_filename`
@@ -221,7 +221,7 @@ Lists all cached releases with their Discogs ID, artist, album, and age.
 Deletes cached Discogs API responses. Prompts for confirmation by default (destructive operation).
 
 - `--yes` / `-y`: Skip the confirmation prompt.
-- `--id <INTEGER>`: Clear only the cached response for a single Discogs Release ID instead of all cached releases.
+- `--id <INTEGER>`: Clear only the cached response for a single Discogs Release ID instead of all cached releases. Bypasses the confirmation prompt since it targets a single release.
 
 **Examples:**
 
@@ -294,7 +294,7 @@ Custom path for the log file. When not set, VinylKit uses the platform default p
 
 | Platform | Default Path |
 | --- | --- |
-| **Windows** | `%LOCALAPPDATA%\vinylkit\Logs\vinylkit.log` |
+| **Windows** | `%LOCALAPPDATA%\vinylkit\vinylkit\Logs\vinylkit.log` |
 | **macOS** | `~/Library/Logs/vinylkit/vinylkit.log` |
 | **Linux** | `~/.local/state/vinylkit/log/vinylkit.log` |
 

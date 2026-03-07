@@ -124,7 +124,7 @@ User settings stored in TOML.
 - **delete_after_migration**: `bool` (Default: false)
 - **replace_artwork_on_migration**: `bool` (Default: true)
 - **replace_tags_on_migration**: `bool` (Default: true)
-- **skip_tags**: `list[str]` (Canonical tag names to exclude from writing; default: empty)
+- **skip_tags**: `list[str]` (Canonical tag names to exclude from writing; default: empty. Converted to `frozenset[str]` at the tagging call site for O(1) lookup)
 - **cache_enabled**: `bool` (Default: true)
 - **log_level**: `str` (Default: "INFO")
 - **log_to_file**: `bool` (Default: true)
@@ -183,7 +183,7 @@ Controls how vinyl sides map to disc numbers.
 - `physical` — (Default) Pairs of sides (A/B, C/D) → Disc 1, 2, etc.
 - `single` — All tracks on Disc 1.
 - `per_side` — Each side is a separate disc.
-- `original` — Uses Discogs physical count if available.
+- `original` — Always disc 1 (Discogs format_quantity support is not yet implemented).
 
 ## Exception Hierarchy
 
@@ -207,10 +207,17 @@ VinylkitError (base)
 2. **Matched**: Files mapped to a `DiscogsRelease`.
 3. **Previewed**: User sees changes via dry-run.
 4. **Tagged**: Metadata written to files; status updated to `TAGGED`.
-5. **Organized**: Files moved to final location based on `NamingTemplate`.
+5. **Organized**: Files moved to final location based on `naming_pattern` via `generate_path()`.
 
 ## Validation Rules
 
 - **Filenames**: Must not contain `<>:"/\|?*` or control characters.
 - **Paths**: Must be absolute when processed; relative to `library_root` in config.
 - **Rate Limits**: Max 60 requests per minute for Discogs API.
+
+---
+
+## See Also
+
+- **[Developer Guide](developer-guide.md)** — Architecture, module responsibilities, and test patterns.
+- **[Configuration Guide](configuration.md)** — Full list of AppConfig settings with allowed values.

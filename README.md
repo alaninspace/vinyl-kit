@@ -23,8 +23,8 @@ VinylKit requires Python 3.12+ and is managed with `uv`.
 This makes the `vinylkit` command available everywhere in your terminal.
 
 ```bash
-git clone https://github.com/alaninspace/vinyl-man.git
-cd vinyl-man
+git clone https://github.com/alaninspace/vinyl-kit.git
+cd vinyl-kit
 uv tool install . --force
 ```
 
@@ -73,6 +73,8 @@ For detailed guides, see:
 - **[User Guide](docs/user-guide.md)**: In-depth command and feature reference.
 - **[Examples](docs/examples.md)**: Real-world command combinations.
 - **[Configuration Guide](docs/configuration.md)**: Full list of all settings.
+- **[Tag Mapping Reference](docs/tag-mapping.md)**: Complete tag list with MP3/FLAC field names.
+- **[Data Model](docs/data-model.md)**: Data structures and schemas.
 
 ## Development
 
@@ -97,5 +99,5 @@ uv run ruff format .
 
 ### Type Checking
 ```bash
-uv run mypy .
+uv run mypy src/
 ```

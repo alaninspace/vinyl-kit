@@ -62,7 +62,7 @@ uv tool install . --force --no-cache
 ```
 
 > [!NOTE]
-> Your configuration file persists across reinstalls. It lives in a platform-specific location managed by `platformdirs` (e.g. `%LOCALAPPDATA%\vinylkit\config.toml` on Windows, `~/Library/Application Support/vinylkit/config.toml` on macOS, `~/.config/vinylkit/config.toml` on Linux), not inside the repo.
+> Your configuration file persists across reinstalls. It lives in a platform-specific location managed by `platformdirs` (e.g. `%LOCALAPPDATA%\vinylkit\vinylkit\config.toml` on Windows, `~/Library/Application Support/vinylkit/config.toml` on macOS, `~/.config/vinylkit/config.toml` on Linux), not inside the repo.
 
 ---
 
@@ -102,6 +102,7 @@ tests/
     ├── test_edge_cases.py         # Unicode, empty tracklist, missing fields
     ├── test_examples_coverage.py  # Ensures every doc example has a test
     ├── test_expanded_metadata.py  # Expanded metadata field tests
+    ├── test_help.py               # Help output and rich-click formatting tests
     ├── test_logging.py            # Loguru initialisation and config round-trip tests
     ├── test_migrate.py            # Library migration command tests
     ├── test_naming.py             # Naming and path generation tests
@@ -284,10 +285,10 @@ from vinylkit.commands.my_module import my_command
 cli.add_command(my_command)
 ```
 
-1. **Use `@click.pass_obj`** to access the `AppConfig` instance.
-2. **Access mockable deps through `_helpers`** (e.g. `_helpers.tag_audio_file`) so tests can patch `vinylkit.commands._helpers.X` in one place.
-3. **Raise custom exceptions** from `vinylkit.exceptions` for user-facing errors — the `main()` wrapper catches `VinylkitError` and prints it cleanly.
-4. **Add tests** using the shared `runner` fixture from `conftest.py`:
+2. **Use `@click.pass_obj`** to access the `AppConfig` instance.
+3. **Access mockable deps through `_helpers`** (e.g. `_helpers.tag_audio_file`) so tests can patch `vinylkit.commands._helpers.X` in one place.
+4. **Raise custom exceptions** from `vinylkit.exceptions` for user-facing errors — the `main()` wrapper catches `VinylkitError` and prints it cleanly.
+5. **Add tests** using the shared `runner` fixture from `conftest.py`:
 
 ```python
 from vinylkit.cli import cli
@@ -310,9 +311,9 @@ class AppConfig:
     my_option: str = "default_value"
 ```
 
-1. **Update `load_config()`** in `config.py` to read the new field from TOML.
-2. **Update `save_config()`** in `config.py` to write it back.
-3. **Add a converter entry** in `_CONFIG_CONVERTERS` in `commands/config_cmd.py` so `config set` works:
+2. **Update `load_config()`** in `config.py` to read the new field from TOML.
+3. **Update `save_config()`** in `config.py` to write it back.
+4. **Add a converter entry** in `_CONFIG_CONVERTERS` in `commands/config_cmd.py` so `config set` works:
 
 ```python
 _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
@@ -321,8 +322,8 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
 }
 ```
 
-1. **Add to `config show` output** in `commands/config_cmd.py`.
-2. **Update [`docs/configuration.md`](configuration.md)** with the new option.
+5. **Add to `config show` output** in `commands/config_cmd.py`.
+6. **Update [`docs/configuration.md`](configuration.md)** with the new option.
 
 ---
 

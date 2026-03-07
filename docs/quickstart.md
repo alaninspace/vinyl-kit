@@ -98,13 +98,7 @@ vinylkit config set artwork_subdir "Scans"
 
 You can control exactly how your library is organized and how deep the folders are by changing the `naming_pattern`.
 
-**Available Placeholders:**
-
-- `{artist}`, `{album}`, `{year}`
-- `{id}` (Discogs Release ID), `{discogs_id}`
-- `{track_number}`, `{title}`
-- `{label}`, `{catalogue_number}`, `{side}`
-- `{genre}`, `{style}`, `{country}`
+**Available Placeholders:** `{artist}`, `{album}`, `{year}`, `{id}`, `{track_number}`, `{title}`, `{label}`, `{catalogue_number}`, `{side}`, `{genre}`, `{style}`, `{country}`, and more. See the [Configuration Guide — `naming_pattern`](configuration.md#naming_pattern) for the full list.
 
 **Examples:**
 
@@ -206,7 +200,7 @@ For full syntax, options, and search tips, see the **[User Guide — Command Ref
 
 Your settings and keys are stored in a persistent location:
 
-- **Windows**: `%LOCALAPPDATA%\vinylkit\config.toml`
+- **Windows**: `%LOCALAPPDATA%\vinylkit\vinylkit\config.toml`
 - **macOS**: `~/Library/Application Support/vinylkit/config.toml`
 - **Linux**: `~/.config/vinylkit/config.toml`
 
