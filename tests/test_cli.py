@@ -22,7 +22,11 @@ def test_tag_no_id_fails(runner: CliRunner, tmp_path: Path) -> None:
 def test_tag_invalid_path_fails(runner: CliRunner) -> None:
     result = runner.invoke(cli, ["tag", "/non/existent/path", "--id", "123"])
     assert result.exit_code != 0
-    assert "Directory '/non/existent/path' does not exist" in result.output
+    # rich-click wraps the error in box-drawing panels, so strip
+    # non-ASCII and collapse whitespace for a clean substring check.
+    clean = "".join(c if c.isascii() else " " for c in result.output)
+    flat = " ".join(clean.split())
+    assert "does not exist" in flat
 
 
 def test_tag_interactive_search_options(

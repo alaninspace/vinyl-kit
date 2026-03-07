@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import click
+import rich_click as click
+from click.exceptions import Exit as ClickExit
 from rich.table import Table
 
 from vinylkit.commands import _helpers
@@ -16,7 +17,14 @@ if TYPE_CHECKING:
     from vinylkit.models import DiscogsRelease
 
 
-@click.command()
+_SCAN_EPILOG = (
+    "[bold]Examples:[/bold]"
+    "\n\n  vinylkit scan"
+    "\n\n  vinylkit scan ./recordings ./other-folder"
+)
+
+
+@click.command(epilog=_SCAN_EPILOG)
 @click.argument(
     "paths",
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
@@ -26,8 +34,9 @@ if TYPE_CHECKING:
 def scan(config: AppConfig, paths: tuple[Path, ...]) -> None:
     """Scan folders and report on audio files and their tag status.
 
-    If no paths are provided, the recordings_root (if set) or
-    library_root is scanned.
+    Detects MP3 and FLAC files and classifies each as UNTAGGED,
+    PARTIAL, or TAGGED.  If no paths are provided, the
+    recordings_root (if set) or library_root is scanned.
     """
     if paths:
         scan_paths = list(paths)
@@ -57,7 +66,17 @@ def scan(config: AppConfig, paths: tuple[Path, ...]) -> None:
         _helpers.console.print(f"[bold]Total files found:[/bold] {len(files)}")
 
 
-@click.command()
+_TAG_EPILOG = (
+    "[bold]Examples:[/bold]"
+    "\n\n  vinylkit tag --id 19983 ./recordings"
+    "\n\n  vinylkit tag --artist 'Faithless' --album 'Insomnia'"
+    "\n\n  vinylkit tag --id 53088 --rename --auto-move"
+    "\n\n  vinylkit tag --id 28203 --merge --no-artwork"
+    "\n\n  vinylkit tag --dry-run --id 6108 ./vinyl-rips"
+)
+
+
+@click.command(epilog=_TAG_EPILOG)
 @click.argument(
     "paths",
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
@@ -117,7 +136,12 @@ def tag(
     lib_root_override: Path | None,
     merge: bool,
 ) -> None:
-    """Tag audio files in folders using metadata from Discogs."""
+    """Tag audio files in folders using metadata from Discogs.
+
+    Search for a release, select the correct match, and write
+    ID3v2 (MP3) or Vorbis (FLAC) tags.  Use --rename to
+    automatically move files into your library afterwards.
+    """
     lib_root = lib_root_override or config.library_root
     tag_mode = TagMode.MERGE if merge else config.tag_mode
 
@@ -242,7 +266,7 @@ def _search_loop(
             if result == -1:
                 # Quit entire tag session
                 _helpers.console.print("[yellow]Aborting tag session.[/yellow]")
-                raise click.exceptions.Exit(0)
+                raise ClickExit(0)
             return result
 
         current_query = None
@@ -566,7 +590,15 @@ def _rename_after_tag(
         )
 
 
-@click.command()
+_RENAME_EPILOG = (
+    "[bold]Examples:[/bold]"
+    "\n\n  vinylkit rename ./recordings --id 6108"
+    "\n\n  vinylkit rename ./recordings --id 6108 --commit"
+    "\n\n  vinylkit rename --id 6108 --library-root /alt/path --commit"
+)
+
+
+@click.command(epilog=_RENAME_EPILOG)
 @click.argument(
     "paths",
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
@@ -597,7 +629,12 @@ def rename(
     commit: bool,
     lib_root_override: Path | None,
 ) -> None:
-    """Rename and organize audio files using metadata from Discogs."""
+    """Rename and organize audio files using metadata from Discogs.
+
+    Generates file paths from the naming_pattern template and
+    Discogs metadata.  Defaults to dry-run — use --commit to
+    actually move files.
+    """
     if not paths:
         if config.recordings_root:
             paths = (config.recordings_root,)

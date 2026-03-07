@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import click
+import rich_click as click
 
 from vinylkit.commands import _helpers
 from vinylkit.config import save_config
@@ -12,10 +12,20 @@ from vinylkit.models import AppConfig
 
 @click.group()
 def auth() -> None:
-    """Manage Discogs authentication."""
+    """Authenticate with Discogs (login, identity).
+
+    VinylKit supports OAuth 1.0a and personal access tokens.
+    Use 'auth login' to start the OAuth flow, or set a personal
+    token via 'config set discogs_token <TOKEN>'.
+    """
 
 
-@auth.command()
+_LOGIN_EPILOG = (
+    "[bold]Examples:[/bold]\n\n  vinylkit auth login\n\n  vinylkit auth identity"
+)
+
+
+@auth.command(epilog=_LOGIN_EPILOG)
 @click.pass_obj
 def login(config: AppConfig) -> None:
     """Authenticate with Discogs using OAuth 1.0a."""

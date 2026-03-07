@@ -2,6 +2,25 @@
 
 This guide provides comprehensive examples of how to use VinylKit with various parameter combinations. All examples use real electronic music releases from the collection.
 
+## Getting Help
+
+Every command supports `-h` to display detailed help with examples and option groups.
+
+```bash
+# Bash / PowerShell
+
+# Show the full command overview with quick-start steps
+vinylkit -h
+
+# Show tag options grouped by purpose, with examples
+vinylkit tag -h
+
+# List all valid configuration keys
+vinylkit config set -h
+```
+
+---
+
 ## 1. Direct Tagging (By Discogs ID)
 
 When you have the ID from the vinyl spine or a Discogs search, this is the fastest method.

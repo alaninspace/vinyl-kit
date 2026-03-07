@@ -21,6 +21,9 @@ To update a setting, use the `set` command:
 vinylkit config set <KEY> <VALUE>
 ```
 
+> [!TIP]
+> Run `vinylkit config set -h` to see all valid keys and examples directly in your terminal.
+
 ---
 
 ## General Settings

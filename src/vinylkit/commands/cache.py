@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import time
 
-import click
+import rich_click as click
 from rich.table import Table
 
 from vinylkit.commands import _helpers
@@ -37,7 +37,12 @@ def _format_age(mtime: float) -> str:
 
 @click.group()
 def cache() -> None:
-    """Manage the Discogs API response cache."""
+    """Manage cached API responses (list, clear).
+
+    Discogs API responses are cached locally as JSON files.
+    Use 'cache list' to see cached releases or 'cache clear'
+    to remove them.
+    """
 
 
 @cache.command(name="list")
@@ -82,7 +87,14 @@ def cache_list() -> None:
     _helpers.console.print(f"\n[bold]{count} cached release(s)[/bold]")
 
 
-@cache.command(name="clear")
+_CACHE_CLEAR_EPILOG = (
+    "[bold]Examples:[/bold]"
+    "\n\n  vinylkit cache clear --yes"
+    "\n\n  vinylkit cache clear --id 19983"
+)
+
+
+@cache.command(name="clear", epilog=_CACHE_CLEAR_EPILOG)
 @click.option(
     "--id",
     "release_id",

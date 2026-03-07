@@ -127,7 +127,17 @@ docs/
 
 ### Synchronous CLI
 
-VinylKit is a synchronous CLI built on **Click** with **httpx** `Client` for API calls. There is no async code — this keeps the CLI simple and debuggable.
+VinylKit is a synchronous CLI built on **Click** (via **rich-click** for enhanced help output) with **httpx** `Client` for API calls. There is no async code — this keeps the CLI simple and debuggable.
+
+### rich-click Setup
+
+All modules use `import rich_click as click` instead of `import click`. This is a drop-in replacement that adds colored panels, option grouping, and epilog rendering to `--help` output. The configuration lives in `cli.py`:
+
+- **`COMMAND_GROUPS`** — Splits root-level commands into "Core Commands" and "Administration" sections.
+- **`OPTION_GROUPS`** — Groups options for `tag` and `migrate` into logical sections (e.g. "Release Identification", "Output Control").
+- **Epilogs** — Every command defines an epilog string (e.g. `_TAG_EPILOG`) with real-world examples. Use `@click.command(epilog=_MY_EPILOG)` to attach it.
+- **Dynamic epilogs** — `config set` builds its epilog from `_CONFIG_CONVERTERS` keys so the valid-key list stays in sync automatically.
+- **Context settings** — The root group sets `help_option_names=["-h", "--help"]` and `max_content_width=100`.
 
 ### Module Responsibilities
 
