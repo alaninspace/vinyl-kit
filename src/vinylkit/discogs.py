@@ -310,6 +310,8 @@ class DiscogsClient:
 
             tracklist = []
             for t in data.get("tracklist", []):
+                if t.get("type_", "track") != "track":
+                    continue
                 pos = t.get("position", "")
                 side = None
                 # Handle 1A, 2A prefix

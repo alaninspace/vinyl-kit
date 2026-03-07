@@ -111,6 +111,34 @@ def test_get_release_empty_duration_is_none() -> None:
 
 
 @respx.mock
+def test_get_release_skips_headings() -> None:
+    """Tracklist entries with type_ 'heading' should be excluded."""
+    release_id = 43598
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "Peace Division"}],
+        "title": "Do You See Me?",
+        "tracklist": [
+            {"position": "", "type_": "heading", "title": "This"},
+            {"position": "A", "type_": "track", "title": "Original Mix"},
+            {"position": "", "type_": "heading", "title": "That"},
+            {"position": "B", "type_": "track", "title": "Shh Remix"},
+        ],
+    }
+
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+    assert len(release.tracklist) == 2
+    assert release.tracklist[0].title == "Original Mix"
+    assert release.tracklist[1].title == "Shh Remix"
+
+
+@respx.mock
 def test_search_releases_success() -> None:
     query = "Pink Floyd Dark Side"
     client = DiscogsClient("key", "secret")
