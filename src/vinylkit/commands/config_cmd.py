@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import rich_click as click
+from rich.panel import Panel
 from rich.table import Table
 
 from vinylkit import __version__
@@ -42,14 +43,20 @@ def config_show(config_obj: AppConfig) -> None:
     if not path.exists():
         console.print("[yellow]Config file does not exist. Showing defaults.[/yellow]")
 
-    console.print(f"[bold]VinylKit[/bold] v{__version__}")
-    console.print(f"[bold]Config Path:[/bold] {path}\n")
+    console.print(
+        Panel(
+            f"[bold]VinylKit[/bold] v{__version__}"
+            f"\n[bold]Config Path:[/bold] [dim]{path}[/dim]",
+            expand=False,
+            border_style="dim",
+        )
+    )
 
     default_fmt = (
         ", ".join(config_obj.default_format) if config_obj.default_format else "None"
     )
-    key_display = "****" if config_obj.consumer_key else "Not Set"
-    token_display = "****" if config_obj.discogs_token else "Not Set"
+    key_display = "****" if config_obj.consumer_key else "[dim]Not Set[/dim]"
+    token_display = "****" if config_obj.discogs_token else "[dim]Not Set[/dim]"
 
     sections: list[tuple[str, list[tuple[str, str]]]] = [
         (
@@ -58,7 +65,11 @@ def config_show(config_obj: AppConfig) -> None:
                 ("library_root", str(config_obj.library_root)),
                 (
                     "recordings_root",
-                    str(config_obj.recordings_root or "Not Set"),
+                    (
+                        str(config_obj.recordings_root)
+                        if config_obj.recordings_root
+                        else "[dim]Not Set[/dim]"
+                    ),
                 ),
                 ("auto_move", str(config_obj.auto_move)),
             ],
@@ -111,7 +122,11 @@ def config_show(config_obj: AppConfig) -> None:
                 ),
                 (
                     "backup_dir",
-                    str(config_obj.backup_dir or "Not Set"),
+                    (
+                        str(config_obj.backup_dir)
+                        if config_obj.backup_dir
+                        else "[dim]Not Set[/dim]"
+                    ),
                 ),
             ],
         ),
@@ -158,7 +173,11 @@ def config_show(config_obj: AppConfig) -> None:
                 ("log_to_file", str(config_obj.log_to_file)),
                 (
                     "log_file",
-                    str(config_obj.log_file or "Default"),
+                    (
+                        str(config_obj.log_file)
+                        if config_obj.log_file
+                        else "[dim]Default[/dim]"
+                    ),
                 ),
                 ("log_rotation", config_obj.log_rotation),
                 ("log_retention", str(config_obj.log_retention)),
@@ -268,4 +287,4 @@ def config_set(config_obj: AppConfig, key: str, value: str) -> None:
 
     new_config = AppConfig(**new_data)
     save_config(new_config)
-    console.print(f"[green]Successfully set {key} to {value}[/green]")
+    console.print(f"[bold green]Successfully set {key} to {value}[/bold green]")
