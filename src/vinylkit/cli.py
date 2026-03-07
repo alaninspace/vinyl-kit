@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 import rich_click as click
 from loguru import logger
 from platformdirs import user_log_dir
+from rich.panel import Panel
 
 from vinylkit import __version__
 from vinylkit.commands._helpers import console
@@ -213,7 +214,16 @@ def main() -> None:
         console.print(f"[bold red]Error:[/bold red] {e}")
         sys.exit(1)
     except Exception as e:
-        console.print(f"[bold red]Unexpected Error:[/bold red] {e}")
+        console.print(
+            Panel(
+                f"[bold red]Unexpected Error:[/bold red] {e}"
+                "\n\n[dim]This may be a bug."
+                " Please report it at"
+                " https://github.com/alaninspace/vinyl-kit/issues[/dim]",
+                border_style="red",
+                expand=False,
+            )
+        )
         logger.exception("An unexpected error occurred")
         sys.exit(1)
 
