@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import rich_click as click
+from rich.panel import Panel
+from rich.table import Table
 
 from vinylkit.commands import _helpers
 from vinylkit.config import save_config
@@ -84,11 +86,22 @@ def identity(config: AppConfig) -> None:
     client = _helpers.get_client(config)
     try:
         identity_data = client.get_identity()
+        username = identity_data.get("username")
+        name = identity_data.get("name") or "[dim]Not set[/dim]"
+        url = identity_data.get("resource_url", "")
+        table = Table(show_header=False, expand=False, pad_edge=False)
+        table.add_column("Key", style="bold cyan", no_wrap=True)
+        table.add_column("Value")
+        table.add_row("Username", f"[bold]{username}[/bold]")
+        table.add_row("Name", name)
+        table.add_row("URL", f"[dim]{url}[/dim]")
         _helpers.console.print(
-            f"Authenticated as: [bold]{identity_data.get('username')}[/bold]"
+            Panel(
+                table,
+                title="[bold green]Authenticated[/bold green]",
+                expand=False,
+                border_style="green",
+            )
         )
-        name = identity_data.get("name") or "Not set"
-        _helpers.console.print(f"Name: {name}")
-        _helpers.console.print(f"URL: {identity_data.get('resource_url')}")
     except VinylkitError as e:
         _helpers.console.print(f"[bold red]Failed to get identity:[/bold red] {e}")
