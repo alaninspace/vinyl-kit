@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import click
+import rich_click as click
 
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import VinylkitError
@@ -18,10 +18,17 @@ if TYPE_CHECKING:
 
 @click.group()
 def collection() -> None:
-    """Manage your Discogs collection."""
+    """Manage your Discogs collection (download).
+
+    Export your Discogs collection data to a local CSV file
+    for offline browsing or analysis.
+    """
 
 
-@collection.command(name="download")
+_DOWNLOAD_EPILOG = "[bold]Examples:[/bold]\n\n  vinylkit collection download"
+
+
+@collection.command(name="download", epilog=_DOWNLOAD_EPILOG)
 @click.pass_obj
 def collection_download(config: AppConfig) -> None:
     """Download your Discogs collection to a CSV file."""

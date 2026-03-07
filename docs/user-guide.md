@@ -29,6 +29,21 @@ A comprehensive guide to managing your digitized vinyl collection with VinylKit.
 > [!TIP]
 > For a collection of real-world scenarios and command combinations using electronic music examples, see the **[Examples Guide](examples.md)**.
 
+## Getting Help
+
+Every command supports `-h` (or `--help`) to display detailed usage information, including available options and real-world examples:
+
+```bash
+vinylkit -h                # Overview, quick-start steps, command tree
+vinylkit tag -h            # Tag options grouped by purpose, with examples
+vinylkit config set -h     # Lists all valid configuration keys
+vinylkit cache clear -h    # Shows examples for cache management
+```
+
+Options are organised into logical groups (e.g. "Release Identification", "Output Control") so you can quickly find what you need.
+
+---
+
 ## 1. Introduction
 
 VinylKit is designed to bridge the gap between high-quality vinyl digitizations and organized digital music libraries. By leveraging the Discogs API, it automates the tedious process of tagging files with accurate metadata, downloading artwork, and organizing them into a clean folder structure.

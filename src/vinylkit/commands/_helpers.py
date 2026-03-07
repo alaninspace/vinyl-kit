@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import click
+import rich_click as click
 from loguru import logger
 from rich.console import Console
 

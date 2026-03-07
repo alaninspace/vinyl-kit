@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import click
+import rich_click as click
 from rich.table import Table
 
 from vinylkit import __version__
@@ -26,7 +26,12 @@ if TYPE_CHECKING:
 
 @click.group(name="config")
 def config_group() -> None:
-    """Manage configuration settings."""
+    """Manage configuration (show, set).
+
+    View your current settings with 'config show' or update
+    individual values with 'config set KEY VALUE'.  Run
+    'config set -h' to see all valid keys.
+    """
 
 
 @config_group.command(name="show")
@@ -230,7 +235,22 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
 }
 
 
-@config_group.command(name="set")
+def _build_config_set_epilog() -> str:
+    """Build epilog listing valid keys from _CONFIG_CONVERTERS."""
+    keys = ", ".join(sorted(_CONFIG_CONVERTERS))
+    return (
+        "[bold]Valid keys:[/bold]"
+        f"\n\n  {keys}"
+        "\n\n[bold]Examples:[/bold]"
+        "\n\n  vinylkit config set library_root /music/vinyl"
+        "\n\n  vinylkit config set tag_mode merge"
+        "\n\n  vinylkit config set skip_tags 'genre,style'"
+        "\n\n  vinylkit config set naming_pattern"
+        " '{artist}/{album}/{title}'"
+    )
+
+
+@config_group.command(name="set", epilog=_build_config_set_epilog())
 @click.argument("key")
 @click.argument("value")
 @click.pass_obj

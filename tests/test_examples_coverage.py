@@ -652,3 +652,27 @@ def test_ex_10_2_migration_with_delete(runner, tmp_path, mock_discogs, mocker):
     )
     assert result.exit_code == 0
     assert not album_dir.exists()
+
+
+## 12. Getting Help Examples
+
+
+def test_ex_12_1_root_help(runner) -> None:
+    """Covers: vinylkit -h"""
+    result = runner.invoke(cli, ["-h"])
+    assert result.exit_code == 0
+    assert "VinylKit" in result.output
+
+
+def test_ex_12_2_tag_help(runner) -> None:
+    """Covers: vinylkit tag -h"""
+    result = runner.invoke(cli, ["tag", "-h"])
+    assert result.exit_code == 0
+    assert "Release Identification" in result.output
+
+
+def test_ex_12_3_config_set_help(runner) -> None:
+    """Covers: vinylkit config set -h"""
+    result = runner.invoke(cli, ["config", "set", "-h"])
+    assert result.exit_code == 0
+    assert "library_root" in result.output

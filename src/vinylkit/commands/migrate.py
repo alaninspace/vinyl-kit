@@ -7,7 +7,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-import click
+import rich_click as click
 from loguru import logger
 
 from vinylkit.commands import _helpers
@@ -23,7 +23,16 @@ def _extract_id(folder_name: str) -> int | None:
     return None
 
 
-@click.command()
+_MIGRATE_EPILOG = (
+    "[bold]Examples:[/bold]"
+    "\n\n  vinylkit migrate /old/library /new/library --dry-run"
+    "\n\n  vinylkit migrate /old /new --delete"
+    "\n\n  vinylkit migrate /old /new --id 49135,37623"
+    "\n\n  vinylkit migrate /old /new --replace-tags --replace-artwork"
+)
+
+
+@click.command(epilog=_MIGRATE_EPILOG)
 @click.argument(
     "source",
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
@@ -71,7 +80,12 @@ def migrate(
     filter_ids: str | None,
     dry_run: bool,
 ) -> None:
-    """Migrate an existing library to the new structure."""
+    """Migrate an existing library to a new folder structure.
+
+    Extracts Discogs IDs from folder names (e.g. 'Album [12345]'),
+    fetches metadata, copies files to DESTINATION using the
+    naming_pattern template, and optionally re-tags them.
+    """
     do_delete = delete or config.delete_after_migration
     do_replace_art = (
         replace_artwork

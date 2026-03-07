@@ -12,6 +12,7 @@ dependencies = [
     "mutagen>=1.47.0",
     "platformdirs>=4.5.1",
     "rich>=14.3.2",
+    "rich-click>=1.8.0",
     "tomli-w>=1.2.0",
 ]
 

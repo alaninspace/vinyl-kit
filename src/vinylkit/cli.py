@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import click
+import rich_click as click
 from loguru import logger
 from platformdirs import user_log_dir
 
@@ -30,6 +30,74 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from vinylkit.models import AppConfig
+
+# ── rich-click configuration ──────────────────────────────────────────
+click.rich_click.TEXT_MARKUP = "rich"
+click.rich_click.SHOW_ARGUMENTS = True
+click.rich_click.GROUP_ARGUMENTS_OPTIONS = True
+click.rich_click.STYLE_ERRORS_SUGGESTION = "bold italic"
+click.rich_click.ERRORS_SUGGESTION = "Try the -h flag for more information."
+
+click.rich_click.COMMAND_GROUPS = {
+    "vinylkit": [
+        {
+            "name": "Core Commands",
+            "commands": ["scan", "tag", "rename", "migrate"],
+        },
+        {
+            "name": "Administration",
+            "commands": [
+                "auth",
+                "collection",
+                "config",
+                "cache",
+            ],
+        },
+    ],
+}
+
+click.rich_click.OPTION_GROUPS = {
+    "vinylkit tag": [
+        {
+            "name": "Release Identification",
+            "options": [
+                "--id",
+                "--search",
+                "--artist",
+                "--album",
+                "--format",
+            ],
+        },
+        {
+            "name": "Output Control",
+            "options": [
+                "--dry-run",
+                "--no-artwork",
+                "--merge",
+                "--rename",
+                "--no-rename",
+            ],
+        },
+        {
+            "name": "File Movement",
+            "options": ["--auto-move", "--library-root"],
+        },
+    ],
+    "vinylkit migrate": [
+        {
+            "name": "Migration Behavior",
+            "options": [
+                "--delete",
+                "--replace-artwork",
+                "--replace-tags",
+            ],
+        },
+        {
+            "name": "Filtering & Preview",
+            "options": ["--id", "--dry-run"],
+        },
+    ],
+}
 
 
 class _InterceptHandler(logging.Handler):
@@ -91,7 +159,30 @@ def initialise_logging(config: AppConfig) -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
-@click.group()
+_CLI_EPILOG = (
+    "[bold]Quick start:[/bold]"
+    "\n\n  1. vinylkit config set library_root /path/to/music"
+    "\n\n  2. vinylkit auth login"
+    "\n\n  3. vinylkit tag --id <DISCOGS_ID> ./recordings"
+    "\n\n[bold]Examples:[/bold]"
+    "\n\n  vinylkit tag --id 19983 ./recordings"
+    "\n\n  vinylkit tag --artist 'Faithless' --album 'Insomnia'"
+    "\n\n  vinylkit config set library_root /music/vinyl"
+    "\n\n  vinylkit config set skip_tags 'genre,style'"
+    "\n\n  vinylkit cache clear --yes"
+    "\n\nUse [bold]-h[/bold] on any command for"
+    " full details and more examples."
+)
+
+
+@click.group(
+    name="vinylkit",
+    epilog=_CLI_EPILOG,
+    context_settings={
+        "help_option_names": ["-h", "--help"],
+        "max_content_width": 100,
+    },
+)
 @click.version_option(version=__version__)
 @click.pass_context
 def cli(ctx: click.Context) -> None:
