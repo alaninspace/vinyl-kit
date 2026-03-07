@@ -84,7 +84,9 @@ def cache_list() -> None:
             count += 1
 
     _helpers.console.print(table)
-    _helpers.console.print(f"\n[bold]{count} cached release(s)[/bold]")
+    _helpers.console.print(
+        f"\n[bold]{count} cached release(s)[/bold] in [dim]{cache_dir}[/dim]"
+    )
 
 
 _CACHE_CLEAR_EPILOG = (
@@ -118,7 +120,7 @@ def cache_clear(release_id: int | None, yes: bool) -> None:
             return
         target.unlink()
         _helpers.console.print(
-            f"[green]Cleared cache for release {release_id}.[/green]"
+            f"[bold green]Cleared cache for release {release_id}.[/bold green]"
         )
         return
 
@@ -133,4 +135,6 @@ def cache_clear(release_id: int | None, yes: bool) -> None:
 
     for f in files:
         f.unlink()
-    _helpers.console.print(f"[green]Cleared {len(files)} cached release(s).[/green]")
+    _helpers.console.print(
+        f"[bold green]Cleared {len(files)} cached release(s).[/bold green]"
+    )
