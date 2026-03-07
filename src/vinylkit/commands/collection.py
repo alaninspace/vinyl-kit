@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import rich_click as click
+from rich.panel import Panel
 
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import VinylkitError
@@ -107,11 +108,16 @@ def collection_download(config: AppConfig) -> None:
                     ]
                 )
 
+        _helpers.console.print()
         _helpers.console.print(
-            "[bold green]Success![/bold green]"
-            f" Collection saved to [cyan]{filename}[/cyan]"
+            Panel(
+                f"Collection saved to [cyan]{filename}[/cyan]"
+                f"\nTotal releases: [bold]{len(releases)}[/bold]",
+                title="[bold green]Success![/bold green]",
+                expand=False,
+                border_style="green",
+            )
         )
-        _helpers.console.print(f"Total releases: {len(releases)}")
 
     except (VinylkitError, OSError) as e:
         _helpers.console.print(
