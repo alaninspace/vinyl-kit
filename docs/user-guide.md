@@ -94,8 +94,22 @@ The primary command for applying metadata to your files.
   - `--dry-run`: Preview changes without writing tags or moving files.
   - `--no-artwork`: Skip downloading and embedding artwork.
   - `--rename / --no-rename`: Enable or disable the move-to-library step. (Defaults to true if using `recordings_root`).
+  - `--batch`: Batch mode — iterate immediate subfolders, extract Discogs IDs
+    from folder names, and tag each automatically. Incompatible with `--id`,
+    `--search`, `--artist`, `--album`, `--format`.
+  - `--no-move`: Rename files in place but skip moving them to the library.
+    Mutually exclusive with `--auto-move`.
   - `--merge`: Preserve existing tags that aren't overwritten by Discogs.
   - `--library-root <PATH>`: Temporary override for the library destination.
+
+#### Batch Mode Quick Reference
+
+| Command | Tag | Rename | Move to library |
+|---------|-----|--------|-----------------|
+| `--batch --no-rename` | yes | no | no |
+| `--batch --no-move` | yes | yes | no |
+| `--batch` | yes | yes | prompted (auto if `auto_move` config is `true`) |
+| `--batch --auto-move` | yes | yes | yes (override, no prompt) |
 
 ### `rename`
 

@@ -7,6 +7,7 @@ Command modules access mockable external dependencies through this module
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 import rich_click as click
@@ -45,6 +46,7 @@ __all__ = [
     "calculate_track_and_disc",
     "clear_audio_tags",
     "describe_throttle_strategy",
+    "extract_id",
     "generate_path",
     "get_cache_dir",
     "get_track_number",
@@ -76,6 +78,21 @@ def get_client(config: AppConfig) -> DiscogsClient:
         cache_enabled=config.cache_enabled,
         auth_mode=config.auth_mode.value,
     )
+
+
+def extract_id(folder_name: str) -> int | None:
+    """Extract Discogs ID from a folder name.
+
+    Supports two patterns:
+    - Bracket suffix: ``Artist - Album [12345]`` -> ``12345``
+    - Bare numeric: ``67890`` -> ``67890``
+    """
+    match = re.search(r"\[(\d+)\]$", folder_name)
+    if match:
+        return int(match.group(1)) or None
+    if folder_name.strip().isdigit():
+        return int(folder_name.strip()) or None
+    return None
 
 
 def collect_audio_files(path: Path) -> list[Path]:

@@ -171,6 +171,20 @@ vinylkit tag ~/Downloads/vinyl-rip --id 56903 --rename
 vinylkit tag "C:\Some\Other\Folder" --id 56903 --rename
 ```
 
+### Scenario: Batch tagging multiple releases
+
+Name your folders with the Discogs ID in brackets, then tag them all at once:
+
+```bash
+# Bash / PowerShell
+
+# Tag, rename, and move to library
+vinylkit tag --batch --auto-move
+
+# Tag and rename in place (don't move to library)
+vinylkit tag --batch --no-move
+```
+
 ---
 
 ## Available Commands

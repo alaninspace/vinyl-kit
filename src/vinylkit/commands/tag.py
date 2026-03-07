@@ -73,6 +73,8 @@ _TAG_EPILOG = (
     "\n\n  vinylkit tag --id 53088 --rename --auto-move"
     "\n\n  vinylkit tag --id 28203 --merge --no-artwork"
     "\n\n  vinylkit tag --dry-run --id 6108 ./vinyl-rips"
+    "\n\n  vinylkit tag --batch --auto-move"
+    "\n\n  vinylkit tag --batch --no-move"
 )
 
 
@@ -120,6 +122,19 @@ _TAG_EPILOG = (
     is_flag=True,
     help="Preserve existing tags (default is to clear and replace).",
 )
+@click.option(
+    "--batch",
+    is_flag=True,
+    help=(
+        "Batch mode: iterate subfolders, extract Discogs"
+        " IDs from folder names, and tag each automatically."
+    ),
+)
+@click.option(
+    "--no-move",
+    is_flag=True,
+    help="Rename files in place but skip moving them to the library.",
+)
 @click.pass_obj
 def tag(
     config: AppConfig,
@@ -135,6 +150,8 @@ def tag(
     do_rename: bool | None,
     lib_root_override: Path | None,
     merge: bool,
+    batch: bool,
+    no_move: bool,
 ) -> None:
     """Tag audio files in folders using metadata from Discogs.
 
@@ -144,6 +161,15 @@ def tag(
     """
     lib_root = lib_root_override or config.library_root
     tag_mode = TagMode.MERGE if merge else config.tag_mode
+
+    if batch and (release_id or query or artist or album or fmt_filter):
+        raise click.UsageError(
+            "--batch cannot be combined with"
+            " --id, --search, --artist, --album, or --format."
+        )
+
+    if no_move and auto_move:
+        raise click.UsageError("--no-move and --auto-move are mutually exclusive.")
 
     # Handle multiple formats
     if fmt_filter:
@@ -162,8 +188,24 @@ def tag(
                 "No PATH provided and 'recordings_root' is not configured."
             )
 
+    if no_move and do_rename is None:
+        do_rename = True
     if do_rename is None:
         do_rename = False
+
+    if batch:
+        _batch_tag(
+            paths,
+            config,
+            tag_mode,
+            lib_root,
+            dry_run=dry_run,
+            no_artwork=no_artwork,
+            do_rename=do_rename,
+            auto_move=auto_move,
+            no_move=no_move,
+        )
+        return
 
     if not release_id and not query and not artist and not album and len(paths) > 1:
         _helpers.console.print(
@@ -205,12 +247,100 @@ def tag(
                 no_artwork=no_artwork,
                 do_rename=do_rename,
                 auto_move=auto_move,
+                no_move=no_move,
             )
 
         except VinylkitError as e:
             _helpers.console.print(
                 f"[bold red]Tagging failed for {path.name}:[/bold red] {e}"
             )
+
+
+def _batch_tag(
+    paths: tuple[Path, ...],
+    config: AppConfig,
+    tag_mode: TagMode,
+    lib_root: Path,
+    *,
+    dry_run: bool,
+    no_artwork: bool,
+    do_rename: bool,
+    auto_move: bool,
+    no_move: bool,
+) -> None:
+    """Iterate subfolders, extract Discogs IDs, and tag each."""
+    client: _helpers.DiscogsClient | None = None
+    succeeded = 0
+    failed = 0
+    skipped = 0
+
+    for parent in paths:
+        subfolders = sorted(f for f in parent.iterdir() if f.is_dir())
+        for folder in subfolders:
+            rid = _helpers.extract_id(folder.name)
+            if rid is None:
+                _helpers.console.print(
+                    f"[yellow]Skipping {folder.name}:"
+                    " no Discogs ID found in"
+                    " folder name.[/yellow]"
+                )
+                skipped += 1
+                continue
+
+            _helpers.console.print(
+                f"\n[bold blue]Batch:[/bold blue] {folder.name} (ID {rid})"
+            )
+
+            try:
+                if client is None:
+                    client = _helpers.get_client(config)
+                release = client.get_release(rid)
+                audio_files = _helpers.collect_audio_files(folder)
+                num_files = len(audio_files)
+                num_tracks = len(release.tracklist)
+
+                if num_files != num_tracks:
+                    artist_str = ", ".join(release.artists)
+                    _helpers.console.print(
+                        f"[bold red]Skipping {folder.name}:[/bold red]"
+                        f"\n  Found {num_files} audio file(s) but Discogs"
+                        f' release "{artist_str} - {release.title}"'
+                        f" has {num_tracks} track(s)."
+                        " Fix the folder contents and retry."
+                    )
+                    skipped += 1
+                    continue
+
+                _tag_folder(
+                    client,
+                    folder,
+                    rid,
+                    config,
+                    tag_mode,
+                    lib_root,
+                    dry_run=dry_run,
+                    no_artwork=no_artwork,
+                    do_rename=do_rename,
+                    auto_move=auto_move,
+                    no_move=no_move,
+                    rename_folder=True,
+                    release=release,
+                )
+                succeeded += 1
+            except (VinylkitError, OSError) as e:
+                _helpers.console.print(
+                    f"[bold red]Failed {folder.name}:[/bold red] {e}"
+                )
+                failed += 1
+
+    total = succeeded + failed + skipped
+    _helpers.console.print(
+        f"\n[bold]Batch complete:[/bold]"
+        f" {succeeded} succeeded,"
+        f" {failed} failed,"
+        f" {skipped} skipped"
+        f" ({total} total)"
+    )
 
 
 def _search_loop(
@@ -372,11 +502,15 @@ def _tag_folder(
     no_artwork: bool,
     do_rename: bool,
     auto_move: bool,
+    no_move: bool = False,
+    rename_folder: bool = False,
+    release: DiscogsRelease | None = None,
 ) -> None:
     """Fetch a release, tag files in *path*, and optionally rename."""
     from loguru import logger
 
-    release = client.get_release(release_id)
+    if release is None:
+        release = client.get_release(release_id)
     artist_str = ", ".join(release.artists)
     logger.info(
         "=== Release: {} - {} (ID: {}) ===",
@@ -484,6 +618,8 @@ def _tag_folder(
                     config,
                     lib_root,
                     auto_move=auto_move,
+                    no_move=no_move,
+                    rename_folder=rename_folder,
                 )
             except VinylkitError as e:
                 _helpers.console.print(
@@ -502,6 +638,8 @@ def _rename_after_tag(
     lib_root: Path,
     *,
     auto_move: bool,
+    no_move: bool = False,
+    rename_folder: bool = False,
 ) -> None:
     """Rename/move files after tagging.
 
@@ -512,6 +650,11 @@ def _rename_after_tag(
        correct names, even if the subsequent move fails.
     2. **Move to library** — renamed files (and supplementary files
        like artwork / release info) are moved to *lib_root*.
+       Skipped when *no_move* is ``True``.
+
+    When *no_move* is ``True`` and *rename_folder* is ``True``
+    (batch mode), the source folder is renamed.  Otherwise a new
+    subfolder is created inside *path* and files are moved there.
     """
     _helpers.console.print(f"\n[bold blue]Renaming files in {path.name}...[/bold blue]")
 
@@ -528,23 +671,6 @@ def _rename_after_tag(
         audio_moves.append((source, target))
         rel = _helpers.display_relative(target, lib_root)
         _helpers.console.print(f"[cyan]{source.name}[/cyan] -> [green]{rel}[/green]")
-
-    # moves includes audio + supplementary files (appended below)
-    moves: list[tuple[Path, Path]] = list(audio_moves)
-    target_dir = moves[0][1].parent if moves else path
-    dir_moves = _helpers.plan_supplementary_moves(
-        path, target_dir, lib_root, config, moves
-    )
-
-    if not (
-        auto_move or config.auto_move or click.confirm("\nProceed with moving files?")
-    ):
-        _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
-        return
-
-    if not _helpers.check_collisions(moves, dir_moves):
-        _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
-        return
 
     # Phase 1: Rename audio files in-place so they have correct
     # names even if the cross-drive move in Phase 2 fails.
@@ -566,6 +692,87 @@ def _rename_after_tag(
         if src != local_dst:
             _helpers.move_file(src, local_dst, dry_run=False)
         renamed.append((local_dst, dst))
+
+    if no_move:
+        if not audio_moves:
+            return
+        # Full relative dir from naming pattern (e.g. Artist/2000 - Album)
+        relative_dir = audio_moves[0][1].relative_to(lib_root).parent
+        if rename_folder:
+            # Batch mode: build structure alongside the source folder.
+            new_folder = path.parent / relative_dir
+            new_folder.mkdir(parents=True, exist_ok=True)
+            for local_src, _dst in renamed:
+                target = new_folder / local_src.name
+                if local_src != target:
+                    _helpers.move_file(local_src, target, dry_run=False)
+            # Move supplementary files into new structure.
+            for name in (
+                config.info_filename,
+                config.artwork_filename,
+            ):
+                src_file = path / name
+                if src_file.exists():
+                    _helpers.move_file(src_file, new_folder / name, dry_run=False)
+            art_subdir = path / config.artwork_subdir
+            if art_subdir.exists() and art_subdir.is_dir():
+                _helpers.move_directory(
+                    art_subdir,
+                    new_folder / config.artwork_subdir,
+                    dry_run=False,
+                )
+            # Remove empty original folder.
+            if path != new_folder and not any(path.iterdir()):
+                path.rmdir()
+            display = str(relative_dir).replace("\\", "/")
+            _helpers.console.print(
+                f"\n[bold green]Files renamed into {display}.[/bold green]"
+            )
+        else:
+            # Single release: create full structure inside path.
+            subfolder = path / relative_dir
+            subfolder.mkdir(parents=True, exist_ok=True)
+            for local_src, _dst in renamed:
+                target = subfolder / local_src.name
+                if local_src != target:
+                    _helpers.move_file(local_src, target, dry_run=False)
+            # Move supplementary files into subfolder.
+            for name in (
+                config.info_filename,
+                config.artwork_filename,
+            ):
+                src_file = path / name
+                if src_file.exists():
+                    _helpers.move_file(src_file, subfolder / name, dry_run=False)
+            art_subdir = path / config.artwork_subdir
+            if art_subdir.exists() and art_subdir.is_dir():
+                _helpers.move_directory(
+                    art_subdir,
+                    subfolder / config.artwork_subdir,
+                    dry_run=False,
+                )
+            display = str(relative_dir).replace("\\", "/")
+            _helpers.console.print(
+                f"\n[bold green]Files organized into {display}.[/bold green]"
+            )
+        return
+
+    # moves includes audio + supplementary files (appended below)
+    moves: list[tuple[Path, Path]] = list(audio_moves)
+    target_dir = moves[0][1].parent if moves else path
+    dir_moves = _helpers.plan_supplementary_moves(
+        path, target_dir, lib_root, config, moves
+    )
+
+    if not (
+        auto_move or config.auto_move or click.confirm("\nProceed with moving files?")
+    ):
+        _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
+        return
+
+    if not _helpers.check_collisions(moves, dir_moves):
+        _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
+        return
 
     # Supplementary file moves (info, artwork) appended by
     # plan_supplementary_moves — they already have correct names.

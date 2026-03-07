@@ -495,3 +495,28 @@ def test_migrate_id_filter_skips_no_embedded_id(runner, tmp_path, mock_discogs):
 
     assert "Skipping No ID Here (no embedded ID)" in result.output
     assert "Enter Discogs ID" not in result.output
+
+
+def test_migrate_bare_numeric_folder(runner, tmp_path, mock_discogs, mocker):
+    """Bare numeric folder names are recognized as Discogs IDs."""
+    source = tmp_path / "source"
+    source.mkdir()
+    album_dir = source / "67890"
+    album_dir.mkdir()
+    (album_dir / "01.mp3").write_text("audio")
+
+    dest = tmp_path / "dest"
+
+    mock_discogs.get_release.return_value = create_mock_release(
+        67890, "Artist", "Album"
+    )
+    mocker.patch(
+        "vinylkit.commands._helpers.get_track_number",
+        return_value="A1",
+    )
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)])
+
+    assert result.exit_code == 0
+    assert "Migrated: 67890" in result.output
+    mock_discogs.get_release.assert_called_once_with(67890)

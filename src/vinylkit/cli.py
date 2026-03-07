@@ -59,6 +59,10 @@ click.rich_click.COMMAND_GROUPS = {
 click.rich_click.OPTION_GROUPS = {
     "vinylkit tag": [
         {
+            "name": "Processing Mode",
+            "options": ["--batch"],
+        },
+        {
             "name": "Release Identification",
             "options": [
                 "--id",
@@ -80,7 +84,7 @@ click.rich_click.OPTION_GROUPS = {
         },
         {
             "name": "File Movement",
-            "options": ["--auto-move", "--library-root"],
+            "options": ["--auto-move", "--no-move", "--library-root"],
         },
     ],
     "vinylkit migrate": [

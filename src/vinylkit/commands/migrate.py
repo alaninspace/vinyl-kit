@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -13,15 +12,6 @@ from loguru import logger
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import VinylkitError
 from vinylkit.models import AppConfig, DiscogsRelease, ImageHandling, TagMode
-
-
-def _extract_id(folder_name: str) -> int | None:
-    """Extract Discogs ID from folder name pattern like '... [12345]'."""
-    match = re.search(r"\[(\d+)\]$", folder_name)
-    if match:
-        return int(match.group(1))
-    return None
-
 
 _MIGRATE_EPILOG = (
     "[bold]Examples:[/bold]"
@@ -82,9 +72,10 @@ def migrate(
 ) -> None:
     """Migrate an existing library to a new folder structure.
 
-    Extracts Discogs IDs from folder names (e.g. 'Album [12345]'),
-    fetches metadata, copies files to DESTINATION using the
-    naming_pattern template, and optionally re-tags them.
+    Extracts Discogs IDs from folder names (e.g. 'Album [12345]' or
+    bare numeric names like '67890'), fetches metadata, copies files
+    to DESTINATION using the naming_pattern template, and optionally
+    re-tags them.
     """
     do_delete = delete or config.delete_after_migration
     do_replace_art = (
@@ -145,7 +136,7 @@ def migrate(
 
         processed.add(folder.name)
         completed += 1
-        rid = _extract_id(folder.name)
+        rid = _helpers.extract_id(folder.name)
 
         if target_ids and (rid is None or rid not in target_ids):
             reason = (

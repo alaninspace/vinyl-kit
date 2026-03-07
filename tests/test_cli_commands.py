@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003
 
+import pytest
 from click.testing import CliRunner  # noqa: TC002
 from conftest import create_mock_release
 
@@ -241,3 +242,283 @@ class TestTagQuitBehavior:
 
         assert result.exit_code == 0
         assert "Aborting tag session" in result.output
+
+
+# ---------------------------------------------------------------------------
+# batch tag
+# ---------------------------------------------------------------------------
+
+
+class TestBatchTag:
+    @staticmethod
+    def _suppress_moves(mocker):
+        """Suppress file movement (mock_discogs doesn't patch these)."""
+        mocker.patch("vinylkit.commands._helpers.move_file")
+        mocker.patch("vinylkit.commands._helpers.move_directory")
+
+    def test_batch_extracts_ids_from_bracket_folders(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        self._suppress_moves(mocker)
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+        f1 = parent / "Artist A [111]"
+        f1.mkdir()
+        (f1 / "01.mp3").write_text("a")
+        f2 = parent / "Artist B [222]"
+        f2.mkdir()
+        (f2 / "01.mp3").write_text("a")
+
+        r1 = create_mock_release(111, "A", "T")
+        r2 = create_mock_release(222, "B", "T")
+        mock_discogs.get_release.side_effect = [r1, r2]
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--batch", "--auto-move"],
+        )
+        assert result.exit_code == 0
+        assert "2 succeeded" in result.output
+
+    def test_batch_extracts_bare_numeric_folders(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        self._suppress_moves(mocker)
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+        f1 = parent / "99999"
+        f1.mkdir()
+        (f1 / "01.mp3").write_text("a")
+
+        mock_discogs.get_release.return_value = create_mock_release(99999, "X", "Y")
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--batch", "--auto-move"],
+        )
+        assert result.exit_code == 0
+        assert "1 succeeded" in result.output
+
+    @pytest.mark.usefixtures("mock_discogs")
+    def test_batch_skips_folders_without_id(self, runner, tmp_path, mocker) -> None:
+        self._suppress_moves(mocker)
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+        f1 = parent / "No ID Here"
+        f1.mkdir()
+        (f1 / "01.mp3").write_text("a")
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--batch"],
+        )
+        assert result.exit_code == 0
+        assert "1 skipped" in result.output
+        assert "no Discogs ID" in result.output
+
+    def test_batch_incompatible_with_id(self, runner, tmp_path) -> None:
+        result = runner.invoke(
+            cli,
+            ["tag", str(tmp_path), "--batch", "--id", "123"],
+        )
+        assert result.exit_code != 0
+        assert "--batch cannot be combined" in result.output
+
+    def test_batch_incompatible_with_search(self, runner, tmp_path) -> None:
+        result = runner.invoke(
+            cli,
+            ["tag", str(tmp_path), "--batch", "--search", "foo"],
+        )
+        assert result.exit_code != 0
+        assert "--batch cannot be combined" in result.output
+
+    def test_batch_incompatible_with_format(self, runner, tmp_path) -> None:
+        result = runner.invoke(
+            cli,
+            ["tag", str(tmp_path), "--batch", "--format", "Vinyl"],
+        )
+        assert result.exit_code != 0
+        assert "--batch cannot be combined" in result.output
+
+    def test_batch_continues_after_failure(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        from vinylkit.exceptions import DiscogsAPIError
+
+        self._suppress_moves(mocker)
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+        f1 = parent / "Album A [111]"
+        f1.mkdir()
+        (f1 / "01.mp3").write_text("a")
+        f2 = parent / "Album B [222]"
+        f2.mkdir()
+        (f2 / "01.mp3").write_text("a")
+
+        r2 = create_mock_release(222, "B", "T")
+        mock_discogs.get_release.side_effect = [
+            DiscogsAPIError("API error"),
+            r2,
+        ]
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--batch", "--auto-move"],
+        )
+        assert result.exit_code == 0
+        assert "1 succeeded" in result.output
+        assert "1 failed" in result.output
+
+    def test_batch_continues_after_oserror(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        self._suppress_moves(mocker)
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+        f1 = parent / "Album A [111]"
+        f1.mkdir()
+        (f1 / "01.mp3").write_text("a")
+        f2 = parent / "Album B [222]"
+        f2.mkdir()
+        (f2 / "01.mp3").write_text("a")
+
+        r1 = create_mock_release(111, "A", "T")
+        r2 = create_mock_release(222, "B", "T")
+        mock_discogs.get_release.side_effect = [r1, r2]
+        mocker.patch(
+            "vinylkit.commands._helpers.tag_audio_file",
+            side_effect=[PermissionError("denied"), mocker.DEFAULT],
+        )
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--batch", "--auto-move"],
+        )
+        assert result.exit_code == 0
+        assert "1 failed" in result.output
+        assert "1 succeeded" in result.output
+
+    def test_batch_respects_dry_run(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        self._suppress_moves(mocker)
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+        f1 = parent / "Album [555]"
+        f1.mkdir()
+        (f1 / "01.mp3").write_text("a")
+
+        mock_discogs.get_release.return_value = create_mock_release(555, "A", "T")
+        spy = mocker.patch(
+            "vinylkit.commands._helpers.tag_audio_file",
+        )
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--batch", "--dry-run"],
+        )
+        assert result.exit_code == 0
+        assert "Dry-run complete" in result.output
+        assert spy.call_args[1]["dry_run"] is True
+
+    def test_batch_respects_no_rename(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        self._suppress_moves(mocker)
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+        f1 = parent / "Album [888]"
+        f1.mkdir()
+        (f1 / "01.mp3").write_text("a")
+
+        mock_discogs.get_release.return_value = create_mock_release(888, "A", "T")
+        spy_move = mocker.patch(
+            "vinylkit.commands._helpers.move_file",
+        )
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--batch", "--no-rename"],
+        )
+        assert result.exit_code == 0
+        assert "1 succeeded" in result.output
+        spy_move.assert_not_called()
+
+    def test_batch_skips_track_count_mismatch(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        from vinylkit.models import TrackInfo
+
+        self._suppress_moves(mocker)
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+        f1 = parent / "Album [777]"
+        f1.mkdir()
+        (f1 / "01.mp3").write_text("a")
+        (f1 / "02.mp3").write_text("a")
+
+        tracks = [TrackInfo(position=f"A{i}", title=f"T{i}") for i in range(1, 11)]
+        mock_discogs.get_release.return_value = create_mock_release(
+            777, "A", "T", tracklist=tracks
+        )
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--batch", "--auto-move"],
+        )
+        assert result.exit_code == 0
+        assert "1 skipped" in result.output
+        assert "2 audio file(s)" in result.output
+        assert "10 track(s)" in result.output
+
+    def test_batch_no_move_renames_in_place(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        self._suppress_moves(mocker)
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+        f1 = parent / "Album [444]"
+        f1.mkdir()
+        (f1 / "01.mp3").write_text("a")
+
+        mock_discogs.get_release.return_value = create_mock_release(444, "A", "T")
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--batch", "--no-move"],
+        )
+        assert result.exit_code == 0
+        assert "1 succeeded" in result.output
+        # Batch mode uses full naming pattern structure
+        assert "renamed into" in result.output
+        assert "A/2000 - T" in result.output
+
+    def test_single_no_move_creates_subfolder(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        """Single-release --no-move creates a subfolder, not rename parent."""
+        self._suppress_moves(mocker)
+        folder = tmp_path / "my-rips"
+        folder.mkdir()
+        (folder / "01.mp3").write_text("a")
+
+        mock_discogs.get_release.return_value = create_mock_release(165, "A", "T")
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(folder), "--id", "165", "--no-move"],
+        )
+        assert result.exit_code == 0
+        # Should create full naming pattern structure inside path
+        assert "organized into" in result.output
+        assert "A/2000 - T" in result.output
+        # Parent folder should NOT be renamed
+        assert folder.exists()
+
+    def test_no_move_incompatible_with_auto_move(self, runner, tmp_path) -> None:
+        result = runner.invoke(
+            cli,
+            ["tag", str(tmp_path), "--no-move", "--auto-move"],
+        )
+        assert result.exit_code != 0
+        assert "mutually exclusive" in result.output

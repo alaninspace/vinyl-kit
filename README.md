@@ -10,7 +10,7 @@ VinylKit is a cross-platform CLI tool for managing digitized vinyl record audio 
 - **Vinyl-Specific Metadata**: Preserves vinyl-specific info like side (A/B) and position (A1, B2).
 - **Metadata Export**: Automatically creates a `release_info.txt` file in every tagged album folder with all the discogs release info.
 - **Safe Operations**: Optional dry-runs, filename sanitization, and atomic file moves.
-- **Batch Processing**: Tag or rename multiple folders in one go.
+- **Batch Processing**: Use `--batch` to automatically tag multiple folders, extracting Discogs IDs from folder names.
 - **Artwork Management**: Embed album art directly into audio files (retrieved from Discogs).
 - **Flexible Organization**: Use customizable naming templates to organize your library.
 - **Collection Export**: Download your entire Discogs collection to a local CSV file.

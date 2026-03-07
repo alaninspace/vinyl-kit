@@ -145,9 +145,9 @@ All modules use `import rich_click as click` instead of `import click`. This is 
 | Module | Responsibility |
 | --- | --- |
 | `cli.py` | Root Click group, `initialise_logging()`, `main()` entry point. Registers commands from `commands/` subpackage |
-| `commands/_helpers.py` | Shared helpers (`collect_audio_files`, `display_relative`, `plan_supplementary_moves`, `check_collisions`, `download_artwork`, `save_release_files`), re-exported deps for single-point mocking |
-| `commands/tag.py` | `scan`, `tag`, `rename` commands |
-| `commands/migrate.py` | `migrate` command, `_extract_id` helper |
+| `commands/_helpers.py` | Shared helpers (`collect_audio_files`, `extract_id`, `display_relative`, `plan_supplementary_moves`, `check_collisions`, `download_artwork`, `save_release_files`), re-exported deps for single-point mocking |
+| `commands/tag.py` | `scan`, `tag` (incl. batch folder iteration), `rename` commands |
+| `commands/migrate.py` | `migrate` command |
 | `commands/auth.py` | `auth` group with `login`, `identity` |
 | `commands/collection.py` | `collection` group with `download` |
 | `commands/config_cmd.py` | `config` group with `show`, `set`, `_CONFIG_CONVERTERS` dict |

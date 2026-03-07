@@ -54,10 +54,28 @@ The "Inbox" folder where you put fresh vinyl rips. If set, commands like `scan` 
 
 ### `auto_move`
 
-Automatically move files to your library after successful tagging and renaming without asking for confirmation.
+Automatically move files to your library after successful tagging and renaming without asking for confirmation. Works well with `--batch` for fully hands-free processing. When this config setting is `true`, the `--auto-move` CLI flag is not needed.
 
 - **Default:** `false`
 - **Example:** `vinylkit config set auto_move true`
+- **With batch:** `vinylkit tag --batch --auto-move`
+- **Rename only:** `vinylkit tag --batch --no-move` (tag and rename in place, skip library move)
+
+### `--batch` (CLI flag)
+
+Batch mode for the `tag` command. Iterates subfolders of the given path, extracts Discogs IDs from folder names (bracket suffix like `Album [12345]` or bare numeric like `67890`), and tags each folder automatically. Cannot be combined with `--id`, `--search`, `--artist`, `--album`, or `--format`.
+
+- **Type:** Flag (no value)
+- **Example:** `vinylkit tag --batch --auto-move`
+- **With dry-run:** `vinylkit tag --batch --dry-run`
+
+### `--no-move` (CLI flag)
+
+Rename files in place using the naming pattern but skip moving them to the library root. Mutually exclusive with `--auto-move`. When used without `--batch`, creates a subfolder structure inside the source folder. When used with `--batch`, renames each subfolder to match the naming pattern.
+
+- **Type:** Flag (no value)
+- **Example:** `vinylkit tag --batch --no-move`
+- **Single release:** `vinylkit tag --id 19983 --no-move`
 
 ---
 

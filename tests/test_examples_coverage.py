@@ -255,7 +255,90 @@ def test_ex_4_4_batch_processing(runner, tmp_path, mock_discogs):
     assert result.output.count("Processing folder:") == 2
 
 
-## 4b. Tag Flags: --no-artwork, --no-rename
+## 4b. Batch Mode Examples
+
+
+def test_ex_batch_auto_move(runner, tmp_path, mock_discogs, mocker):
+    """Covers: vinylkit tag --batch --auto-move"""
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    mocker.patch(
+        "vinylkit.cli.load_config",
+        return_value=AppConfig(library_root=tmp_path / "lib", recordings_root=inbox),
+    )
+    f1 = inbox / "Artist [12345]"
+    f1.mkdir()
+    (f1 / "01.mp3").write_text("audio")
+
+    mock_discogs.get_release.return_value = create_mock_release(
+        12345, "Artist", "Album"
+    )
+
+    result = runner.invoke(cli, ["tag", "--batch", "--auto-move"])
+    assert result.exit_code == 0
+    assert "1 succeeded" in result.output
+
+
+def test_ex_batch_explicit_path(runner, tmp_path, mock_discogs):
+    """Covers: vinylkit tag /path/to/inbox --batch --auto-move"""
+    parent = tmp_path / "inbox"
+    parent.mkdir()
+    f1 = parent / "Album [999]"
+    f1.mkdir()
+    (f1 / "01.mp3").write_text("audio")
+
+    mock_discogs.get_release.return_value = create_mock_release(999, "A", "T")
+
+    result = runner.invoke(
+        cli,
+        ["tag", str(parent), "--batch", "--auto-move"],
+    )
+    assert result.exit_code == 0
+    assert "1 succeeded" in result.output
+
+
+def test_ex_batch_dry_run(runner, tmp_path, mock_discogs, mocker):
+    """Covers: vinylkit tag --batch --dry-run"""
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    mocker.patch(
+        "vinylkit.cli.load_config",
+        return_value=AppConfig(library_root=tmp_path / "lib", recordings_root=inbox),
+    )
+    f1 = inbox / "Album [555]"
+    f1.mkdir()
+    (f1 / "01.mp3").write_text("audio")
+
+    mock_discogs.get_release.return_value = create_mock_release(555, "A", "T")
+    spy = mocker.patch("vinylkit.commands._helpers.tag_audio_file")
+
+    result = runner.invoke(cli, ["tag", "--batch", "--dry-run"])
+    assert result.exit_code == 0
+    assert "Dry-run complete" in result.output
+    assert spy.call_args[1]["dry_run"] is True
+
+
+def test_ex_batch_no_move(runner, tmp_path, mock_discogs, mocker):
+    """Covers: vinylkit tag --batch --no-move"""
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    mocker.patch(
+        "vinylkit.cli.load_config",
+        return_value=AppConfig(library_root=tmp_path / "lib", recordings_root=inbox),
+    )
+    f1 = inbox / "Album [333]"
+    f1.mkdir()
+    (f1 / "01.mp3").write_text("audio")
+
+    mock_discogs.get_release.return_value = create_mock_release(333, "A", "T")
+
+    result = runner.invoke(cli, ["tag", "--batch", "--no-move"])
+    assert result.exit_code == 0
+    assert "1 succeeded" in result.output
+    assert "renamed into" in result.output
+
+
+## 4c. Tag Flags: --no-artwork, --no-rename
 
 
 def test_ex_4_5_no_artwork(runner, tmp_path, mock_discogs, mocker):

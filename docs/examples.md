@@ -121,9 +121,31 @@ Always use `--dry-run` to see what tags will be written and where files will mov
 vinylkit tag --id 1480380 --rename --dry-run
 ```
 
-### Batch Processing
+### Batch Mode
 
-Tag multiple folders at once. You will be prompted for each one.
+Automatically tag all subfolders in your recordings inbox. Each folder
+name must contain a Discogs ID — either in brackets
+(e.g. `Artist - Album [12345]`) or as a bare number (e.g. `12345`).
+
+```bash
+# Bash / PowerShell
+
+# Tag + rename in place (no move to library)
+vinylkit tag --batch --no-move
+
+# Process all subfolders in recordings_root (uses config default)
+vinylkit tag --batch --auto-move
+
+# Process subfolders in a specific directory
+vinylkit tag /path/to/inbox --batch --auto-move
+
+# Preview batch processing without writing anything
+vinylkit tag --batch --dry-run
+```
+
+### Manual Batch (Per-Folder Prompts)
+
+Tag multiple explicit folders at once. You will be prompted for each one.
 
 **Bash:**
 

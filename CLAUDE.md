@@ -69,7 +69,7 @@ tests/
 | Command | Purpose |
 | --- | --- |
 | `scan [PATHS]` | Report audio files and their tag status |
-| `tag [PATHS]` | Tag audio files using Discogs metadata. Key flags: `--id`, `--search`, `--artist`, `--album`, `--format`, `--merge`, `--auto-move`, `--dry-run`, `--no-artwork`, `--rename/--no-rename`, `--library-root` |
+| `tag [PATHS]` | Tag audio files using Discogs metadata. Key flags: `--id`, `--search`, `--artist`, `--album`, `--format`, `--merge`, `--auto-move`, `--no-move`, `--dry-run`, `--no-artwork`, `--rename/--no-rename`, `--library-root`, `--batch` |
 | `rename [PATHS]` | Rename/move files using Discogs metadata. Key flags: `--id`, `--commit` (default is dry-run), `--library-root` |
 | `migrate SOURCE DEST` | Bulk migrate a tagged library to a new location. Key flags: `--delete`, `--replace-artwork`, `--replace-tags`, `--id` (filter by Discogs IDs), `--dry-run` |
 | `auth login` | Start OAuth 1.0a flow with Discogs |
@@ -112,9 +112,9 @@ CLI command (click, ctx.obj=AppConfig)
 | Module | Role |
 | --- | --- |
 | `cli.py` | Root Click group, `initialise_logging()`, `main()` entry point. Registers commands from `commands/` |
-| `commands/_helpers.py` | Shared helpers (`collect_audio_files`, `check_collisions`, etc.), re-exported mockable deps (`tag_audio_file`, `move_file`, etc.) |
+| `commands/_helpers.py` | Shared helpers (`collect_audio_files`, `extract_id`, `check_collisions`, etc.), re-exported mockable deps (`tag_audio_file`, `move_file`, etc.) |
 | `commands/tag.py` | `scan`, `tag`, `rename` commands |
-| `commands/migrate.py` | `migrate` command, `_extract_id` helper |
+| `commands/migrate.py` | `migrate` command |
 | `commands/auth.py` | `auth` group with `login`, `identity` |
 | `commands/collection.py` | `collection` group with `download` |
 | `commands/config_cmd.py` | `config` group with `show`, `set`, `_CONFIG_CONVERTERS` dict |
@@ -225,9 +225,11 @@ Uses **loguru** (`from loguru import logger`), not stdlib `logging`. `initialise
    - `data-model.md` — data structures and schemas
    - `spec.md` — original project specification
    - `auth.md`, `quickstart.md` — if auth or setup flow changed
+   - **Help output (`-h`)**: Every command uses `epilog` strings and `@click.option(help=...)` for its `-h` output. When adding or changing commands/flags, update the epilog examples and option help text in the command source file (e.g., `_TAG_EPILOG` in `tag.py`). The `tests/test_help.py` file validates help formatting — run it to catch regressions.
 3. **Example parity**: Any new example added to `docs/examples.md` MUST have a corresponding test in `tests/test_examples_coverage.py`.
 4. **Flag coverage rule**: Every CLI flag/option introduced by a new command MUST be: (a) documented in `configuration.md` with allowed values and an example, (b) shown in at least one example in `examples.md`, and (c) covered by a test in `test_examples_coverage.py`.
-5. **Run the full check suite** before considering work complete:
+5. **Version bump**: Always bump the version in `pyproject.toml` (the single source of truth — read at runtime via `importlib.metadata`). Use semver: bump the patch version (e.g., 0.9.0 → 0.9.1) for bug fixes, minor improvements, and doc changes. Bump minor for new features (e.g., 0.9.1 → 0.10.0). Bump major for breaking changes.
+6. **Run the full check suite** before considering work complete:
 
    ```bash
    uv run pytest && uv run ruff check . && uv run ruff format --check . && uv run mypy src/
