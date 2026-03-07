@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 
 import rich_click as click
 from click.exceptions import Exit as ClickExit
+from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import FileOperationError, VinylkitError
@@ -63,7 +65,9 @@ def scan(config: AppConfig, paths: tuple[Path, ...]) -> None:
             table.add_row(str(display_name), f.extension, f.tag_status.name)
 
         _helpers.console.print(table)
-        _helpers.console.print(f"[bold]Total files found:[/bold] {len(files)}")
+        _helpers.console.print(
+            f"\n[bold]Total files found:[/bold] [cyan]{len(files)}[/cyan]"
+        )
 
 
 _TAG_EPILOG = (
@@ -334,12 +338,22 @@ def _batch_tag(
                 failed += 1
 
     total = succeeded + failed + skipped
+    summary = Text()
+    summary.append(f"{succeeded} succeeded", style="bold green")
+    summary.append("  ")
+    summary.append(
+        f"{failed} failed",
+        style="bold red" if failed else "dim",
+    )
+    summary.append("  ")
+    summary.append(
+        f"{skipped} skipped",
+        style="bold yellow" if skipped else "dim",
+    )
+    summary.append(f"  ({total} total)")
+    _helpers.console.print()
     _helpers.console.print(
-        f"\n[bold]Batch complete:[/bold]"
-        f" {succeeded} succeeded,"
-        f" {failed} failed,"
-        f" {skipped} skipped"
-        f" ({total} total)"
+        Panel(summary, title="[bold]Batch Summary[/bold]", expand=False)
     )
 
 
@@ -596,18 +610,32 @@ def _tag_folder(
     rate_str = _helpers.get_rate_limit_str(client)
 
     if dry_run:
+        _helpers.console.print()
         _helpers.console.print(
-            f"\n[bold yellow]Dry-run complete for"
-            f" {path.name}. No files were"
-            " modified.[/bold yellow]"
+            Panel(
+                f"[bold yellow]No files were modified.[/bold yellow]"
+                f"\n[dim]{path.name}[/dim]",
+                title="[bold yellow]Dry-run complete[/bold yellow]",
+                expand=False,
+                border_style="yellow",
+            )
         )
     else:
-        summary = (
-            f"Tagged {len(tagged_paths)} tracks"
-            f", saved {artwork_count} artwork files"
-            f"{rate_str}"
+        summary_parts = [
+            f"[green]Tagged {len(tagged_paths)} tracks[/green]",
+            f"[cyan]Saved {artwork_count} artwork file(s)[/cyan]",
+        ]
+        if rate_str:
+            summary_parts.append(f"[dim]{rate_str.lstrip(' |')}[/dim]")
+        _helpers.console.print()
+        _helpers.console.print(
+            Panel(
+                "\n".join(summary_parts),
+                title="[bold green]Tagging Complete[/bold green]",
+                expand=False,
+                border_style="green",
+            )
         )
-        _helpers.console.print(f"\n[bold green]{summary}[/bold green]")
 
         if do_rename:
             try:
@@ -897,11 +925,18 @@ def rename(
             )
 
             if dry_run:
+                _helpers.console.print()
                 _helpers.console.print(
-                    f"\n[bold yellow]Dry-run for"
-                    f" {path.name}: Use --commit to"
-                    " apply these changes."
-                    "[/bold yellow]"
+                    Panel(
+                        "[bold yellow]Dry-run: No files were"
+                        " moved.[/bold yellow]"
+                        f"\n[dim]{path.name}[/dim]"
+                        "\n\nUse [bold]--commit[/bold] to apply"
+                        " these changes.",
+                        title="[bold yellow]Dry-run[/bold yellow]",
+                        expand=False,
+                        border_style="yellow",
+                    )
                 )
                 continue
 

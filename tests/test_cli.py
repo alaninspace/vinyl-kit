@@ -228,7 +228,7 @@ def test_tag_summary_output(runner, tmp_path, mock_discogs):
 
     assert result.exit_code == 0
     assert "Tagged 1 tracks" in result.output
-    assert "saved 0 artwork files" in result.output
+    assert "Saved 0 artwork file(s)" in result.output
 
 
 def test_tag_passes_skip_tags(runner, tmp_path, mock_discogs, mocker):
