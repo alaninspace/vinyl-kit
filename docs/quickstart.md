@@ -173,7 +173,13 @@ vinylkit tag "C:\Some\Other\Folder" --id 56903 --rename
 
 ### Scenario: Batch tagging multiple releases
 
-Name your folders with the Discogs ID in brackets, then tag them all at once:
+Name your folders with the Discogs ID so VinylKit can pick it up automatically. Three formats are supported:
+
+- Bracket suffix: `Album Name [12345]`
+- Bare numeric: `12345`
+- URL-style prefix (copy-paste from the Discogs URL): `12345-Artist-Album-Title`
+
+Then tag them all at once:
 
 ```bash
 # Bash / PowerShell

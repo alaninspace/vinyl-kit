@@ -95,7 +95,8 @@ The primary command for applying metadata to your files.
   - `--no-artwork`: Skip downloading and embedding artwork.
   - `--rename / --no-rename`: Enable or disable the move-to-library step. (Defaults to true if using `recordings_root`).
   - `--batch`: Batch mode — iterate immediate subfolders, extract Discogs IDs
-    from folder names, and tag each automatically. Incompatible with `--id`,
+    from folder names (`Album [12345]`, bare `12345`, or `12345-Artist-Title`),
+    and tag each automatically. Incompatible with `--id`,
     `--search`, `--artist`, `--album`, `--format`.
   - `--no-move`: Rename files in place but skip moving them to the library.
     Mutually exclusive with `--auto-move`.
@@ -128,7 +129,7 @@ Migrates an existing library to the new structure.
 - **Usage**: `vinylkit migrate <SOURCE_DIR> <DEST_DIR> [OPTIONS]`
 - **Behavior**:
   - Processes folders in alphabetical order.
-  - Extracts Discogs IDs from folder names matching the pattern `... [ID]` (e.g., `Album Name [12345]`).
+  - Extracts Discogs IDs from folder names matching: bracket suffix `Album Name [12345]`, bare numeric `12345`, or URL-style prefix `12345-Artist-Album`.
   - Prompts for ID if not found in the name.
   - Maps files to Discogs tracklists using existing tags (track numbers) or alphabetical order.
   - Non-destructive by default (copies files).

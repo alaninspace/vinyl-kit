@@ -61,6 +61,21 @@ def sanitize_filename(filename: str, replacement: str = "_") -> str:
     return encoded.decode("utf-8", "ignore")
 
 
+_DISAMBIGUATION_RE = re.compile(r"\s*\(\d+\)\s*$")
+
+
+def clean_artist_name(name: str, anv: str = "") -> str:
+    """Return the display name for a Discogs artist.
+
+    Uses anv (artist name variation) when set — it reflects the name as
+    credited on the release. Falls back to stripping the Discogs
+    disambiguation suffix (e.g. 'Pariah (2)' → 'Pariah').
+    """
+    if anv.strip():
+        return anv.strip()
+    return _DISAMBIGUATION_RE.sub("", name).strip()
+
+
 def ensure_absolute(path: Path | str, root: Path | None = None) -> Path:
     """
     Ensure a path is absolute. If relative, resolve against the provided root.

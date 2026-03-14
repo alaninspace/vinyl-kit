@@ -23,3 +23,12 @@ class TestExtractId:
 
     def test_bare_zero_returns_none(self) -> None:
         assert extract_id("0") is None
+
+    def test_url_style_prefix(self) -> None:
+        assert extract_id("50224-Breeder-New-York-FM-Rockstone") == 50224
+
+    def test_url_style_prefix_longer_id(self) -> None:
+        assert extract_id("178842-Sub-Urbans-Feel-Your-Soul") == 178842
+
+    def test_url_style_zero_returns_none(self) -> None:
+        assert extract_id("0-Some-Artist") is None

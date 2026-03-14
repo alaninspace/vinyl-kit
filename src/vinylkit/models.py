@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum, auto
+from enum import Enum, StrEnum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -14,14 +14,14 @@ class TagStatus(Enum):
     TAGGED = auto()
 
 
-class ImageHandling(Enum):
+class ImageHandling(StrEnum):
     EMBED = "embed"
     SAVE = "save"
     BOTH = "both"
     NONE = "none"
 
 
-class AuthMode(Enum):
+class AuthMode(StrEnum):
     AUTO = "auto"
     TOKEN = "token"
     OAUTH = "oauth"
@@ -29,18 +29,18 @@ class AuthMode(Enum):
     NONE = "none"
 
 
-class TagMode(Enum):
+class TagMode(StrEnum):
     REPLACE = "replace"
     MERGE = "merge"
 
 
-class TrackNumbering(Enum):
+class TrackNumbering(StrEnum):
     NUMERIC = "numeric"  # 1, 2, 3...
     ORIGINAL = "original"  # A1, B1...
     PER_SIDE = "per_side"  # 1, 2, 1, 2...
 
 
-class DiscMapping(Enum):
+class DiscMapping(StrEnum):
     SINGLE = "single"  # All on Disc 1
     PER_SIDE = "per_side"  # Side A=1, B=2...
     PHYSICAL = "physical"  # A,B=1, C,D=2... (Standard Vinyl)

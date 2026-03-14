@@ -20,6 +20,7 @@ VinylKit is a cross-platform CLI tool for managing digitized vinyl record audio 
 VinylKit requires Python 3.12+ and is managed with `uv`.
 
 ### As a Global Tool (Recommended)
+
 This makes the `vinylkit` command available everywhere in your terminal.
 
 ```bash
@@ -29,7 +30,9 @@ uv tool install . --force
 ```
 
 ### Updating
+
 To update to the latest version after pulling changes:
+
 ```bash
 uv tool install . --force --no-cache
 ```
@@ -37,21 +40,25 @@ uv tool install . --force --no-cache
 ## Quick Start
 
 1. **Set your library location** (where tagged music ends up):
+
    ```bash
    vinylkit config set library_root "/path/to/VinylLibrary"
    ```
 
 2. **Set your recordings inbox** (where fresh vinyl rips land):
+
    ```bash
    vinylkit config set recordings_root "/path/to/RecordedVinyl"
    ```
 
 3. **Set your Discogs token** ([generate one here](https://www.discogs.com/settings/developers)):
+
    ```bash
    vinylkit config set discogs_token "YOUR_TOKEN"
    ```
 
 4. **Scan and tag**:
+
    ```bash
    vinylkit scan
    vinylkit tag --id 19983
@@ -69,6 +76,7 @@ vinylkit config show
 ```
 
 For detailed guides, see:
+
 - **[Quick Start](docs/quickstart.md)**: Setup and basic workflow.
 - **[User Guide](docs/user-guide.md)**: In-depth command and feature reference.
 - **[Examples](docs/examples.md)**: Real-world command combinations.
@@ -81,11 +89,13 @@ For detailed guides, see:
 VinylKit uses `uv` for development. Ensure you have it installed. See the **[Developer Guide](docs/developer-guide.md)** for full setup, architecture, and contribution details.
 
 ### Run Tests
+
 ```bash
 uv run pytest
 ```
 
 ### Linting & Formatting
+
 ```bash
 # Check for linting errors
 uv run ruff check .
@@ -98,6 +108,7 @@ uv run ruff format .
 ```
 
 ### Type Checking
+
 ```bash
 uv run mypy src/
 ```

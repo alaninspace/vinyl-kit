@@ -657,6 +657,73 @@ def test_429_does_not_consume_error_budget() -> None:
     assert resp.status_code == 200
 
 
+# ---------------------------------------------------------------------------
+# Artist name cleaning: disambiguation suffixes and anv
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+def test_artist_disambiguation_stripped() -> None:
+    """Artist name like 'Pariah (2)' should be cleaned to 'Pariah'."""
+    release_id = 92086
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "Pariah (2)", "anv": ""}],
+        "title": "Test",
+        "tracklist": [],
+    }
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+    assert release.artists == ["Pariah"]
+
+
+@respx.mock
+def test_artist_anv_takes_priority() -> None:
+    """When anv is set, it should be used instead of the raw name."""
+    release_id = 92087
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "Andy Page", "anv": "Android Page"}],
+        "title": "Test",
+        "tracklist": [],
+    }
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+    assert release.artists == ["Android Page"]
+
+
+@respx.mock
+def test_extraartist_disambiguation_stripped() -> None:
+    """Extraartist with disambiguation suffix should be cleaned."""
+    release_id = 92088
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "A"}],
+        "title": "Test",
+        "tracklist": [],
+        "extraartists": [{"name": "Nicolai (2)", "anv": "", "role": "Producer"}],
+    }
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+    assert release.extraartists[0].name == "Nicolai"
+    assert release.extraartists[0].role == "Producer"
+
+
 @respx.mock
 def test_exhausted_429_retries_raises() -> None:
     """Three consecutive 429s should raise a rate-limit error."""

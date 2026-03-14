@@ -91,12 +91,12 @@ def save_config(config: AppConfig) -> None:
 
     data: dict[str, Any] = {
         "library_root": str(config.library_root),
-        "auth_mode": config.auth_mode.value,
-        "tag_mode": config.tag_mode.value,
-        "track_numbering": config.track_numbering.value,
-        "disc_mapping": config.disc_mapping.value,
+        "auth_mode": config.auth_mode,
+        "tag_mode": config.tag_mode,
+        "track_numbering": config.track_numbering,
+        "disc_mapping": config.disc_mapping,
         "naming_pattern": config.naming_pattern,
-        "image_handling": config.image_handling.value,
+        "image_handling": config.image_handling,
         "collect_all_artwork": config.collect_all_artwork,
         "artwork_subdir": config.artwork_subdir,
         "backup_enabled": config.backup_enabled,

@@ -78,12 +78,12 @@ def config_show(config_obj: AppConfig) -> None:
             "Metadata & Tagging",
             [
                 ("naming_pattern", config_obj.naming_pattern),
-                ("tag_mode", config_obj.tag_mode.value),
+                ("tag_mode", config_obj.tag_mode),
                 (
                     "track_numbering",
-                    config_obj.track_numbering.value,
+                    config_obj.track_numbering,
                 ),
-                ("disc_mapping", config_obj.disc_mapping.value),
+                ("disc_mapping", config_obj.disc_mapping),
                 ("info_filename", config_obj.info_filename),
                 (
                     "skip_tags",
@@ -100,7 +100,7 @@ def config_show(config_obj: AppConfig) -> None:
             [
                 (
                     "image_handling",
-                    config_obj.image_handling.value,
+                    config_obj.image_handling,
                 ),
                 (
                     "artwork_filename",
@@ -186,7 +186,7 @@ def config_show(config_obj: AppConfig) -> None:
         (
             "Authentication",
             [
-                ("auth_mode", config_obj.auth_mode.value),
+                ("auth_mode", config_obj.auth_mode),
                 ("discogs_token", token_display),
                 ("consumer_key", key_display),
             ],

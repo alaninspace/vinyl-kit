@@ -13,6 +13,7 @@ from platformdirs import user_cache_dir
 
 from vinylkit.exceptions import AuthError, DiscogsAPIError
 from vinylkit.models import (
+    AuthMode,
     CompanyInfo,
     DiscogsRelease,
     ExtraArtistInfo,
@@ -23,6 +24,7 @@ from vinylkit.models import (
     RateLimitInfo,
     TrackInfo,
 )
+from vinylkit.utils import clean_artist_name
 
 DISCOGS_API_URL = "https://api.discogs.com"
 REQUEST_TOKEN_URL = f"{DISCOGS_API_URL}/oauth/request_token"
@@ -76,7 +78,7 @@ class DiscogsClient:
         token: str | None = None,
         secret: str | None = None,
         cache_enabled: bool = True,
-        auth_mode: str = "auto",
+        auth_mode: AuthMode = AuthMode.AUTO,
     ) -> None:
         self.cache_enabled = cache_enabled
         self.cache_dir = get_cache_dir()
@@ -95,7 +97,7 @@ class DiscogsClient:
 
         # 1. Try Full OAuth 1.0a
         if (
-            auth_mode in ("auto", "oauth")
+            auth_mode in (AuthMode.AUTO, AuthMode.OAUTH)
             and token
             and secret
             and consumer_key
@@ -111,7 +113,7 @@ class DiscogsClient:
             )
 
         # 2. Try Personal Access Token
-        elif auth_mode in ("auto", "token") and token:
+        elif auth_mode in (AuthMode.AUTO, AuthMode.TOKEN) and token:
             mode = "token"
             client = httpx.Client(
                 headers={
@@ -122,7 +124,7 @@ class DiscogsClient:
 
         # 3. Try Key/Secret (Discogs Auth or Login Prep)
         elif (
-            auth_mode in ("auto", "key_secret", "oauth")
+            auth_mode in (AuthMode.AUTO, AuthMode.KEY_SECRET, AuthMode.OAUTH)
             and consumer_key
             and consumer_secret
         ):
@@ -326,7 +328,7 @@ class DiscogsClient:
 
                 track_extraartists = [
                     ExtraArtistInfo(
-                        name=a.get("name") or "",
+                        name=clean_artist_name(a.get("name") or "", a.get("anv") or ""),
                         role=a.get("role") or "",
                     )
                     for a in t.get("extraartists", [])
@@ -335,7 +337,10 @@ class DiscogsClient:
                     TrackInfo(
                         position=pos,
                         title=t.get("title", ""),
-                        artists=[a.get("name") for a in t.get("artists", [])]
+                        artists=[
+                            clean_artist_name(a.get("name") or "", a.get("anv") or "")
+                            for a in t.get("artists", [])
+                        ]
                         if t.get("artists")
                         else [],
                         side=side,
@@ -380,7 +385,7 @@ class DiscogsClient:
             ]
             extraartists_data = [
                 ExtraArtistInfo(
-                    name=a.get("name") or "",
+                    name=clean_artist_name(a.get("name") or "", a.get("anv") or ""),
                     role=a.get("role") or "",
                 )
                 for a in data.get("extraartists", [])
@@ -390,7 +395,10 @@ class DiscogsClient:
 
             return DiscogsRelease(
                 id=data["id"],
-                artists=[a.get("name") for a in data.get("artists", [])],
+                artists=[
+                    clean_artist_name(a.get("name") or "", a.get("anv") or "")
+                    for a in data.get("artists", [])
+                ],
                 title=data["title"],
                 year=data.get("year"),
                 released=data.get("released"),

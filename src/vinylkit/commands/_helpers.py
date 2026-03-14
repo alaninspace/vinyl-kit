@@ -76,22 +76,26 @@ def get_client(config: AppConfig) -> DiscogsClient:
         config.discogs_token,
         config.discogs_secret,
         cache_enabled=config.cache_enabled,
-        auth_mode=config.auth_mode.value,
+        auth_mode=config.auth_mode,
     )
 
 
 def extract_id(folder_name: str) -> int | None:
     """Extract Discogs ID from a folder name.
 
-    Supports two patterns:
+    Supports three patterns:
     - Bracket suffix: ``Artist - Album [12345]`` -> ``12345``
     - Bare numeric: ``67890`` -> ``67890``
+    - URL-style prefix: ``50224-Breeder-New-York-FM`` -> ``50224``
     """
     match = re.search(r"\[(\d+)\]$", folder_name)
     if match:
         return int(match.group(1)) or None
     if folder_name.strip().isdigit():
         return int(folder_name.strip()) or None
+    match = re.match(r"^(\d+)-", folder_name.strip())
+    if match:
+        return int(match.group(1)) or None
     return None
 
 

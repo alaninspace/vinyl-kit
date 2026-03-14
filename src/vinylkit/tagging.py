@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from enum import StrEnum
 from pathlib import Path  # noqa: TC003
 
 from loguru import logger
@@ -42,11 +43,50 @@ from vinylkit.models import (
 
 FRONT_COVER_TYPE = 3  # ID3/FLAC picture type for front cover
 
+
+class TagName(StrEnum):
+    # Standard tags
+    ARTIST = "artist"
+    TITLE = "title"
+    ALBUM = "album"
+    DATE = "date"
+    TRACKNUMBER = "tracknumber"
+    DISCNUMBER = "discnumber"
+    PUBLISHER = "publisher"
+    GENRE = "genre"
+    ALBUMARTIST = "albumartist"
+    MEDIA = "media"
+    RELEASEDATE = "releasedate"
+    ARTISTSORT = "artistsort"
+    COMPOSER = "composer"
+    REMIXER = "remixer"
+    COPYRIGHT = "copyright"
+    # Ecosystem-recognized / TXXX tags
+    STYLE = "style"
+    DISCOGS_POSITION = "discogs_position"
+    CATALOGNUMBER = "catalognumber"
+    SIDE = "side"
+    DISCOGS_RELEASE_URL = "discogs_release_url"
+    LABEL = "label"
+    FORMAT = "format"
+    COMPANIES = "companies"
+    CREDITS = "credits"
+    BARCODE = "barcode"
+    COUNTRY = "country"
+    DISCOGS_RELEASE_ID = "discogs_release_id"
+    DISCOGS_MASTER_ID = "discogs_master_id"
+    DISCOGS_MASTER_URL = "discogs_master_url"
+    DISCOGS_NOTES = "discogs_notes"
+    DISCOGS_DATA_QUALITY = "discogs_data_quality"
+    DISCOGS_FORMAT_QUANTITY = "discogs_format_quantity"
+    ARTWORK = "artwork"
+
+
 _COMPOSER_ROLES = {"written-by", "written by", "composer", "music by", "lyrics by"}
 _REMIXER_ROLES = {"remix", "remixed by", "remixer"}
 
 
-def _should_write(canonical_name: str, skip_tags: frozenset[str]) -> bool:
+def _should_write(canonical_name: TagName, skip_tags: frozenset[str]) -> bool:
     """Return True if the tag should be written (not in the skip list)."""
     return canonical_name not in skip_tags
 
@@ -306,7 +346,7 @@ def tag_audio_file(
         logger.info(
             f"[DRY-RUN] Tagging {path.name} as"
             f" {track.position} - {track.title}"
-            f" ({tag_mode.value})"
+            f" ({tag_mode})"
         )
         if artwork_data:
             logger.info(f"[DRY-RUN] Embedding artwork ({len(artwork_data)} bytes)")
@@ -402,12 +442,12 @@ def calculate_track_and_disc(
 # catalognumber) are always replaced because they belong to the release.
 _MERGE_UNION_TAGS = frozenset(
     {
-        "genre",
-        "style",
-        "credits",
-        "companies",
-        "barcode",
-        "label",
+        TagName.GENRE,
+        TagName.STYLE,
+        TagName.CREDITS,
+        TagName.COMPANIES,
+        TagName.BARCODE,
+        TagName.LABEL,
     }
 )
 
@@ -420,44 +460,44 @@ def _union_merge(existing: list[str], new: list[str]) -> list[str]:
 # -- Lookup tables for format-specific tag writing ----------------------------
 
 _MP3_FRAMES = {
-    "artist": TPE1,
-    "title": TIT2,
-    "album": TALB,
-    "date": TDRC,
-    "tracknumber": TRCK,
-    "discnumber": TPOS,
-    "publisher": TPUB,
-    "genre": TCON,
-    "albumartist": TPE2,
-    "media": TMED,
-    "releasedate": TDRL,
-    "artistsort": TSOP,
-    "composer": TCOM,
-    "remixer": TPE4,
-    "copyright": TCOP,
+    TagName.ARTIST: TPE1,
+    TagName.TITLE: TIT2,
+    TagName.ALBUM: TALB,
+    TagName.DATE: TDRC,
+    TagName.TRACKNUMBER: TRCK,
+    TagName.DISCNUMBER: TPOS,
+    TagName.PUBLISHER: TPUB,
+    TagName.GENRE: TCON,
+    TagName.ALBUMARTIST: TPE2,
+    TagName.MEDIA: TMED,
+    TagName.RELEASEDATE: TDRL,
+    TagName.ARTISTSORT: TSOP,
+    TagName.COMPOSER: TCOM,
+    TagName.REMIXER: TPE4,
+    TagName.COPYRIGHT: TCOP,
 }
 
 _MP3_TXXX = {
-    "style": "STYLE",
-    "discogs_position": "DISCOGS_POSITION",
-    "catalognumber": "CATALOGNUMBER",
-    "side": "SIDE",
-    "discogs_release_url": "DISCOGS_RELEASE_URL",
-    "label": "LABEL",
-    "format": "FORMAT",
-    "companies": "COMPANIES",
-    "credits": "CREDITS",
-    "barcode": "BARCODE",
-    "country": "COUNTRY",
-    "discogs_release_id": "DISCOGS_RELEASE_ID",
-    "discogs_master_id": "DISCOGS_MASTER_ID",
-    "discogs_master_url": "DISCOGS_MASTER_URL",
-    "discogs_notes": "DISCOGS_NOTES",
-    "discogs_data_quality": "DISCOGS_DATA_QUALITY",
-    "discogs_format_quantity": "DISCOGS_FORMAT_QUANTITY",
+    TagName.STYLE: "STYLE",
+    TagName.DISCOGS_POSITION: "DISCOGS_POSITION",
+    TagName.CATALOGNUMBER: "CATALOGNUMBER",
+    TagName.SIDE: "SIDE",
+    TagName.DISCOGS_RELEASE_URL: "DISCOGS_RELEASE_URL",
+    TagName.LABEL: "LABEL",
+    TagName.FORMAT: "FORMAT",
+    TagName.COMPANIES: "COMPANIES",
+    TagName.CREDITS: "CREDITS",
+    TagName.BARCODE: "BARCODE",
+    TagName.COUNTRY: "COUNTRY",
+    TagName.DISCOGS_RELEASE_ID: "DISCOGS_RELEASE_ID",
+    TagName.DISCOGS_MASTER_ID: "DISCOGS_MASTER_ID",
+    TagName.DISCOGS_MASTER_URL: "DISCOGS_MASTER_URL",
+    TagName.DISCOGS_NOTES: "DISCOGS_NOTES",
+    TagName.DISCOGS_DATA_QUALITY: "DISCOGS_DATA_QUALITY",
+    TagName.DISCOGS_FORMAT_QUANTITY: "DISCOGS_FORMAT_QUANTITY",
 }
 
-_FLAC_KEY_OVERRIDES = {"publisher": "organization"}
+_FLAC_KEY_OVERRIDES: dict[TagName, str] = {TagName.PUBLISHER: "organization"}
 
 
 def _prepare_tags(
@@ -466,7 +506,7 @@ def _prepare_tags(
     track_numbering: TrackNumbering,
     disc_mapping: DiscMapping,
     skip_tags: frozenset[str],
-) -> dict[str, str | list[str]]:
+) -> dict[TagName, str | list[str]]:
     """Compute all tag values (except artwork).
 
     Returns a dict of canonical tag name to value.  Multi-value tags
@@ -480,101 +520,104 @@ def _prepare_tags(
     )
     all_extra = list(release.extraartists) + list(track.extraartists)
     ok = _should_write
-    tags: dict[str, str | list[str]] = {}
+    tags: dict[TagName, str | list[str]] = {}
 
     # --- Standard tags ---
-    if ok("artist", skip_tags):
-        tags["artist"] = list(release.artists)
-    if ok("title", skip_tags):
-        tags["title"] = track.title
-    if ok("album", skip_tags):
-        tags["album"] = release.title
-    if ok("date", skip_tags) and release.year:
-        tags["date"] = str(release.year)
-    if ok("tracknumber", skip_tags):
-        tags["tracknumber"] = track_num
-    if ok("discnumber", skip_tags):
-        tags["discnumber"] = disc_num
-    if ok("publisher", skip_tags) and release.label:
-        tags["publisher"] = release.label
-    if ok("genre", skip_tags) and release.genres:
-        tags["genre"] = list(release.genres)
-    if ok("style", skip_tags) and release.styles:
-        tags["style"] = list(release.styles)
+    if ok(TagName.ARTIST, skip_tags):
+        tags[TagName.ARTIST] = list(release.artists)
+    if ok(TagName.TITLE, skip_tags):
+        tags[TagName.TITLE] = track.title
+    if ok(TagName.ALBUM, skip_tags):
+        tags[TagName.ALBUM] = release.title
+    if ok(TagName.DATE, skip_tags) and release.year:
+        tags[TagName.DATE] = str(release.year)
+    if ok(TagName.TRACKNUMBER, skip_tags):
+        tags[TagName.TRACKNUMBER] = track_num
+    if ok(TagName.DISCNUMBER, skip_tags):
+        tags[TagName.DISCNUMBER] = disc_num
+    if ok(TagName.PUBLISHER, skip_tags) and release.label:
+        tags[TagName.PUBLISHER] = release.label
+    if ok(TagName.GENRE, skip_tags) and release.genres:
+        tags[TagName.GENRE] = list(release.genres)
+    if ok(TagName.STYLE, skip_tags) and release.styles:
+        tags[TagName.STYLE] = list(release.styles)
 
     # --- Ecosystem-recognised tags ---
-    if ok("albumartist", skip_tags):
-        tags["albumartist"] = ", ".join(release.artists)
-    if ok("media", skip_tags) and release.formats:
-        tags["media"] = release.formats[0].name
-    if ok("releasedate", skip_tags) and release.released:
-        tags["releasedate"] = release.released
-    if ok("artistsort", skip_tags) and release.artists_sort:
-        tags["artistsort"] = release.artists_sort
+    if ok(TagName.ALBUMARTIST, skip_tags):
+        tags[TagName.ALBUMARTIST] = ", ".join(release.artists)
+    if ok(TagName.MEDIA, skip_tags) and release.formats:
+        tags[TagName.MEDIA] = release.formats[0].name
+    if ok(TagName.RELEASEDATE, skip_tags) and release.released:
+        tags[TagName.RELEASEDATE] = release.released
+    if ok(TagName.ARTISTSORT, skip_tags) and release.artists_sort:
+        tags[TagName.ARTISTSORT] = release.artists_sort
 
     # --- Composer / remixer ---
-    if ok("composer", skip_tags):
+    if ok(TagName.COMPOSER, skip_tags):
         composers = _extract_by_role(all_extra, _COMPOSER_ROLES)
         if composers:
-            tags["composer"] = composers
-    if ok("remixer", skip_tags):
+            tags[TagName.COMPOSER] = composers
+    if ok(TagName.REMIXER, skip_tags):
         remixers = _extract_by_role(all_extra, _REMIXER_ROLES)
         if remixers:
-            tags["remixer"] = remixers
+            tags[TagName.REMIXER] = remixers
 
     # --- Copyright ---
-    if ok("copyright", skip_tags) and release.companies:
+    if ok(TagName.COPYRIGHT, skip_tags) and release.companies:
         copyrights = [
             c.name for c in release.companies if "Copyright" in c.entity_type_name
         ]
         if copyrights:
-            tags["copyright"] = copyrights
+            tags[TagName.COPYRIGHT] = copyrights
 
     # --- Vinyl-specific tags ---
-    if ok("discogs_position", skip_tags):
-        tags["discogs_position"] = track.position
-    if ok("catalognumber", skip_tags):
+    if ok(TagName.DISCOGS_POSITION, skip_tags):
+        tags[TagName.DISCOGS_POSITION] = track.position
+    if ok(TagName.CATALOGNUMBER, skip_tags):
         catnos = (
             [lbl.catno for lbl in release.labels if lbl.catno] if release.labels else []
         )
         if catnos:
-            tags["catalognumber"] = catnos
+            tags[TagName.CATALOGNUMBER] = catnos
         elif release.catno:
-            tags["catalognumber"] = release.catno
-    if ok("side", skip_tags) and track.side:
-        tags["side"] = track.side
+            tags[TagName.CATALOGNUMBER] = release.catno
+    if ok(TagName.SIDE, skip_tags) and track.side:
+        tags[TagName.SIDE] = track.side
 
     # --- Extended Discogs tags ---
-    if ok("discogs_release_url", skip_tags) and release.uri:
-        tags["discogs_release_url"] = release.uri
-    if ok("label", skip_tags) and release.labels:
-        tags["label"] = [lbl.name for lbl in release.labels]
-    if ok("format", skip_tags) and release.formats:
-        tags["format"] = _format_formats(release.formats)
-    if ok("companies", skip_tags) and release.companies:
-        tags["companies"] = [
+    if ok(TagName.DISCOGS_RELEASE_URL, skip_tags) and release.uri:
+        tags[TagName.DISCOGS_RELEASE_URL] = release.uri
+    if ok(TagName.LABEL, skip_tags) and release.labels:
+        tags[TagName.LABEL] = [lbl.name for lbl in release.labels]
+    if ok(TagName.FORMAT, skip_tags) and release.formats:
+        tags[TagName.FORMAT] = _format_formats(release.formats)
+    if ok(TagName.COMPANIES, skip_tags) and release.companies:
+        tags[TagName.COMPANIES] = [
             f"{c.entity_type_name}: {c.name}" for c in release.companies
         ]
-    if ok("credits", skip_tags) and all_extra:
-        tags["credits"] = [f"{a.role}: {a.name}" for a in all_extra]
-    if ok("barcode", skip_tags) and release.identifiers:
+    if ok(TagName.CREDITS, skip_tags) and all_extra:
+        tags[TagName.CREDITS] = [f"{a.role}: {a.name}" for a in all_extra]
+    if ok(TagName.BARCODE, skip_tags) and release.identifiers:
         barcodes = [i.value for i in release.identifiers if i.type == "Barcode"]
         if barcodes:
-            tags["barcode"] = barcodes
-    if ok("country", skip_tags) and release.country:
-        tags["country"] = release.country
-    if ok("discogs_release_id", skip_tags):
-        tags["discogs_release_id"] = str(release.id)
-    if ok("discogs_master_id", skip_tags) and release.master_id is not None:
-        tags["discogs_master_id"] = str(release.master_id)
-    if ok("discogs_master_url", skip_tags) and release.master_url:
-        tags["discogs_master_url"] = release.master_url
-    if ok("discogs_notes", skip_tags) and release.notes:
-        tags["discogs_notes"] = release.notes
-    if ok("discogs_data_quality", skip_tags) and release.data_quality:
-        tags["discogs_data_quality"] = release.data_quality
-    if ok("discogs_format_quantity", skip_tags) and release.format_quantity is not None:
-        tags["discogs_format_quantity"] = str(release.format_quantity)
+            tags[TagName.BARCODE] = barcodes
+    if ok(TagName.COUNTRY, skip_tags) and release.country:
+        tags[TagName.COUNTRY] = release.country
+    if ok(TagName.DISCOGS_RELEASE_ID, skip_tags):
+        tags[TagName.DISCOGS_RELEASE_ID] = str(release.id)
+    if ok(TagName.DISCOGS_MASTER_ID, skip_tags) and release.master_id is not None:
+        tags[TagName.DISCOGS_MASTER_ID] = str(release.master_id)
+    if ok(TagName.DISCOGS_MASTER_URL, skip_tags) and release.master_url:
+        tags[TagName.DISCOGS_MASTER_URL] = release.master_url
+    if ok(TagName.DISCOGS_NOTES, skip_tags) and release.notes:
+        tags[TagName.DISCOGS_NOTES] = release.notes
+    if ok(TagName.DISCOGS_DATA_QUALITY, skip_tags) and release.data_quality:
+        tags[TagName.DISCOGS_DATA_QUALITY] = release.data_quality
+    if (
+        ok(TagName.DISCOGS_FORMAT_QUANTITY, skip_tags)
+        and release.format_quantity is not None
+    ):
+        tags[TagName.DISCOGS_FORMAT_QUANTITY] = str(release.format_quantity)
 
     return tags
 
@@ -645,7 +688,7 @@ def _tag_mp3(
                 )
             )
 
-    if _should_write("artwork", skip_tags) and artwork_data:
+    if _should_write(TagName.ARTWORK, skip_tags) and artwork_data:
         tags.add(
             APIC(
                 encoding=3,
@@ -705,7 +748,7 @@ def _tag_flac(
         else:
             audio[key] = value
 
-    if _should_write("artwork", skip_tags) and artwork_data:
+    if _should_write(TagName.ARTWORK, skip_tags) and artwork_data:
         pic = Picture()
         pic.data = artwork_data
         pic.type = FRONT_COVER_TYPE

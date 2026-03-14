@@ -57,6 +57,24 @@ def test_generate_path_custom_patterns() -> None:
     assert "Rock/UK/12345/Speak to Me.mp3" in str(path3.as_posix())
 
 
+def test_generate_path_strips_disambiguation() -> None:
+    """Artists cleaned at parse time should produce clean folder names."""
+    release = DiscogsRelease(
+        id=92086,
+        artists=["Pariah"],
+        title="Test",
+        year=1992,
+        tracklist=[TrackInfo(position="A1", title="Track One")],
+    )
+    pattern = "{artist}/{year} - {album}/{track_number} - {title}"
+    root = Path("/music")
+
+    new_path = generate_path(root, pattern, release, 0, ".mp3")
+
+    assert "Pariah" in str(new_path)
+    assert "Pariah (2)" not in str(new_path)
+
+
 def test_move_file_real(tmp_path: Path) -> None:
     from vinylkit.naming import move_file
 

@@ -297,6 +297,27 @@ def test_ex_batch_explicit_path(runner, tmp_path, mock_discogs):
     assert "1 succeeded" in result.output
 
 
+def test_ex_batch_url_style_folder_name(runner, tmp_path, mock_discogs, mocker):
+    """Covers: batch mode with URL-style prefix folder name (e.g. 50224-Artist-Album)"""
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    mocker.patch(
+        "vinylkit.cli.load_config",
+        return_value=AppConfig(library_root=tmp_path / "lib", recordings_root=inbox),
+    )
+    f1 = inbox / "50224-Breeder-New-York-FM-Rockstone"
+    f1.mkdir()
+    (f1 / "01.mp3").write_text("audio")
+
+    mock_discogs.get_release.return_value = create_mock_release(
+        50224, "Breeder", "New York FM"
+    )
+
+    result = runner.invoke(cli, ["tag", "--batch", "--auto-move"])
+    assert result.exit_code == 0
+    assert "1 succeeded" in result.output
+
+
 def test_ex_batch_dry_run(runner, tmp_path, mock_discogs, mocker):
     """Covers: vinylkit tag --batch --dry-run"""
     inbox = tmp_path / "inbox"

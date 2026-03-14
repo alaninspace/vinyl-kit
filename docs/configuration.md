@@ -63,7 +63,7 @@ Automatically move files to your library after successful tagging and renaming w
 
 ### `--batch` (CLI flag)
 
-Batch mode for the `tag` command. Iterates subfolders of the given path, extracts Discogs IDs from folder names (bracket suffix like `Album [12345]` or bare numeric like `67890`), and tags each folder automatically. Cannot be combined with `--id`, `--search`, `--artist`, `--album`, or `--format`.
+Batch mode for the `tag` command. Iterates subfolders of the given path, extracts Discogs IDs from folder names (bracket suffix like `Album [12345]`, bare numeric like `67890`, or URL-style prefix like `50224-Breeder-New-York`), and tags each folder automatically. Cannot be combined with `--id`, `--search`, `--artist`, `--album`, or `--format`.
 
 - **Type:** Flag (no value)
 - **Example:** `vinylkit tag --batch --auto-move`

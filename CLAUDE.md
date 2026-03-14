@@ -241,3 +241,10 @@ Uses **loguru** (`from loguru import logger`), not stdlib `logging`. `initialise
 - All functions fully type-hinted; must pass `mypy --strict`.
 - Line length: 88 characters.
 - Destructive operations (rename, move, delete) default to dry-run or require confirmation.
+
+### Type Safety: No Magic Strings
+
+- **Domain enums** (`TagMode`, `AuthMode`, `ImageHandling`, `TrackNumbering`, `DiscMapping`) are `StrEnum` — use enum members in comparisons and assignments, never raw string literals. `TagMode.REPLACE` not `"replace"`.
+- **Canonical tag names** use `TagName` (defined in `tagging.py`) — use `TagName.X` constants in all tag-writing code. Never add a new raw string tag name without a matching `TagName` member.
+- **Never** add a new `in ("str1", "str2")` membership check against enum-owned values — use enum members instead: `auth_mode in (AuthMode.AUTO, AuthMode.TOKEN)`.
+- **When adding a new tag** (MP3 or FLAC): add the `TagName` member first, then use it in `_MP3_FRAMES`, `_MP3_TXXX`, `_MERGE_UNION_TAGS` (if additive), and `_prepare_tags()`.

@@ -14,6 +14,7 @@ from vinylkit.models import (
 from vinylkit.tagging import (
     _COMPOSER_ROLES,
     _REMIXER_ROLES,
+    TagName,
     _extract_by_role,
     _should_write,
     calculate_track_and_disc,
@@ -167,15 +168,15 @@ def test_calculate_track_and_disc_logic():
 
 
 def test_should_write_empty_skip_set() -> None:
-    assert _should_write("artist", frozenset()) is True
+    assert _should_write(TagName.ARTIST, frozenset()) is True
 
 
 def test_should_write_tag_in_skip_set() -> None:
-    assert _should_write("artist", frozenset({"artist", "genre"})) is False
+    assert _should_write(TagName.ARTIST, frozenset({"artist", "genre"})) is False
 
 
 def test_should_write_tag_not_in_skip_set() -> None:
-    assert _should_write("title", frozenset({"artist", "genre"})) is True
+    assert _should_write(TagName.TITLE, frozenset({"artist", "genre"})) is True
 
 
 # ---------------------------------------------------------------------------

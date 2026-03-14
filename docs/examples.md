@@ -124,8 +124,9 @@ vinylkit tag --id 1480380 --rename --dry-run
 ### Batch Mode
 
 Automatically tag all subfolders in your recordings inbox. Each folder
-name must contain a Discogs ID — either in brackets
-(e.g. `Artist - Album [12345]`) or as a bare number (e.g. `12345`).
+name must contain a Discogs ID in one of three formats: bracket suffix
+(e.g. `Artist - Album [12345]`), bare number (e.g. `12345`), or
+URL-style prefix (e.g. `12345-Artist-Album`, matching the Discogs release URL).
 
 ```bash
 # Bash / PowerShell
@@ -327,7 +328,7 @@ Move an entire existing library into the VinylKit structure.
 
 ### Basic Library Migration
 
-Processes all folders in the source, extracting IDs from `[ID]` suffixes.
+Processes all folders in the source, extracting IDs from folder names (`Album [12345]`, bare `12345`, or `12345-Artist-Title`).
 
 **Bash:**
 

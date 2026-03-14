@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003
 
-from vinylkit.utils import backup_file, ensure_absolute, sanitize_filename
+from vinylkit.utils import (
+    backup_file,
+    clean_artist_name,
+    ensure_absolute,
+    sanitize_filename,
+)
 
 
 class TestBackupFile:
@@ -104,6 +109,29 @@ class TestBackupFileUniqueNaming:
         result = backup_file(source, backup_dir)
 
         assert result.name == "track_backup1.flac"
+
+
+class TestCleanArtistName:
+    def test_anv_takes_priority(self) -> None:
+        assert clean_artist_name("Andy Page", "Android Page") == "Android Page"
+
+    def test_anv_empty_strips_disambiguation(self) -> None:
+        assert clean_artist_name("Pariah (2)", "") == "Pariah"
+
+    def test_anv_empty_strips_large_number(self) -> None:
+        assert clean_artist_name("Pascale (23)", "") == "Pascale"
+
+    def test_anv_empty_no_suffix_unchanged(self) -> None:
+        assert clean_artist_name("Pink Floyd", "") == "Pink Floyd"
+
+    def test_non_trailing_parens_unchanged(self) -> None:
+        assert clean_artist_name("2 Unlimited", "") == "2 Unlimited"
+
+    def test_anv_whitespace_only_falls_back(self) -> None:
+        assert clean_artist_name("Nicolai (2)", "   ") == "Nicolai"
+
+    def test_name_no_suffix_unchanged(self) -> None:
+        assert clean_artist_name("The Beatles") == "The Beatles"
 
 
 class TestEnsureAbsolute:
