@@ -240,9 +240,10 @@ def tag(
             if not current_release_id:
                 continue
 
+            effective_path = _resolve_release_folder(path, current_release_id)
             _tag_folder(
                 client,
-                path,
+                effective_path,
                 current_release_id,
                 config,
                 tag_mode,
@@ -254,10 +255,31 @@ def tag(
                 no_move=no_move,
             )
 
-        except VinylkitError as e:
+        except (VinylkitError, OSError) as e:
             _helpers.console.print(
                 f"[bold red]Tagging failed for {path.name}:[/bold red] {e}"
             )
+
+
+def _resolve_release_folder(path: Path, release_id: int) -> Path:
+    """Return the subfolder matching release_id if path has no audio files directly."""
+    if _helpers.collect_audio_files(path):
+        return path
+    matches = sorted(
+        f
+        for f in path.iterdir()
+        if f.is_dir() and _helpers.extract_id(f.name) == release_id
+    )
+    if not matches:
+        return path
+    if len(matches) > 1:
+        names = ", ".join(f.name for f in matches)
+        _helpers.console.print(
+            f"[yellow]Warning: multiple subfolders match ID"
+            f" {release_id} ({names}); using {matches[0].name}.[/yellow]"
+        )
+    _helpers.console.print(f"[dim]→ Found release folder: {matches[0].name}[/dim]")
+    return matches[0]
 
 
 def _batch_tag(

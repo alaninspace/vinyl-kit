@@ -522,3 +522,104 @@ class TestBatchTag:
         )
         assert result.exit_code != 0
         assert "mutually exclusive" in result.output
+
+
+# ---------------------------------------------------------------------------
+# tag --id subfolder resolution
+# ---------------------------------------------------------------------------
+
+
+class TestTagSubfolderResolution:
+    """tag --id should descend into a matching subfolder when the parent has
+    no audio files directly."""
+
+    def test_id_descends_into_url_style_subfolder(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        """Files in '107536-Artist-Album/' are found when pointing at parent."""
+        mocker.patch("vinylkit.commands._helpers.move_file")
+        mocker.patch("vinylkit.commands._helpers.move_directory")
+        parent = tmp_path / "Needledrop"
+        parent.mkdir()
+        subfolder = parent / "107536-Quivver-One-Last-Time"
+        subfolder.mkdir()
+        (subfolder / "01.mp3").write_text("a")
+
+        mock_discogs.get_release.return_value = create_mock_release(
+            107536, "Quivver", "One Last Time"
+        )
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--id", "107536", "--no-move"],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Found release folder" in result.output
+        assert "107536-Quivver-One-Last-Time" in result.output
+
+    def test_id_uses_direct_folder_when_files_present(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        """When the specified folder already has audio files, it is used directly."""
+        mocker.patch("vinylkit.commands._helpers.move_file")
+        mocker.patch("vinylkit.commands._helpers.move_directory")
+        folder = tmp_path / "my-rip"
+        folder.mkdir()
+        (folder / "01.mp3").write_text("a")
+
+        mock_discogs.get_release.return_value = create_mock_release(999, "X", "Y")
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(folder), "--id", "999", "--no-move"],
+        )
+        assert result.exit_code == 0, result.output
+        # No subfolder lookup message when files are directly present
+        assert "Found release folder" not in result.output
+
+    def test_id_warns_on_multiple_matching_subfolders(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        """When two subfolders share the same ID, a warning is emitted."""
+        mocker.patch("vinylkit.commands._helpers.move_file")
+        mocker.patch("vinylkit.commands._helpers.move_directory")
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+        sub1 = parent / "107536-Original-Press"
+        sub1.mkdir()
+        (sub1 / "01.mp3").write_text("a")
+        sub2 = parent / "107536-Repress"
+        sub2.mkdir()
+        (sub2 / "01.mp3").write_text("a")
+
+        mock_discogs.get_release.return_value = create_mock_release(
+            107536, "Quivver", "One Last Time"
+        )
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--id", "107536", "--no-move"],
+        )
+        assert result.exit_code == 0, result.output
+        assert "multiple subfolders match ID" in result.output
+
+    def test_id_oserror_is_caught_cleanly(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        """An OSError during subfolder scan produces a clean error, not a traceback."""
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+
+        mocker.patch(
+            "vinylkit.commands.tag._helpers.collect_audio_files",
+            side_effect=OSError("permission denied"),
+        )
+        mock_discogs.get_release.return_value = create_mock_release(123, "X", "Y")
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--id", "123"],
+        )
+        assert result.exit_code == 0
+        assert "Tagging failed" in result.output
+        assert "Traceback" not in result.output
