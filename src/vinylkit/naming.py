@@ -47,12 +47,11 @@ def generate_path(
     except KeyError as e:
         raise FileOperationError(f"Invalid placeholder in naming pattern: {e}") from e
 
-    # Ensure extension is added correctly
-    p = Path(relative_path)
-    if p.suffix.lower() != extension.lower():
-        p = p.with_suffix(extension)
-
-    return root / p
+    # Append extension directly — avoid Path.with_suffix() which uses rfind('.')
+    # and misinterprets dots in filenames (e.g. vinyl positions "B.1", "B.2",
+    # or titles like "Mr. Brightside") as file extensions, stripping the track
+    # title from the path and causing rename collisions.
+    return root / Path(relative_path + extension)
 
 
 def move_file(source: Path, target: Path, dry_run: bool = False) -> None:

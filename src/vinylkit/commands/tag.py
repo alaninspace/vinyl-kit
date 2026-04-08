@@ -78,6 +78,8 @@ _TAG_EPILOG = (
     "\n\n  vinylkit tag --id 53088 --rename --auto-move --delete-source"
     "\n\n  vinylkit tag --id 391682,30038,12345"
     " --library-root /path/to/library --rename --auto-move --delete-source"
+    "\n\n  vinylkit tag /path/to/unsorted --id 182338,74044"
+    " --library-root /path/to/library --rename --auto-move"
     "\n\n  vinylkit tag --id 28203 --merge --no-artwork"
     "\n\n  vinylkit tag --dry-run --id 6108 ./vinyl-rips"
     "\n\n  vinylkit tag --batch --auto-move"
@@ -203,9 +205,9 @@ def tag(
     if no_move and auto_move:
         raise click.UsageError("--no-move and --auto-move are mutually exclusive.")
 
-    if len(release_ids) > 1 and paths:
+    if len(release_ids) > 1 and len(paths) > 1:
         raise click.UsageError(
-            "--id with multiple IDs cannot be combined with explicit paths."
+            "--id with multiple IDs cannot be combined with multiple paths."
         )
 
     # Handle multiple formats
@@ -283,7 +285,20 @@ def tag(
 
     # Build (path, release_id) pairs for the main loop
     path_id_pairs: list[tuple[Path, int | None]]
-    if len(release_ids) > 1:
+    if len(release_ids) > 1 and len(paths) == 1:
+        # Single search root + multiple IDs: resolve each ID as a subfolder.
+        search_root = paths[0]
+        resolved_pairs: list[tuple[Path, int | None]] = []
+        for rid in release_ids:
+            candidate = search_root / str(rid)
+            if candidate.is_dir():
+                resolved_pairs.append((candidate, rid))
+            else:
+                raise click.UsageError(
+                    f"No folder named '{rid}' found in {search_root}."
+                )
+        path_id_pairs = resolved_pairs
+    elif len(release_ids) > 1:
         path_id_pairs = list(zip(paths, release_ids, strict=True))
     else:
         path_id_pairs = [(p, release_id) for p in paths]

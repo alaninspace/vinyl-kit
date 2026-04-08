@@ -116,6 +116,39 @@ def test_ex_1_4_csv_ids_named_folders(runner, tmp_path, mock_discogs):
     assert mock_discogs.get_release.call_count == 2
 
 
+def test_ex_1_5_csv_ids_with_separate_source_folder(runner, tmp_path, mock_discogs):
+    """Covers: vinylkit tag /unsorted --id 182338,74044 --library-root ...
+
+    Flags: --rename --auto-move
+    """
+    unsorted = tmp_path / "unsorted"
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    for rid in (182338, 74044):
+        folder = unsorted / str(rid)
+        folder.mkdir(parents=True)
+        (folder / "01.flac").write_text("audio")
+
+    mock_discogs.get_release.side_effect = lambda rid: create_mock_release(
+        rid, "Artist", f"Album {rid}"
+    )
+    result = runner.invoke(
+        cli,
+        [
+            "tag",
+            str(unsorted),
+            "--id",
+            "182338,74044",
+            "--library-root",
+            str(lib),
+            "--rename",
+            "--auto-move",
+        ],
+    )
+    assert result.exit_code == 0
+    assert mock_discogs.get_release.call_count == 2
+
+
 ## 2. Precision Searching Examples
 
 

@@ -694,8 +694,12 @@ class TestTagIdLookupAndCsv:
         assert result.exit_code != 0
         assert "not a valid integer" in result.output
 
-    def test_multiple_ids_with_explicit_path_rejected(self, runner, tmp_path) -> None:
-        result = runner.invoke(cli, ["tag", str(tmp_path), "--id", "1,2"])
+    def test_multiple_ids_with_multiple_paths_rejected(self, runner, tmp_path) -> None:
+        a = tmp_path / "a"
+        b = tmp_path / "b"
+        a.mkdir()
+        b.mkdir()
+        result = runner.invoke(cli, ["tag", str(a), str(b), "--id", "1,2"])
         assert result.exit_code != 0
         assert "multiple IDs" in result.output
 
@@ -790,3 +794,54 @@ class TestTagIdLookupAndCsv:
         )
         assert result.exit_code != 0
         assert "No folder named" in result.output
+
+    def test_csv_ids_with_single_path_as_search_root(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        """Multi --id + single PATH uses the path as a search root."""
+        unsorted = tmp_path / "unsorted"
+        lib = tmp_path / "lib"
+        lib.mkdir()
+        for rid in (182338, 74044):
+            folder = unsorted / str(rid)
+            folder.mkdir(parents=True)
+            (folder / "01.flac").write_text("audio")
+
+        mock_discogs.get_release.side_effect = [
+            create_mock_release(182338, "Artist A", "Album A"),
+            create_mock_release(74044, "Artist B", "Album B"),
+        ]
+        mocker.patch("vinylkit.commands._helpers.move_file")
+        mocker.patch("vinylkit.commands._helpers.move_directory")
+
+        result = runner.invoke(
+            cli,
+            [
+                "tag",
+                str(unsorted),
+                "--id",
+                "182338,74044",
+                "--library-root",
+                str(lib),
+                "--rename",
+                "--auto-move",
+            ],
+        )
+        assert result.exit_code == 0
+        assert mock_discogs.get_release.call_count == 2
+
+    def test_csv_ids_with_single_path_missing_folder_errors(
+        self, runner, tmp_path
+    ) -> None:
+        """Multi --id + single PATH errors when an ID folder is missing."""
+        unsorted = tmp_path / "unsorted"
+        unsorted.mkdir()
+        (unsorted / "111").mkdir()
+        # 222 folder does not exist
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(unsorted), "--id", "111,222"],
+        )
+        assert result.exit_code != 0
+        assert "No folder named '222'" in result.output

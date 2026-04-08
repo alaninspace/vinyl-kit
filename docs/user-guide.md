@@ -87,8 +87,10 @@ The primary command for applying metadata to your files.
 - **Options**:
   - `--id <ID[,ID,...]>`: Direct Discogs Release ID, or a comma-separated list
     of IDs. When multiple IDs are given, each must have a folder named by its ID
-    in the library root or recordings root (e.g. `391682/`). A single ID falls
-    back to `recordings_root` if no named folder is found.
+    in the library root, recordings root, or an explicit search path (e.g.
+    `391682/`). You can pass a single PATH to use as the search root:
+    `vinylkit tag /path/to/unsorted --id 182338,74044 ...`.
+    A single ID falls back to `recordings_root` if no named folder is found.
   - `--search <TEXT>`: Global search query for interactive selection.
   - `--artist <TEXT>`: Filter search by artist name.
   - `--album <TEXT>`: Filter search by album/release title.

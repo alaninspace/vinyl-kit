@@ -75,6 +75,35 @@ def test_generate_path_strips_disambiguation() -> None:
     assert "Pariah (2)" not in str(new_path)
 
 
+def test_generate_path_dotted_vinyl_position() -> None:
+    """Positions like B.1 / B.2 must not cause extension-stripping via with_suffix.
+
+    Path("B.1 - Velociraptor").suffix returns ".1 - Velociraptor" (rightmost dot),
+    so the old with_suffix(".flac") call would turn both B.1 and B.2 tracks into
+    B.flac — causing a rename collision.
+    """
+    release = DiscogsRelease(
+        id=236550,
+        artists=["Agent 24K"],
+        title="T. 1000",
+        year=1993,
+        tracklist=[
+            TrackInfo(position="A", title="T. 1000", side="A"),
+            TrackInfo(position="B.1", title="Velociraptor", side="B"),
+            TrackInfo(position="B.2", title="Keep Moving", side="B"),
+        ],
+    )
+    pattern = "{artist}/{year} - {album}/{track_number} - {title}"
+    root = Path("/music")
+
+    path_b1 = generate_path(root, pattern, release, 1, ".flac")
+    path_b2 = generate_path(root, pattern, release, 2, ".flac")
+
+    assert "B.1 - Velociraptor.flac" in str(path_b1)
+    assert "B.2 - Keep Moving.flac" in str(path_b2)
+    assert path_b1 != path_b2
+
+
 def test_move_file_real(tmp_path: Path) -> None:
     from vinylkit.naming import move_file
 

@@ -67,6 +67,19 @@ lookup (`{library-root}/{id}/`) for each ID — no directory scan.
 vinylkit tag --id 391682,30038 --library-root "D:\Music\DJ\Vinyl" --rename --auto-move --delete-source
 ```
 
+### Multi-ID with a Separate Source Folder
+
+When your unprocessed files live outside the library root, pass the source
+folder as a single PATH. VinylKit looks for `{PATH}/{id}/` for each ID, tags
+the files, and moves them to `--library-root`.
+
+```bash
+# Bash / PowerShell
+# Source folders: D:\Music\DJ\Vinyl\#Unsorted\182338\  and  ...\74044\
+# Destination:    D:\Music\DJ\Vinyl\
+vinylkit tag "D:\Music\DJ\Vinyl\#Unsorted" --id 182338,74044 --library-root "D:\Music\DJ\Vinyl" --rename --auto-move --delete-source
+```
+
 ---
 
 ## 2. Precision Searching (Filtered)
