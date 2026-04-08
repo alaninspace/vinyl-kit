@@ -75,6 +75,9 @@ _TAG_EPILOG = (
     "\n\n  vinylkit tag --id 19983 ./recordings"
     "\n\n  vinylkit tag --artist 'Faithless' --album 'Insomnia'"
     "\n\n  vinylkit tag --id 53088 --rename --auto-move"
+    "\n\n  vinylkit tag --id 53088 --rename --auto-move --delete-source"
+    "\n\n  vinylkit tag --id 391682,30038,12345"
+    " --library-root /path/to/library --rename --auto-move --delete-source"
     "\n\n  vinylkit tag --id 28203 --merge --no-artwork"
     "\n\n  vinylkit tag --dry-run --id 6108 ./vinyl-rips"
     "\n\n  vinylkit tag --batch --auto-move"
@@ -88,7 +91,12 @@ _TAG_EPILOG = (
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
     nargs=-1,
 )
-@click.option("--id", "release_id", type=int, help="Discogs Release ID.")
+@click.option(
+    "--id",
+    "release_id_raw",
+    type=str,
+    help="Discogs Release ID, or comma-separated list of IDs.",
+)
 @click.option("--search", "query", type=str, help="Search query for Discogs.")
 @click.option("--artist", type=str, help="Filter search by artist name.")
 @click.option("--album", type=str, help="Filter search by album/release title.")
@@ -139,11 +147,16 @@ _TAG_EPILOG = (
     is_flag=True,
     help="Rename files in place but skip moving them to the library.",
 )
+@click.option(
+    "--delete-source",
+    is_flag=True,
+    help="Delete the source folder after files are successfully moved to the library.",
+)
 @click.pass_obj
 def tag(
     config: AppConfig,
     paths: tuple[Path, ...],
-    release_id: int | None,
+    release_id_raw: str | None,
     query: str | None,
     artist: str | None,
     album: str | None,
@@ -156,6 +169,7 @@ def tag(
     merge: bool,
     batch: bool,
     no_move: bool,
+    delete_source: bool,
 ) -> None:
     """Tag audio files in folders using metadata from Discogs.
 
@@ -166,7 +180,21 @@ def tag(
     lib_root = lib_root_override or config.library_root
     tag_mode = TagMode.MERGE if merge else config.tag_mode
 
-    if batch and (release_id or query or artist or album or fmt_filter):
+    # Parse --id: single int or comma-separated list
+    release_ids: list[int] = []
+    if release_id_raw:
+        for part in release_id_raw.split(","):
+            part = part.strip()
+            if not part.isdigit():
+                raise click.BadParameter(
+                    f"{part!r} is not a valid integer.",
+                    param_hint="'--id'",
+                )
+            release_ids.append(int(part))
+
+    release_id: int | None = release_ids[0] if len(release_ids) == 1 else None
+
+    if batch and (release_ids or query or artist or album or fmt_filter):
         raise click.UsageError(
             "--batch cannot be combined with"
             " --id, --search, --artist, --album, or --format."
@@ -175,15 +203,56 @@ def tag(
     if no_move and auto_move:
         raise click.UsageError("--no-move and --auto-move are mutually exclusive.")
 
+    if len(release_ids) > 1 and paths:
+        raise click.UsageError(
+            "--id with multiple IDs cannot be combined with explicit paths."
+        )
+
     # Handle multiple formats
     if fmt_filter:
         search_formats: list[str] = [f.strip() for f in fmt_filter.split(",")]
     else:
         search_formats = config.default_format
 
-    # Use recordings_root if no paths provided
+    # Resolve paths when none provided
     if not paths:
-        if config.recordings_root:
+        if release_ids:
+            if len(release_ids) == 1:
+                # Single ID: try {root}/{id}/ first, fall back to recordings_root.
+                candidate = _find_id_folder(
+                    release_ids[0], config.recordings_root, lib_root
+                )
+                if candidate is not None:
+                    paths = (candidate,)
+                elif config.recordings_root:
+                    paths = (config.recordings_root,)
+                else:
+                    raise click.UsageError(
+                        f"No folder named '{release_ids[0]}' found in"
+                        f" library-root ({lib_root})"
+                        " and 'recordings_root' is not configured."
+                    )
+            else:
+                # Multiple IDs: each must have its own named folder — no ambiguity.
+                resolved: list[Path] = []
+                for rid in release_ids:
+                    candidate = _find_id_folder(rid, config.recordings_root, lib_root)
+                    if candidate is None:
+                        raise click.UsageError(
+                            f"No folder named '{rid}' found in"
+                            f" library-root ({lib_root})"
+                            + (
+                                f" or recordings_root ({config.recordings_root})"
+                                if config.recordings_root
+                                else ""
+                            )
+                            + "."
+                        )
+                    resolved.append(candidate)
+                paths = tuple(resolved)
+            if do_rename is None:
+                do_rename = True
+        elif config.recordings_root:
             paths = (config.recordings_root,)
             if do_rename is None:
                 do_rename = True
@@ -208,19 +277,33 @@ def tag(
             do_rename=do_rename,
             auto_move=auto_move,
             no_move=no_move,
+            delete_source=delete_source,
         )
         return
 
-    if not release_id and not query and not artist and not album and len(paths) > 1:
+    # Build (path, release_id) pairs for the main loop
+    path_id_pairs: list[tuple[Path, int | None]]
+    if len(release_ids) > 1:
+        path_id_pairs = list(zip(paths, release_ids, strict=True))
+    else:
+        path_id_pairs = [(p, release_id) for p in paths]
+
+    if (
+        not release_ids
+        and not query
+        and not artist
+        and not album
+        and not auto_move
+        and len(paths) > 1
+    ):
         _helpers.console.print(
             "[yellow]Batch mode: You will be prompted for each folder.[/yellow]"
         )
 
     client = _helpers.get_client(config)
 
-    for path in paths:
+    for path, current_release_id in path_id_pairs:
         _helpers.console.print(f"\n[bold blue]Processing folder:[/bold blue] {path}")
-        current_release_id = release_id
         current_query = query
         current_artist = artist
         current_album = album
@@ -253,12 +336,29 @@ def tag(
                 do_rename=do_rename,
                 auto_move=auto_move,
                 no_move=no_move,
+                delete_source=delete_source,
             )
 
         except (VinylkitError, OSError) as e:
             _helpers.console.print(
                 f"[bold red]Tagging failed for {path.name}:[/bold red] {e}"
             )
+
+
+def _find_id_folder(
+    release_id: int,
+    recordings_root: Path | None,
+    lib_root: Path,
+) -> Path | None:
+    """Return the first directory named exactly *release_id* found in
+    recordings_root (if set) or lib_root.  Single stat call per root — no scan.
+    """
+    for root in (recordings_root, lib_root):
+        if root is not None:
+            candidate = root / str(release_id)
+            if candidate.is_dir():
+                return candidate
+    return None
 
 
 def _resolve_release_folder(path: Path, release_id: int) -> Path:
@@ -293,6 +393,7 @@ def _batch_tag(
     do_rename: bool,
     auto_move: bool,
     no_move: bool,
+    delete_source: bool,
 ) -> None:
     """Iterate subfolders, extract Discogs IDs, and tag each."""
     client: _helpers.DiscogsClient | None = None
@@ -349,6 +450,7 @@ def _batch_tag(
                     do_rename=do_rename,
                     auto_move=auto_move,
                     no_move=no_move,
+                    delete_source=delete_source,
                     rename_folder=True,
                     release=release,
                 )
@@ -539,6 +641,7 @@ def _tag_folder(
     do_rename: bool,
     auto_move: bool,
     no_move: bool = False,
+    delete_source: bool = False,
     rename_folder: bool = False,
     release: DiscogsRelease | None = None,
 ) -> None:
@@ -669,6 +772,7 @@ def _tag_folder(
                     lib_root,
                     auto_move=auto_move,
                     no_move=no_move,
+                    delete_source=delete_source,
                     rename_folder=rename_folder,
                 )
             except VinylkitError as e:
@@ -689,6 +793,7 @@ def _rename_after_tag(
     *,
     auto_move: bool,
     no_move: bool = False,
+    delete_source: bool = False,
     rename_folder: bool = False,
 ) -> None:
     """Rename/move files after tagging.
@@ -779,31 +884,9 @@ def _rename_after_tag(
                 f"\n[bold green]Files renamed into {display}.[/bold green]"
             )
         else:
-            # Single release: create full structure inside path.
-            subfolder = path / relative_dir
-            subfolder.mkdir(parents=True, exist_ok=True)
-            for local_src, _dst in renamed:
-                target = subfolder / local_src.name
-                if local_src != target:
-                    _helpers.move_file(local_src, target, dry_run=False)
-            # Move supplementary files into subfolder.
-            for name in (
-                config.info_filename,
-                config.artwork_filename,
-            ):
-                src_file = path / name
-                if src_file.exists():
-                    _helpers.move_file(src_file, subfolder / name, dry_run=False)
-            art_subdir = path / config.artwork_subdir
-            if art_subdir.exists() and art_subdir.is_dir():
-                _helpers.move_directory(
-                    art_subdir,
-                    subfolder / config.artwork_subdir,
-                    dry_run=False,
-                )
-            display = str(relative_dir).replace("\\", "/")
+            # Single release: files are already renamed in-place above.
             _helpers.console.print(
-                f"\n[bold green]Files organized into {display}.[/bold green]"
+                f"\n[bold green]Files renamed in {path.name}.[/bold green]"
             )
         return
 
@@ -838,6 +921,17 @@ def _rename_after_tag(
         for src, dst in dir_moves:
             _helpers.move_directory(src, dst, dry_run=False)
         _helpers.console.print("\n[bold green]Files moved successfully.[/bold green]")
+        if delete_source and path.exists() and not any(path.iterdir()):
+            try:
+                path.rmdir()
+                _helpers.console.print(
+                    f"[dim]Removed empty source folder: {path.name}[/dim]"
+                )
+            except OSError as exc:
+                _helpers.console.print(
+                    f"[yellow]Warning: Could not remove source"
+                    f" folder {path.name}: {exc}[/yellow]"
+                )
     except VinylkitError as exc:
         _helpers.console.print(
             f"\n[bold red]Move to library"

@@ -85,7 +85,10 @@ The primary command for applying metadata to your files.
 
 - **Usage**: `vinylkit tag [PATHS]... [OPTIONS]`
 - **Options**:
-  - `--id <INTEGER>`: Direct Discogs Release ID.
+  - `--id <ID[,ID,...]>`: Direct Discogs Release ID, or a comma-separated list
+    of IDs. When multiple IDs are given, each must have a folder named by its ID
+    in the library root or recordings root (e.g. `391682/`). A single ID falls
+    back to `recordings_root` if no named folder is found.
   - `--search <TEXT>`: Global search query for interactive selection.
   - `--artist <TEXT>`: Filter search by artist name.
   - `--album <TEXT>`: Filter search by album/release title.
@@ -100,6 +103,7 @@ The primary command for applying metadata to your files.
     `--search`, `--artist`, `--album`, `--format`.
   - `--no-move`: Rename files in place but skip moving them to the library.
     Mutually exclusive with `--auto-move`.
+  - `--delete-source`: Delete the source folder after files are successfully moved to the library.
   - `--merge`: Preserve existing tags that aren't overwritten by Discogs.
   - `--library-root <PATH>`: Temporary override for the library destination.
 

@@ -383,6 +383,19 @@ def tag_audio_file(
         raise TaggingError(f"Failed to tag {path}: {e}") from e
 
 
+def _side_index_in_release(release: DiscogsRelease, side: str) -> int:
+    """Return the 0-based position of *side* among unique sides in the release.
+
+    Uses order of first appearance, so non-standard labels like X/Y are handled
+    correctly (X=0, Y=1) rather than using letter ordinals (X=23, Y=24).
+    """
+    seen: list[str] = []
+    for t in release.tracklist:
+        if t.side and t.side not in seen:
+            seen.append(t.side)
+    return seen.index(side) if side in seen else 0
+
+
 def calculate_track_and_disc(
     release: DiscogsRelease,
     track_index: int,
@@ -397,20 +410,21 @@ def calculate_track_and_disc(
     # 1. Calculate Disc Number
     disc_num = "1"
     if disc_mapping == DiscMapping.PER_SIDE:
-        # A=1, B=2, C=3...
+        # Each unique side gets its own disc number, in order of appearance.
+        # e.g. A=1, B=2; or X=1, Y=2 (non-standard labels work correctly).
         if track.side:
-            # Map A->1, B->2...
-            disc_num = str(ord(track.side[0].upper()) - ord("A") + 1)
+            side_idx = _side_index_in_release(release, track.side)
+            disc_num = str(side_idx + 1)
     elif disc_mapping == DiscMapping.PHYSICAL:
-        # Standard Vinyl: A,B=1, C,D=2, E,F=3...
-        # Also check for explicit 1A, 2A prefix
+        # Pair sides into physical discs by order of appearance:
+        # 1st+2nd unique side = disc 1, 3rd+4th = disc 2, etc.
+        # Also check for explicit 1A, 2A numeric prefix.
         disc_prefix_match = re.match(r"^(\d+)", track.position)
         if disc_prefix_match:
             disc_num = disc_prefix_match.group(1)
         elif track.side:
-            # A, B -> 1; C, D -> 2...
-            side_val = ord(track.side[0].upper()) - ord("A")
-            disc_num = str((side_val // 2) + 1)
+            side_idx = _side_index_in_release(release, track.side)
+            disc_num = str((side_idx // 2) + 1)
     elif disc_mapping == DiscMapping.ORIGINAL:
         # Discogs usually doesn't have a clear numeric disc count
         # in simple API responses for single releases,

@@ -137,17 +137,50 @@ def test_calculate_track_and_disc_logic():
     )
     assert d == "1"  # B1 -> Disc 1
 
-    # Test Side C
+    # Test Side C on a 2LP (A,B=disc1, C,D=disc2)
     release_2lp = DiscogsRelease(
         id=2,
         artists=["A"],
         title="T",
-        tracklist=[TrackInfo(position="C1", title="T3", side="C")],
+        tracklist=[
+            TrackInfo(position="A1", title="T1", side="A"),
+            TrackInfo(position="B1", title="T2", side="B"),
+            TrackInfo(position="C1", title="T3", side="C"),
+            TrackInfo(position="D1", title="T4", side="D"),
+        ],
     )
     t, d = calculate_track_and_disc(
-        release_2lp, 0, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL
+        release_2lp, 2, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL
     )
-    assert d == "2"  # C1 -> Disc 2
+    assert d == "2"  # C1 -> Disc 2 (3rd unique side, index 2, (2//2)+1=2)
+
+    # Test non-standard side labels (e.g. X, Y) — must both be disc 1
+    release_xy = DiscogsRelease(
+        id=5,
+        artists=["A"],
+        title="T",
+        tracklist=[
+            TrackInfo(position="X", title="Track X", side="X"),
+            TrackInfo(position="Y", title="Track Y", side="Y"),
+        ],
+    )
+    _, d = calculate_track_and_disc(
+        release_xy, 0, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL
+    )
+    assert d == "1"  # X is 1st unique side -> disc 1
+    _, d = calculate_track_and_disc(
+        release_xy, 1, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL
+    )
+    assert d == "1"  # Y is 2nd unique side -> (1//2)+1 = disc 1
+    # PER_SIDE: X=disc1, Y=disc2
+    _, d = calculate_track_and_disc(
+        release_xy, 0, TrackNumbering.NUMERIC, DiscMapping.PER_SIDE
+    )
+    assert d == "1"
+    _, d = calculate_track_and_disc(
+        release_xy, 1, TrackNumbering.NUMERIC, DiscMapping.PER_SIDE
+    )
+    assert d == "2"
 
     # Test Numeric Prefix (1A, 2A)
     release_prefix = DiscogsRelease(

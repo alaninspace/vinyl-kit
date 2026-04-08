@@ -493,10 +493,10 @@ class TestBatchTag:
         assert "renamed into" in result.output
         assert "A/2000 - T" in result.output
 
-    def test_single_no_move_creates_subfolder(
+    def test_single_no_move_renames_in_place(
         self, runner, tmp_path, mock_discogs, mocker
     ) -> None:
-        """Single-release --no-move creates a subfolder, not rename parent."""
+        """Single-release --no-move renames files in place, no subfolder created."""
         self._suppress_moves(mocker)
         folder = tmp_path / "my-rips"
         folder.mkdir()
@@ -509,11 +509,67 @@ class TestBatchTag:
             ["tag", str(folder), "--id", "165", "--no-move"],
         )
         assert result.exit_code == 0
-        # Should create full naming pattern structure inside path
-        assert "organized into" in result.output
-        assert "A/2000 - T" in result.output
-        # Parent folder should NOT be renamed
+        # Should rename in place, no subfolder
+        assert "renamed in" in result.output
+        # Parent folder should NOT be renamed or moved
         assert folder.exists()
+
+    def test_delete_source_removes_empty_folder(
+        self, runner, tmp_path, mock_discogs
+    ) -> None:
+        src = tmp_path / "my-rips"
+        src.mkdir()
+        (src / "01.mp3").write_text("a")
+        lib = tmp_path / "lib"
+
+        mock_discogs.get_release.return_value = create_mock_release(165, "A", "T")
+
+        result = runner.invoke(
+            cli,
+            [
+                "tag",
+                str(src),
+                "--id",
+                "165",
+                "--rename",
+                "--auto-move",
+                "--delete-source",
+                "--library-root",
+                str(lib),
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Removed empty source folder" in result.output
+        assert not src.exists()
+
+    def test_delete_source_skips_nonempty_folder(
+        self, runner, tmp_path, mock_discogs
+    ) -> None:
+        src = tmp_path / "my-rips"
+        src.mkdir()
+        (src / "01.mp3").write_text("a")
+        (src / "extra.txt").write_text("keep me")
+        lib = tmp_path / "lib"
+
+        mock_discogs.get_release.return_value = create_mock_release(165, "A", "T")
+
+        result = runner.invoke(
+            cli,
+            [
+                "tag",
+                str(src),
+                "--id",
+                "165",
+                "--rename",
+                "--auto-move",
+                "--delete-source",
+                "--library-root",
+                str(lib),
+            ],
+        )
+        assert result.exit_code == 0
+        # extra.txt is still there, so folder should NOT be removed
+        assert src.exists()
 
     def test_no_move_incompatible_with_auto_move(self, runner, tmp_path) -> None:
         result = runner.invoke(
@@ -623,3 +679,114 @@ class TestTagSubfolderResolution:
         assert result.exit_code == 0
         assert "Tagging failed" in result.output
         assert "Traceback" not in result.output
+
+
+# ---------------------------------------------------------------------------
+# tag --id CSV and folder-by-id lookup
+# ---------------------------------------------------------------------------
+
+
+class TestTagIdLookupAndCsv:
+    """--id accepts a single int or CSV list; resolves named folders from root."""
+
+    def test_invalid_id_rejected(self, runner, tmp_path) -> None:
+        result = runner.invoke(cli, ["tag", str(tmp_path), "--id", "abc"])
+        assert result.exit_code != 0
+        assert "not a valid integer" in result.output
+
+    def test_multiple_ids_with_explicit_path_rejected(self, runner, tmp_path) -> None:
+        result = runner.invoke(cli, ["tag", str(tmp_path), "--id", "1,2"])
+        assert result.exit_code != 0
+        assert "multiple IDs" in result.output
+
+    def test_single_id_resolves_named_folder_in_lib_root(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        """When folder named by ID exists in library-root, it is used automatically."""
+        lib = tmp_path / "lib"
+        src = lib / "391682"
+        src.mkdir(parents=True)
+        (src / "01.flac").write_text("audio")
+
+        mock_discogs.get_release.return_value = create_mock_release(
+            391682, "2 Together", "Major Worries Vol 2"
+        )
+        mocker.patch("vinylkit.commands._helpers.move_file")
+        mocker.patch("vinylkit.commands._helpers.move_directory")
+
+        result = runner.invoke(
+            cli,
+            [
+                "tag",
+                "--id",
+                "391682",
+                "--library-root",
+                str(lib),
+                "--rename",
+                "--auto-move",
+            ],
+        )
+        assert result.exit_code == 0
+
+    def test_single_id_falls_back_to_recordings_root(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        """When no named folder exists, single --id falls back to recordings_root."""
+        inbox = tmp_path / "inbox"
+        inbox.mkdir()
+        (inbox / "01.mp3").write_text("audio")
+        lib = tmp_path / "lib"
+
+        mocker.patch(
+            "vinylkit.cli.load_config",
+            return_value=AppConfig(library_root=lib, recordings_root=inbox),
+        )
+        mock_discogs.get_release.return_value = create_mock_release(
+            99999, "Artist", "Album"
+        )
+
+        result = runner.invoke(cli, ["tag", "--id", "99999", "--no-rename"])
+        assert result.exit_code == 0
+
+    def test_csv_ids_process_each_named_folder(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        """CSV --id finds each {lib}/{id}/ folder and processes it in sequence."""
+        lib = tmp_path / "lib"
+        for rid in (391682, 30038):
+            folder = lib / str(rid)
+            folder.mkdir(parents=True)
+            (folder / "01.flac").write_text("audio")
+
+        def _get_release(rid: int) -> object:
+            return create_mock_release(rid, "Artist", f"Album {rid}")
+
+        mock_discogs.get_release.side_effect = _get_release
+        mocker.patch("vinylkit.commands._helpers.move_file")
+        mocker.patch("vinylkit.commands._helpers.move_directory")
+
+        result = runner.invoke(
+            cli,
+            [
+                "tag",
+                "--id",
+                "391682,30038",
+                "--library-root",
+                str(lib),
+                "--rename",
+                "--auto-move",
+            ],
+        )
+        assert result.exit_code == 0
+        assert mock_discogs.get_release.call_count == 2
+
+    def test_csv_ids_missing_folder_errors(self, runner, tmp_path) -> None:
+        """CSV --id errors clearly when a named folder doesn't exist."""
+        lib = tmp_path / "lib"
+        lib.mkdir()
+        result = runner.invoke(
+            cli,
+            ["tag", "--id", "1,99999", "--library-root", str(lib)],
+        )
+        assert result.exit_code != 0
+        assert "No folder named" in result.output

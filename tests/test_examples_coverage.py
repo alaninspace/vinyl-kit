@@ -61,6 +61,61 @@ def test_ex_1_2_id_rename_automove(runner, tmp_path, mock_discogs):
     assert "Files moved successfully" in result.output
 
 
+def test_ex_1_3_id_rename_automove_delete_source(runner, tmp_path, mock_discogs):
+    """Covers: vinylkit tag --id 53088 --rename --auto-move --delete-source"""
+    src = tmp_path / "my-rips"
+    src.mkdir()
+    (src / "01.flac").write_text("audio")
+    mock_discogs.get_release.return_value = create_mock_release(
+        53088, "The Prodigy", "Wind It Up"
+    )
+    result = runner.invoke(
+        cli,
+        [
+            "tag",
+            str(src),
+            "--id",
+            "53088",
+            "--rename",
+            "--auto-move",
+            "--delete-source",
+            "--library-root",
+            str(tmp_path / "lib"),
+        ],
+    )
+    # Verify the flag is accepted and command succeeds.
+    # move_file is mocked in this file's fixture so actual deletion
+    # is not tested here — see test_cli_commands.py for that.
+    assert result.exit_code == 0
+
+
+def test_ex_1_4_csv_ids_named_folders(runner, tmp_path, mock_discogs):
+    """Covers: vinylkit tag --id 391682,30038 --library-root ... --rename --auto-move"""
+    lib = tmp_path / "lib"
+    for rid in (391682, 30038):
+        folder = lib / str(rid)
+        folder.mkdir(parents=True)
+        (folder / "01.flac").write_text("audio")
+
+    mock_discogs.get_release.side_effect = lambda rid: create_mock_release(
+        rid, "Artist", f"Album {rid}"
+    )
+    result = runner.invoke(
+        cli,
+        [
+            "tag",
+            "--id",
+            "391682,30038",
+            "--library-root",
+            str(lib),
+            "--rename",
+            "--auto-move",
+        ],
+    )
+    assert result.exit_code == 0
+    assert mock_discogs.get_release.call_count == 2
+
+
 ## 2. Precision Searching Examples
 
 

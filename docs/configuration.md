@@ -71,11 +71,19 @@ Batch mode for the `tag` command. Iterates subfolders of the given path, extract
 
 ### `--no-move` (CLI flag)
 
-Rename files in place using the naming pattern but skip moving them to the library root. Mutually exclusive with `--auto-move`. When used without `--batch`, creates a subfolder structure inside the source folder. When used with `--batch`, renames each subfolder to match the naming pattern.
+Rename files in place using the naming pattern but skip moving them to the library root. Mutually exclusive with `--auto-move`. When used without `--batch`, files are renamed in place within the source folder. When used with `--batch`, renames each subfolder to match the naming pattern.
 
 - **Type:** Flag (no value)
 - **Example:** `vinylkit tag --batch --no-move`
 - **Single release:** `vinylkit tag --id 19983 --no-move`
+
+### `--delete-source` (CLI flag)
+
+Delete the source folder after all files have been successfully moved to the library. Only takes effect when files are actually moved (i.e. combined with `--rename`). If any files remain in the folder after the move, the folder is left intact.
+
+- **Type:** Flag (no value)
+- **Example:** `vinylkit tag --id 53088 --rename --auto-move --delete-source`
+- **With library-root:** `vinylkit tag ./my-rips --id 53088 --rename --auto-move --library-root ~/Music --delete-source`
 
 ---
 

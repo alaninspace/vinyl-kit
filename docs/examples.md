@@ -45,6 +45,28 @@ Tags the files and immediately moves them to your organized library.
 vinylkit tag --id 53088 --rename --auto-move
 ```
 
+### ID Tagging + Rename + Auto-Move + Delete Source
+
+Tags, moves to library, and removes the now-empty source folder.
+
+```bash
+# Bash / PowerShell
+# Example: The Prodigy - Wind It Up (Rewound)
+vinylkit tag --id 53088 --rename --auto-move --delete-source
+```
+
+### Multi-ID Workflow (CSV IDs + Named Folders)
+
+Process several albums in one command. Rename each source folder to its Discogs
+ID, then pass a comma-separated list of IDs. VinylKit performs a direct path
+lookup (`{library-root}/{id}/`) for each ID — no directory scan.
+
+```bash
+# Bash / PowerShell
+# Folders: D:\Music\DJ\Vinyl\391682\  and  D:\Music\DJ\Vinyl\30038\
+vinylkit tag --id 391682,30038 --library-root "D:\Music\DJ\Vinyl" --rename --auto-move --delete-source
+```
+
 ---
 
 ## 2. Precision Searching (Filtered)
