@@ -84,6 +84,10 @@ def config_show(config_obj: AppConfig) -> None:
                     config_obj.track_numbering,
                 ),
                 ("disc_mapping", config_obj.disc_mapping),
+                (
+                    "normalize_discogs_duplicates",
+                    str(config_obj.normalize_discogs_duplicates),
+                ),
                 ("info_filename", config_obj.info_filename),
                 (
                     "skip_tags",
@@ -226,6 +230,7 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "tag_mode": TagMode,
     "track_numbering": TrackNumbering,
     "disc_mapping": DiscMapping,
+    "normalize_discogs_duplicates": _parse_bool,
     "consumer_key": str,
     "consumer_secret": str,
     "discogs_token": str,

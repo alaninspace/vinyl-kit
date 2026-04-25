@@ -77,6 +77,7 @@ def get_client(config: AppConfig) -> DiscogsClient:
         config.discogs_secret,
         cache_enabled=config.cache_enabled,
         auth_mode=config.auth_mode,
+        normalize_discogs_duplicates=config.normalize_discogs_duplicates,
     )
 
 

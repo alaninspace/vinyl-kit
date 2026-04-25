@@ -24,7 +24,7 @@ from vinylkit.models import (
     RateLimitInfo,
     TrackInfo,
 )
-from vinylkit.utils import clean_artist_name
+from vinylkit.utils import clean_artist_name, remove_discogs_disambiguation
 
 DISCOGS_API_URL = "https://api.discogs.com"
 REQUEST_TOKEN_URL = f"{DISCOGS_API_URL}/oauth/request_token"
@@ -79,8 +79,10 @@ class DiscogsClient:
         secret: str | None = None,
         cache_enabled: bool = True,
         auth_mode: AuthMode = AuthMode.AUTO,
+        normalize_discogs_duplicates: bool = True,
     ) -> None:
         self.cache_enabled = cache_enabled
+        self.normalize_discogs_duplicates = normalize_discogs_duplicates
         self.cache_dir = get_cache_dir()
         if self.cache_enabled:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -328,7 +330,11 @@ class DiscogsClient:
 
                 track_extraartists = [
                     ExtraArtistInfo(
-                        name=clean_artist_name(a.get("name") or "", a.get("anv") or ""),
+                        name=clean_artist_name(
+                            a.get("name") or "",
+                            a.get("anv") or "",
+                            normalize=self.normalize_discogs_duplicates,
+                        ),
                         role=a.get("role") or "",
                     )
                     for a in t.get("extraartists", [])
@@ -338,7 +344,11 @@ class DiscogsClient:
                         position=pos,
                         title=t.get("title", ""),
                         artists=[
-                            clean_artist_name(a.get("name") or "", a.get("anv") or "")
+                            clean_artist_name(
+                                a.get("name") or "",
+                                a.get("anv") or "",
+                                normalize=self.normalize_discogs_duplicates,
+                            )
                             for a in t.get("artists", [])
                         ]
                         if t.get("artists")
@@ -357,12 +367,19 @@ class DiscogsClient:
                 for i in data.get("images", [])
             ]
             labels_data = [
-                LabelInfo(name=lbl.get("name") or "", catno=lbl.get("catno"))
+                LabelInfo(
+                    name=remove_discogs_disambiguation(lbl.get("name") or "")
+                    if self.normalize_discogs_duplicates
+                    else lbl.get("name") or "",
+                    catno=lbl.get("catno"),
+                )
                 for lbl in data.get("labels", [])
             ]
             companies_data = [
                 CompanyInfo(
-                    name=comp.get("name") or "",
+                    name=remove_discogs_disambiguation(comp.get("name") or "")
+                    if self.normalize_discogs_duplicates
+                    else comp.get("name") or "",
                     entity_type_name=comp.get("entity_type_name") or "",
                 )
                 for comp in data.get("companies", [])
@@ -385,7 +402,11 @@ class DiscogsClient:
             ]
             extraartists_data = [
                 ExtraArtistInfo(
-                    name=clean_artist_name(a.get("name") or "", a.get("anv") or ""),
+                    name=clean_artist_name(
+                        a.get("name") or "",
+                        a.get("anv") or "",
+                        normalize=self.normalize_discogs_duplicates,
+                    ),
                     role=a.get("role") or "",
                 )
                 for a in data.get("extraartists", [])
@@ -396,7 +417,11 @@ class DiscogsClient:
             return DiscogsRelease(
                 id=data["id"],
                 artists=[
-                    clean_artist_name(a.get("name") or "", a.get("anv") or "")
+                    clean_artist_name(
+                        a.get("name") or "",
+                        a.get("anv") or "",
+                        normalize=self.normalize_discogs_duplicates,
+                    )
                     for a in data.get("artists", [])
                 ],
                 title=data["title"],
@@ -418,7 +443,11 @@ class DiscogsClient:
                 uri=data.get("uri"),
                 master_id=data.get("master_id"),
                 master_url=data.get("master_url"),
-                artists_sort=data.get("artists_sort"),
+                artists_sort=remove_discogs_disambiguation(
+                    data.get("artists_sort") or ""
+                )
+                if self.normalize_discogs_duplicates and data.get("artists_sort")
+                else data.get("artists_sort"),
                 data_quality=data.get("data_quality"),
                 format_quantity=data.get("format_quantity"),
             )

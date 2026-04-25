@@ -277,6 +277,20 @@ vinylkit config set naming_pattern "{artist}/{label}/[{year}] {album}/{track_num
 vinylkit config set naming_pattern "{artist}/{year} - {album} [{label}]/{track_number} - {title}"
 ```
 
+### Normalise Discogs Duplicates
+
+Enable or disable the automatic removal of Discogs disambiguation suffixes (like `(2)`).
+
+```bash
+# Bash / PowerShell
+
+# Keep raw Discogs names (e.g. "What's In It For Me Music (2)")
+vinylkit config set normalize_discogs_duplicates false
+
+# Use clensed names (e.g. "What's In It For Me Music") - [DEFAULT]
+vinylkit config set normalize_discogs_duplicates true
+```
+
 ---
 
 ### View Current Configuration

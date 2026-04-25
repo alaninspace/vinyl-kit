@@ -181,3 +181,4 @@ class AppConfig:
     log_file: Path | None = None
     log_rotation: str = "5 MB"
     log_retention: int = 5
+    normalize_discogs_duplicates: bool = True

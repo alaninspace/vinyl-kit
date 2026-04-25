@@ -541,6 +541,19 @@ def test_ex_5_3_config_naming_pattern(runner):
         assert pattern.replace(" ", "") in clean
 
 
+def test_ex_6_6_config_normalize_duplicates(runner):
+    """Covers: vinylkit config set normalize_discogs_duplicates true/false"""
+    with runner.isolated_filesystem():
+        runner.invoke(cli, ["config", "set", "normalize_discogs_duplicates", "false"])
+        result_off = runner.invoke(cli, ["config", "show"])
+        assert "normalize_discogs_duplicates" in result_off.output
+        assert "False" in result_off.output
+
+        runner.invoke(cli, ["config", "set", "normalize_discogs_duplicates", "true"])
+        result_on = runner.invoke(cli, ["config", "show"])
+        assert "True" in result_on.output
+
+
 def test_ex_6_4_config_show(runner):
     """Covers: vinylkit config show"""
     result = runner.invoke(cli, ["config", "show"])

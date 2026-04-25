@@ -114,6 +114,14 @@ Controls how track numbers are written to files. Essential for software like Roo
 - `per_side`: Resets the count for each side (A1->1, B1->1). Best used with `disc_mapping per_side`.
 - **Example:** `vinylkit config set track_numbering original`
 
+### `normalize_discogs_duplicates`
+
+Controls whether VinylKit automatically strips the Discogs disambiguation suffix (e.g., `(2)`, `(15)`) from artist, label, and company names.
+
+- `true`: (Default) Automatically "clense" names to their natural form. **Highly recommended for cleaner file paths and tags.**
+- `false`: Preserve the raw names exactly as they appear in the Discogs database.
+- **Example:** `vinylkit config set normalize_discogs_duplicates false`
+
 ### `disc_mapping`
 
 Controls how vinyl sides are mapped to the `DISCNUMBER` tag.

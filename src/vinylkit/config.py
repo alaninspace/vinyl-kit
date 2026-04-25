@@ -113,6 +113,7 @@ def save_config(config: AppConfig) -> None:
         "log_to_file": config.log_to_file,
         "log_rotation": config.log_rotation,
         "log_retention": config.log_retention,
+        "normalize_discogs_duplicates": config.normalize_discogs_duplicates,
     }
     if config.skip_tags:
         data["skip_tags"] = config.skip_tags
