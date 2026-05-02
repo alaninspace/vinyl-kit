@@ -24,7 +24,11 @@ from vinylkit.models import (
     RateLimitInfo,
     TrackInfo,
 )
-from vinylkit.utils import clean_artist_name, remove_discogs_disambiguation
+from vinylkit.utils import (
+    clean_artist_name,
+    format_artist_list,
+    remove_discogs_disambiguation,
+)
 
 DISCOGS_API_URL = "https://api.discogs.com"
 REQUEST_TOKEN_URL = f"{DISCOGS_API_URL}/oauth/request_token"
@@ -339,10 +343,26 @@ class DiscogsClient:
                     )
                     for a in t.get("extraartists", [])
                 ]
+
+                # Augment title with featuring artists if present
+                featuring = [
+                    a.name
+                    for a in track_extraartists
+                    if a.role.lower() in ("featuring", "feat.", "ft.")
+                ]
+                title = t.get("title", "")
+                if (
+                    featuring
+                    and "feat." not in title.lower()
+                    and "ft." not in title.lower()
+                ):
+                    feat_str = format_artist_list(featuring)
+                    title = f"{title} feat. {feat_str}"
+
                 tracklist.append(
                     TrackInfo(
                         position=pos,
-                        title=t.get("title", ""),
+                        title=title,
                         artists=[
                             clean_artist_name(
                                 a.get("name") or "",

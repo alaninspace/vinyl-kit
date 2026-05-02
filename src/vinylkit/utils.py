@@ -83,6 +83,20 @@ def clean_artist_name(name: str, anv: str = "", normalize: bool = True) -> str:
     return name.strip()
 
 
+def format_artist_list(artists: list[str]) -> str:
+    """Format a list of artists into a human-readable string.
+
+    1 artist: "A"
+    2 artists: "A & B"
+    3+ artists: "A, B & C"
+    """
+    if not artists:
+        return ""
+    if len(artists) == 1:
+        return artists[0]
+    return f"{', '.join(artists[:-1])} & {artists[-1]}"
+
+
 def ensure_absolute(path: Path | str, root: Path | None = None) -> Path:
     """
     Ensure a path is absolute. If relative, resolve against the provided root.

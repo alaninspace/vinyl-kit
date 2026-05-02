@@ -111,6 +111,68 @@ def test_get_release_empty_duration_is_none() -> None:
 
 
 @respx.mock
+def test_get_release_featuring_augmentation() -> None:
+    """Verify that Featuring artists are appended to the track title."""
+    release_id = 314929
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "Darkanoid"}, {"name": "DJ KC (2)"}],
+        "title": "The Darker Thoughts E.P.",
+        "tracklist": [
+            {
+                "position": "B",
+                "title": "Smoke The Weed",
+                "extraartists": [
+                    {"name": "Federal (2)", "role": "Featuring"},
+                    {"name": "Killasound", "role": "Featuring"},
+                ],
+            },
+        ],
+    }
+
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+
+    # Note: DJ KC (2) and Federal (2) should be normalized if
+    # normalization is on (default True).
+    # format_artist_list(Federal, Killasound) -> Federal & Killasound
+    assert release.tracklist[0].title == "Smoke The Weed feat. Federal & Killasound"
+
+
+@respx.mock
+def test_get_release_featuring_no_duplicate() -> None:
+    """Verify that featuring artists are not appended if already in the title."""
+    release_id = 999
+    client = DiscogsClient("key", "secret")
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "Artist"}],
+        "title": "Album",
+        "tracklist": [
+            {
+                "position": "1",
+                "title": "Track feat. Other",
+                "extraartists": [{"name": "Other", "role": "Featuring"}],
+            },
+        ],
+    }
+
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+
+    assert release.tracklist[0].title == "Track feat. Other"
+
+
+@respx.mock
 def test_get_release_skips_headings() -> None:
     """Tracklist entries with type_ 'heading' should be excluded."""
     release_id = 43598

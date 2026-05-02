@@ -875,7 +875,10 @@ def _rename_after_tag(
         )
         audio_moves.append((source, target))
         rel = _helpers.display_relative(target, lib_root)
-        _helpers.console.print(f"[cyan]{source.name}[/cyan] -> [green]{rel}[/green]")
+        track = release.tracklist[i]
+        _helpers.console.print(
+            f"[cyan]{track.position} - {track.title}[/cyan] -> [green]{rel}[/green]"
+        )
 
     # Pre-flight: detect collisions among targets.
     # We check this early to avoid partial renames on disk.
@@ -1111,8 +1114,10 @@ def rename(
                 )
                 moves.append((source, target))
                 rel = _helpers.display_relative(target, lib_root)
+                track = release.tracklist[i]
                 _helpers.console.print(
-                    f"[cyan]{source.name}[/cyan] -> [green]{rel}[/green]"
+                    f"[cyan]{track.position} - {track.title}[/cyan]"
+                    f" -> [green]{rel}[/green]"
                 )
 
             target_dir = moves[0][1].parent if moves else path

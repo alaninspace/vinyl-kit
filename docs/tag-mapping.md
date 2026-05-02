@@ -22,7 +22,7 @@ All tag names below use their **canonical name** — the lowercase identifier us
 | --- | --- | --- | --- |
 | `artist` | TPE1 | `artist` | `release.artists` (comma-separated for MP3, list for FLAC) |
 | `albumartist` | TPE2 | `albumartist` | `release.artists` (always set; comma-separated string in both MP3 and FLAC, unlike `artist` which uses a multi-value list in FLAC) |
-| `title` | TIT2 | `title` | `track.title` |
+| `title` | TIT2 | `title` | `track.title` (automatically augmented with `feat. Artist` if "Featuring" credits exist) |
 | `album` | TALB | `album` | `release.title` |
 | `date` | TDRC | `date` | `release.year` (year only, e.g. "1995") |
 | `releasedate` | TDRL | `releasedate` | `release.released` (full date, e.g. "1995-06-01") |
@@ -95,6 +95,18 @@ The `composer` and `remixer` tags are extracted from the same combined extraarti
 - **Remixer roles**: Remix, Remixed By, Remixer
 
 Role matching is case-insensitive and uses substring matching (e.g. "Co-Written-By" would also match).
+
+---
+
+## Featured Artist Handling
+
+If a track has artists with the role **Featuring** (or **feat.**, **ft.**), they are automatically appended to the track `title` in the format:
+
+```text
+Track Title feat. Artist A & Artist B
+```
+
+This ensures featuring credits are visible in all music players and are included in the `release_info.txt` file and generated filenames. If "feat." or "ft." is already present in the Discogs track title, VinylKit skips this augmentation to avoid duplicate strings.
 
 ---
 
