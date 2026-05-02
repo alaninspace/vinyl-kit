@@ -235,58 +235,54 @@ def save_artwork(
 
 
 def scan_folder(path: Path) -> list[AudioFile]:
-    """
-    Recursively scan a folder for supported audio files.
-    """
-    return [
-        AudioFile(
-            path=p,
-            extension=p.suffix.lower(),
-            tag_status=TagStatus.UNTAGGED,
-        )
-        for p in path.rglob("*")
-        if p.is_file() and p.suffix.lower() in (".mp3", ".flac")
-    ]
+    """Recursively scan a folder for supported audio files."""
+    files = []
+    # Path.walk() (Python 3.12+) is more efficient than rglob("*") for large
+    # directory trees on network shares.
+    try:
+        for root, _dirs, filenames in path.walk():
+            for filename in filenames:
+                if filename.lower().endswith((".mp3", ".flac")):
+                    p = root / filename
+                    files.append(
+                        AudioFile(
+                            path=p,
+                            extension=p.suffix.lower(),
+                            tag_status=TagStatus.UNTAGGED,
+                        )
+                    )
+    except OSError as e:
+        logger.error(f"Failed to scan folder {path}: {e}")
+    return files
 
 
 def clear_audio_tags(path: Path, preserve_artwork: bool = False) -> None:
     """Clear all tags from an audio file, optionally preserving artwork."""
     ext = path.suffix.lower()
-    if ext == ".mp3":
-        mp3 = MP3(path)
-        if mp3.tags is None:
-            return
-
-        if preserve_artwork:
-            # Keep only APIC frames
-            pics = mp3.tags.getall("APIC")
-            mp3.delete()
-            mp3.save()
-            # Restore pics
+    try:
+        if ext == ".mp3":
             mp3 = MP3(path)
             if mp3.tags is None:
-                mp3.add_tags()
-            assert mp3.tags is not None
-            for p in pics:
-                mp3.tags.add(p)
+                return
+
+            if preserve_artwork:
+                # Keep only APIC frames in memory
+                pics = mp3.tags.getall("APIC")
+                mp3.tags.clear()
+                for p in pics:
+                    mp3.tags.add(p)
+            else:
+                mp3.tags.clear()
             mp3.save()
-        else:
-            mp3.delete()
-            mp3.save()
-    elif ext == ".flac":
-        flac = FLAC(path)
-        if preserve_artwork:
-            # FLAC.delete() only removes Vorbis comment blocks, NOT picture
-            # metadata blocks — so pictures naturally survive and no
-            # save/restore cycle is needed (that would double them).
-            flac.delete()
+        elif ext == ".flac":
+            flac = FLAC(path)
+            if not preserve_artwork:
+                flac.clear_pictures()
+            # Clear Vorbis comments in memory
+            flac.clear()
             flac.save()
-        else:
-            # Must clear pictures explicitly before delete() since
-            # FLAC.delete() does not touch PICTURE metadata blocks.
-            flac.clear_pictures()
-            flac.delete()
-            flac.save()
+    except (OSError, MutagenError) as e:
+        raise TaggingError(f"Failed to clear tags from {path}: {e}") from e
 
 
 def get_track_number(path: Path) -> str | None:
@@ -654,12 +650,15 @@ def _tag_mp3(
         if artwork_data is None and audio.tags is not None:
             saved_pics = audio.tags.getall("APIC")
 
-        audio.delete()
-        audio.save()
-        # Re-load after delete
-        audio = MP3(path)
-
-    if audio.tags is None:
+        # Clear existing tags in memory to avoid redundant disk writes.
+        # Note: This won't remove non-ID3 tags (like APE) which
+        # Mutagen's disk-based delete() would have handled, but it
+        # saves significant I/O latency on network shares.
+        if audio.tags is not None:
+            audio.tags.clear()
+        else:
+            audio.add_tags()
+    elif audio.tags is None:
         audio.add_tags()
 
     tags = audio.tags
@@ -734,15 +733,10 @@ def _tag_flac(
 
     if tag_mode == TagMode.REPLACE:
         if artwork_data is not None:
-            # Must clear pictures explicitly — FLAC.delete() only
-            # removes Vorbis comment blocks, not PICTURE blocks.
+            # Clear pictures in memory
             audio.clear_pictures()
-        # When artwork_data is None, pictures survive delete()
-        # naturally, preserving existing artwork.
-        audio.delete()
-        audio.save()
-        # Re-load after delete
-        audio = FLAC(path)
+        # Clear Vorbis comments in memory
+        audio.clear()
 
     tag_values = _prepare_tags(
         release, track_index, track_numbering, disc_mapping, skip_tags

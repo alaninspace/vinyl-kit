@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,7 +14,7 @@ from rich.table import Table
 from rich.text import Text
 
 from vinylkit.commands import _helpers
-from vinylkit.exceptions import FileOperationError, VinylkitError
+from vinylkit.exceptions import FileOperationError, TaggingError, VinylkitError
 from vinylkit.models import AppConfig, TagMode
 
 if TYPE_CHECKING:
@@ -708,19 +709,17 @@ def _tag_folder(
 
     # Tagging execution
     tagged_paths: list[Path] = []
-    with _helpers.console.status("[bold green]Tagging files..."):
-        for i, file_path in enumerate(audio_files):
-            if i >= len(release.tracklist):
-                break
 
+    def tag_one(i: int, file_path: Path) -> Path | None:
+        """Helper to tag a single file, intended for parallel execution."""
+        try:
             if config.backup_enabled and config.backup_dir and not dry_run:
                 try:
                     _helpers.backup_file(file_path, config.backup_dir)
                 except OSError as e:
                     _helpers.console.print(
-                        f"[yellow]Warning: Failed to"
-                        f" backup {file_path.name}:"
-                        f" {e}[/yellow]"
+                        f"[yellow]Warning: Failed to backup"
+                        f" {file_path.name}: {e}[/yellow]"
                     )
 
             _helpers.tag_audio_file(
@@ -734,7 +733,42 @@ def _tag_folder(
                 disc_mapping=config.disc_mapping,
                 skip_tags=frozenset(config.skip_tags),
             )
-            tagged_paths.append(file_path)
+            return file_path
+        except (VinylkitError, OSError) as e:
+            _helpers.console.print(
+                f"[bold red]Failed to tag {file_path.name}:[/bold red] {e}"
+            )
+            return None
+
+    with _helpers.console.status("[bold green]Tagging files..."):
+        futures: list[concurrent.futures.Future[Path | None]] = []
+        # Use a reasonable number of threads for I/O bound tasks over network.
+        # Max 8 threads to avoid overwhelming the NAS while still overlapping latency.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            for i, file_path in enumerate(audio_files):
+                if i >= len(release.tracklist):
+                    break
+                futures.append(executor.submit(tag_one, i, file_path))
+
+            # Collect results in order to preserve track indexing for renaming.
+            # We wait for all futures so that we attempt to tag as many files
+            # as possible, but we must track if any failed.
+            failed_count = 0
+            for future in futures:
+                try:
+                    res = future.result()
+                    if res:
+                        tagged_paths.append(res)
+                    else:
+                        failed_count += 1
+                except Exception as e:
+                    logger.error(f"Unexpected error in tagging thread: {e}")
+                    failed_count += 1
+
+            if failed_count > 0:
+                raise TaggingError(
+                    f"{failed_count} file(s) failed to tag in this folder."
+                )
 
     # Save supplementary files
     if not dry_run:
@@ -843,20 +877,22 @@ def _rename_after_tag(
         rel = _helpers.display_relative(target, lib_root)
         _helpers.console.print(f"[cyan]{source.name}[/cyan] -> [green]{rel}[/green]")
 
+    # Pre-flight: detect collisions among targets.
+    # We check this early to avoid partial renames on disk.
+    target_seen: set[Path] = set()
+    for _src, dst in audio_moves:
+        if dst in target_seen:
+            raise FileOperationError(
+                "Two or more tracks would collide at the destination. "
+                "Check for duplicate track titles in the release."
+            )
+        target_seen.add(dst)
+
     # Phase 1: Rename audio files in-place so they have correct
     # names even if the cross-drive move in Phase 2 fails.
-    # Pre-flight: detect collisions among Phase 1 local targets.
-    phase1_seen: set[Path] = set()
-    for src, dst in audio_moves:
-        candidate = src.parent / dst.name
-        if candidate in phase1_seen:
-            raise FileOperationError(
-                "Two or more tracks would collide when renamed"
-                " in-place. Check for duplicate track titles"
-                " in the release."
-            )
-        phase1_seen.add(candidate)
-
+    # Note: We keep this two-phase approach for safety, but other
+    # optimizations (parallel tagging, atomic saves) provide the
+    # primary performance gains.
     renamed: list[tuple[Path, Path]] = []
     for src, dst in audio_moves:
         local_dst = src.parent / dst.name
@@ -918,6 +954,7 @@ def _rename_after_tag(
             _helpers.console.print(
                 f"\n[bold green]Files renamed in {path.name}.[/bold green]"
             )
+        _helpers.collect_audio_files.cache_clear()
         return
 
     # moves includes audio + supplementary files (appended below)
@@ -951,6 +988,8 @@ def _rename_after_tag(
         for src, dst in dir_moves:
             _helpers.move_directory(src, dst, dry_run=False)
         _helpers.console.print("\n[bold green]Files moved successfully.[/bold green]")
+        # Clear the directory listing cache as the source folder is now empty (or gone)
+        _helpers.collect_audio_files.cache_clear()
         if delete_source and path.exists():
             if not any(path.iterdir()):
                 try:

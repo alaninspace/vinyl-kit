@@ -7,6 +7,7 @@ Command modules access mockable external dependencies through this module
 
 from __future__ import annotations
 
+import functools
 import re
 from typing import TYPE_CHECKING
 
@@ -100,8 +101,13 @@ def extract_id(folder_name: str) -> int | None:
     return None
 
 
+@functools.lru_cache(maxsize=32)
 def collect_audio_files(path: Path) -> list[Path]:
-    """Collect and sort supported audio files."""
+    """Collect and sort supported audio files.
+
+    LRU cache is used to avoid redundant network directory scans during
+    a single command execution.
+    """
     return sorted(
         p
         for p in path.iterdir()
