@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import rich_click as click
 from click.exceptions import Exit as ClickExit
+from loguru import logger
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -892,8 +893,22 @@ def _rename_after_tag(
                     dry_run=False,
                 )
             # Remove empty original folder.
-            if path != new_folder and not any(path.iterdir()):
-                path.rmdir()
+            if path != new_folder:
+                if not any(path.iterdir()):
+                    try:
+                        path.rmdir()
+                    except OSError as exc:
+                        logger.debug(
+                            "Could not remove original folder {}: {}", path, exc
+                        )
+                else:
+                    remaining = sorted(f.name for f in path.iterdir())
+                    logger.debug(
+                        "Original folder {} not removed because it is not empty. "
+                        "Remaining files: {}",
+                        path,
+                        ", ".join(remaining),
+                    )
             display = str(relative_dir).replace("\\", "/")
             _helpers.console.print(
                 f"\n[bold green]Files renamed into {display}.[/bold green]"
@@ -936,16 +951,27 @@ def _rename_after_tag(
         for src, dst in dir_moves:
             _helpers.move_directory(src, dst, dry_run=False)
         _helpers.console.print("\n[bold green]Files moved successfully.[/bold green]")
-        if delete_source and path.exists() and not any(path.iterdir()):
-            try:
-                path.rmdir()
-                _helpers.console.print(
-                    f"[dim]Removed empty source folder: {path.name}[/dim]"
-                )
-            except OSError as exc:
-                _helpers.console.print(
-                    f"[yellow]Warning: Could not remove source"
-                    f" folder {path.name}: {exc}[/yellow]"
+        if delete_source and path.exists():
+            if not any(path.iterdir()):
+                try:
+                    path.rmdir()
+                    # Only print if it's actually gone (handles Windows delays/locks)
+                    if not path.exists():
+                        _helpers.console.print(
+                            f"[dim]Removed empty source folder: {path.name}[/dim]"
+                        )
+                except OSError as exc:
+                    _helpers.console.print(
+                        f"[yellow]Warning: Could not remove source"
+                        f" folder {path.name}: {exc}[/yellow]"
+                    )
+            else:
+                remaining = sorted(f.name for f in path.iterdir())
+                logger.debug(
+                    "Folder {} not removed because it is not empty. "
+                    "Remaining files: {}",
+                    path,
+                    ", ".join(remaining),
                 )
     except VinylkitError as exc:
         _helpers.console.print(

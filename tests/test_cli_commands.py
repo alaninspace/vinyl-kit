@@ -4,7 +4,7 @@ rename, scan, auth, config show/set.
 
 from __future__ import annotations
 
-from pathlib import Path  # noqa: TC003
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner  # noqa: TC002
@@ -569,7 +569,78 @@ class TestBatchTag:
         )
         assert result.exit_code == 0
         # extra.txt is still there, so folder should NOT be removed
+        assert "Removed empty source folder" not in result.output
         assert src.exists()
+
+    def test_delete_source_message_suppressed_if_folder_remains_unexpectedly(
+        self, runner, tmp_path, mock_discogs
+    ) -> None:
+        """Verify that the success message is NOT shown if rmdir succeeds
+        but folder stays.
+        """
+        from unittest.mock import patch
+
+        src = tmp_path / "my-rips"
+        src.mkdir()
+        (src / "01.mp3").write_text("a")
+        lib = tmp_path / "lib"
+
+        mock_discogs.get_release.return_value = create_mock_release(165, "A", "T")
+
+        # Mock rmdir to do nothing (simulating a weird OS state where it returns success
+        # but the folder doesn't actually go away immediately).
+        with patch.object(Path, "rmdir") as mock_rmdir:
+            result = runner.invoke(
+                cli,
+                [
+                    "tag",
+                    str(src),
+                    "--id",
+                    "165",
+                    "--rename",
+                    "--auto-move",
+                    "--delete-source",
+                    "--library-root",
+                    str(lib),
+                ],
+            )
+            assert result.exit_code == 0
+            # SUCCESS message should be suppressed because path still exists
+            assert "Removed empty source folder" not in result.output
+            assert mock_rmdir.called
+
+    def test_delete_source_logs_reason_when_not_empty(
+        self, runner, tmp_path, mock_discogs, caplog
+    ) -> None:
+        """Verify that we log the remaining files if folder is not empty."""
+        src = tmp_path / "my-rips"
+        src.mkdir()
+        (src / "01.mp3").write_text("a")
+        (src / ".DS_Store").write_text("junk")
+        lib = tmp_path / "lib"
+
+        mock_discogs.get_release.return_value = create_mock_release(165, "A", "T")
+
+        with caplog.at_level("DEBUG"):
+            result = runner.invoke(
+                cli,
+                [
+                    "tag",
+                    str(src),
+                    "--id",
+                    "165",
+                    "--rename",
+                    "--auto-move",
+                    "--delete-source",
+                    "--library-root",
+                    str(lib),
+                ],
+            )
+            assert result.exit_code == 0
+            assert "Removed empty source folder" not in result.output
+            assert src.exists()
+            assert "not removed because it is not empty" in caplog.text
+            assert ".DS_Store" in caplog.text
 
     def test_no_move_incompatible_with_auto_move(self, runner, tmp_path) -> None:
         result = runner.invoke(
