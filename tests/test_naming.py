@@ -232,3 +232,50 @@ def test_move_file_missing_source_raises(tmp_path: Path) -> None:
 
     with pytest.raises(FileOperationError, match="Failed to move"):
         move_file(source, target)
+
+
+def test_generate_path_track_artist() -> None:
+    from vinylkit.models import DiscogsRelease, TrackInfo
+    from vinylkit.naming import generate_path
+
+    release = DiscogsRelease(
+        id=123,
+        artists=["Various"],
+        title="Album",
+        tracklist=[
+            TrackInfo(position="A1", title="Song", artists=["Track Artist"]),
+        ],
+    )
+
+    pattern = "{artist}/{track_artist} - {title}"
+    root = Path("/music")
+    path = generate_path(root, pattern, release, 0, ".mp3")
+
+    assert "Various/Track Artist - Song.mp3" in str(path.as_posix())
+
+
+def test_generate_path_full_title() -> None:
+    from vinylkit.models import DiscogsRelease, TrackInfo
+    from vinylkit.naming import generate_path
+
+    release = DiscogsRelease(
+        id=123,
+        artists=["Various"],
+        title="Album",
+        tracklist=[
+            TrackInfo(position="A1", title="Song", artists=["Track Artist"]),
+            TrackInfo(position="A2", title="Release Song"),
+        ],
+    )
+
+    root = Path("/music")
+
+    # Compilation track: should include artist
+    path1 = generate_path(root, "{full_title}", release, 0, ".mp3")
+    assert "Track Artist - Song.mp3" in str(path1.as_posix())
+
+    # Release artist track: should NOT include artist (avoid redundancy)
+    path2 = generate_path(root, "{full_title}", release, 1, ".mp3")
+    assert path2.name == "Release Song.mp3"
+
+

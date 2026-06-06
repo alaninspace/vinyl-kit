@@ -94,7 +94,7 @@ Delete the source folder after all files have been successfully moved to the lib
 The template used to generate folder and file paths.
 
 - **Default:** `{artist}/{year} - {album}/{track_number} - {title}`
-- **Placeholders:** `{artist}`, `{album}`, `{year}`, `{id}` / `{discogs_id}`, `{track_number}`, `{title}`, `{label}`, `{catalogue_number}`, `{side}`, `{genre}`, `{style}`, `{country}`.
+- **Placeholders:** `{artist}`, `{track_artist}`, `{title}`, `{full_title}`, `{album}`, `{year}`, `{id}` / `{discogs_id}`, `{track_number}`, `{label}`, `{catalogue_number}`, `{side}`, `{genre}`, `{style}`, `{country}`.
 - **Example:** `vinylkit config set naming_pattern "{artist}/{year} - {album} [{label}]/{track_number} - {title}"`
 
 ### `tag_mode`

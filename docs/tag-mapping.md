@@ -20,7 +20,7 @@ All tag names below use their **canonical name** — the lowercase identifier us
 
 | Canonical Name | MP3 Frame | FLAC Key | Source |
 | --- | --- | --- | --- |
-| `artist` | TPE1 | `artist` | `release.artists` (comma-separated for MP3, list for FLAC) |
+| `artist` | TPE1 | `artist` | `track.artists` if present, otherwise `release.artists` (comma-separated for MP3, list for FLAC) |
 | `albumartist` | TPE2 | `albumartist` | `release.artists` (always set; comma-separated string in both MP3 and FLAC, unlike `artist` which uses a multi-value list in FLAC) |
 | `title` | TIT2 | `title` | `track.title` (automatically augmented with `feat. Artist` if "Featuring" credits exist) |
 | `album` | TALB | `album` | `release.title` |

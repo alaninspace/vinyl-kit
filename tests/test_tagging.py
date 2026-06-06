@@ -348,3 +348,32 @@ def test_per_side_mixed_side_and_none() -> None:
     assert t1 == "1"
     assert t2 == "2"
     assert t3 == "3"  # global index, not "1"
+
+
+def test_prepare_tags_compilation() -> None:
+    from vinylkit.models import DiscMapping, DiscogsRelease, TrackInfo, TrackNumbering
+    from vinylkit.tagging import TagName, _prepare_tags
+
+    release = DiscogsRelease(
+        id=123,
+        artists=["Various"],
+        title="Compilation",
+        tracklist=[
+            TrackInfo(position="A1", title="Track 1", artists=["Specific Artist"]),
+            TrackInfo(position="A2", title="Track 2"),
+        ],
+    )
+
+    # Track 1: should use Specific Artist
+    tags1 = _prepare_tags(
+        release, 0, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL, frozenset()
+    )
+    assert tags1[TagName.ARTIST] == ["Specific Artist"]
+    assert tags1[TagName.ALBUMARTIST] == "Various"
+
+    # Track 2: should fallback to Various
+    tags2 = _prepare_tags(
+        release, 1, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL, frozenset()
+    )
+    assert tags2[TagName.ARTIST] == ["Various"]
+

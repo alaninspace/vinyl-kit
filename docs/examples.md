@@ -275,6 +275,9 @@ vinylkit config set naming_pattern "{artist}/{label}/[{year}] {album}/{track_num
 
 # Example: with label in square brackets
 vinylkit config set naming_pattern "{artist}/{year} - {album} [{label}]/{track_number} - {title}"
+
+# Example: with track artist (useful for compilations like "Various Artists")
+vinylkit config set naming_pattern "{artist}/{year} - {album} [{label}]/{track_number} - {track_artist} - {title}"
 ```
 
 ### Normalise Discogs Duplicates

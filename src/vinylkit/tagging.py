@@ -156,7 +156,11 @@ def write_release_info(
         ]
     )
 
-    lines.extend(f"{t.position:<5} {t.title}" for t in release.tracklist)
+    for t in release.tracklist:
+        artist_prefix = ""
+        if t.artists and t.artists != release.artists:
+            artist_prefix = f"{', '.join(t.artists)} - "
+        lines.append(f"{t.position:<5} {artist_prefix}{t.title}")
 
     if release.companies:
         lines.extend(
@@ -534,7 +538,10 @@ def _prepare_tags(
 
     # --- Standard tags ---
     if ok(TagName.ARTIST, skip_tags):
-        tags[TagName.ARTIST] = list(release.artists)
+        if track.artists:
+            tags[TagName.ARTIST] = list(track.artists)
+        else:
+            tags[TagName.ARTIST] = list(release.artists)
     if ok(TagName.TITLE, skip_tags):
         tags[TagName.TITLE] = track.title
     if ok(TagName.ALBUM, skip_tags):

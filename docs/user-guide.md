@@ -257,7 +257,10 @@ You can customize your library structure using the following placeholders in `na
 
 | Placeholder | Description |
 | :--- | :--- |
-| `{artist}` | Primary artist(s) |
+| `{artist}` | Release primary artist(s) |
+| `{track_artist}` | Track-specific artist(s) |
+| `{title}` | Track title |
+| `{full_title}` | Track title (prefixed with artist if different from release artist) |
 | `{album}` | Release title |
 | `{year}` | Release year |
 | `{track_number}` | Calculated track number |
