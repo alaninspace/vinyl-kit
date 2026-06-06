@@ -101,8 +101,9 @@ The primary command for applying metadata to your files.
   - `--rename / --no-rename`: Enable or disable the move-to-library step. (Defaults to true if using `recordings_root`).
   - `--batch`: Batch mode — iterate immediate subfolders, extract Discogs IDs
     from folder names (`Album [12345]`, bare `12345`, or `12345-Artist-Title`),
-    and tag each automatically. Incompatible with `--id`,
-    `--search`, `--artist`, `--album`, `--format`.
+    and tag each automatically. Combine with `--interactive` to trigger an interactive
+    search for any folder lacking an ID. Incompatible with `--id`, `--search`,
+    `--artist`, `--album`.
   - `--no-move`: Rename files in place but skip moving them to the library.
     Mutually exclusive with `--auto-move`.
   - `--delete-source`: Delete the source folder after files are successfully moved to the library.

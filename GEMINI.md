@@ -132,7 +132,7 @@ Before marking any task as complete, you MUST execute this workflow sequentially
    - Documented in `configuration.md` with an example.
    - Shown in at least one example in `docs/examples.md`.
    - Covered by an automated test in `tests/test_examples_coverage.py`.
-5. **Version Bump:** Increment the semantic version in `pyproject.toml` (Patch for bug fixes/docs, Minor for new features, Major for breaking changes).
+5. **Version Bump:** Increment the semantic version in `pyproject.toml` for EVERY change (Patch for bug fixes/docs, Minor for new features, Major for breaking changes). For example, if the version is `0.13.2`, increment it to `0.13.3` for a bug fix.
 6. **Final Validation Suite:** Execute the full check suite to guarantee the zero-warning policy:
    `uv run pytest && uv run ruff check . && uv run ruff format --check . && uv run mypy src/`
 </definition_of_done>

@@ -197,6 +197,17 @@ vinylkit tag /path/to/batch/folder/* --rename
 vinylkit tag C:\Path\To\Batch\Folder\* --rename
 ```
 
+### Interactive Batch Searching
+
+If you have a folder full of unsorted music (e.g. from friends or unlabelled downloads) where the folders are named with Artist and Title (e.g., `Desired_State-Desired_State_EP-(STRAT_8)`), you can use `--interactive` with `--batch` to rapidly process them.
+
+This command will iterate through every folder. It automatically converts the folder name into a search query (e.g., `Desired State Desired State EP STRAT 8`), and shows you the Discogs results table. You just type `1` to confirm, and VinylKit will instantly tag, rename, move to your library, and delete the source folder, before moving on to the next folder.
+
+```bash
+# Bash / PowerShell
+vinylkit tag "D:\Music\DJ\#Unsorted\Vinyl" --batch --interactive --library-root "D:\Music\DJ\Vinyl" --rename --auto-move --delete-source
+```
+
 ### Skip Artwork Embedding
 
 Tag files without downloading or embedding any artwork.

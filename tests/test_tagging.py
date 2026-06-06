@@ -376,4 +376,3 @@ def test_prepare_tags_compilation() -> None:
         release, 1, TrackNumbering.NUMERIC, DiscMapping.PHYSICAL, frozenset()
     )
     assert tags2[TagName.ARTIST] == ["Various"]
-

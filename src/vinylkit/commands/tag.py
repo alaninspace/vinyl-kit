@@ -139,6 +139,12 @@ _TAG_EPILOG = (
     help="Preserve existing tags (default is to clear and replace).",
 )
 @click.option(
+    "--interactive",
+    "-i",
+    is_flag=True,
+    help="Enable interactive search for folders missing Discogs IDs in batch mode.",
+)
+@click.option(
     "--batch",
     is_flag=True,
     help=(
@@ -171,6 +177,7 @@ def tag(
     do_rename: bool | None,
     lib_root_override: Path | None,
     merge: bool,
+    interactive: bool,
     batch: bool,
     no_move: bool,
     delete_source: bool,
@@ -198,10 +205,10 @@ def tag(
 
     release_id: int | None = release_ids[0] if len(release_ids) == 1 else None
 
-    if batch and (release_ids or query or artist or album or fmt_filter):
+    if batch and (release_ids or query or artist or album):
         raise click.UsageError(
-            "--batch cannot be combined with"
-            " --id, --search, --artist, --album, or --format."
+            "--batch cannot be combined with --id, --search, --artist, or --album. "
+            "Use --batch with --interactive to perform searches for each folder."
         )
 
     if no_move and auto_move:
@@ -282,6 +289,8 @@ def tag(
             auto_move=auto_move,
             no_move=no_move,
             delete_source=delete_source,
+            interactive_search=interactive,
+            search_formats=search_formats,
         )
         return
 
@@ -411,8 +420,14 @@ def _batch_tag(
     auto_move: bool,
     no_move: bool,
     delete_source: bool,
+    search_formats: list[str],
+    interactive_search: bool = False,
 ) -> None:
-    """Iterate subfolders, extract Discogs IDs, and tag each."""
+    """Iterate subfolders, extract Discogs IDs, and tag each.
+
+    If interactive_search is True, folders without IDs in their names
+    will trigger a Discogs search.
+    """
     client: _helpers.DiscogsClient | None = None
     succeeded = 0
     failed = 0
@@ -422,14 +437,48 @@ def _batch_tag(
         subfolders = sorted(f for f in parent.iterdir() if f.is_dir())
         for folder in subfolders:
             rid = _helpers.extract_id(folder.name)
+
             if rid is None:
-                _helpers.console.print(
-                    f"[yellow]Skipping {folder.name}:"
-                    " no Discogs ID found in"
-                    " folder name.[/yellow]"
+                if not interactive_search:
+                    _helpers.console.print(
+                        f"[yellow]Skipping {folder.name}:"
+                        " no Discogs ID found in"
+                        " folder name.[/yellow]"
+                    )
+                    skipped += 1
+                    continue
+
+                # Auto-generate query from folder name
+                # (Matches user preference for cleaning _, -, and parens)
+                clean_query = (
+                    folder.name.replace("_", " ")
+                    .replace("-", " ")
+                    .replace("(", " ")
+                    .replace(")", " ")
+                    .strip()
                 )
-                skipped += 1
-                continue
+
+                _helpers.console.print(
+                    f"\n[bold blue]Batch Search:[/bold blue] {folder.name}"
+                )
+
+                if client is None:
+                    client = _helpers.get_client(config)
+
+                rid = _search_loop(
+                    client,
+                    folder,
+                    None,
+                    clean_query,
+                    None,
+                    None,
+                    search_formats,
+                    config,
+                )
+
+                if rid is None:
+                    skipped += 1
+                    continue
 
             _helpers.console.print(
                 f"\n[bold blue]Batch:[/bold blue] {folder.name} (ID {rid})"

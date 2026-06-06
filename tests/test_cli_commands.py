@@ -316,6 +316,38 @@ class TestBatchTag:
         assert "1 skipped" in result.output
         assert "no Discogs ID" in result.output
 
+    def test_batch_interactive_search(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        self._suppress_moves(mocker)
+        parent = tmp_path / "inbox"
+        parent.mkdir()
+        f1 = parent / "Artist - Album"
+        f1.mkdir()
+        (f1 / "01.mp3").write_text("a")
+
+        # Mock the search to return one result
+        mock_discogs.search_releases.return_value = [
+            {"id": 999, "title": "Artist - Album", "year": "2020", "format": ["Vinyl"]}
+        ]
+        mock_discogs.get_release.return_value = create_mock_release(
+            999, "Artist", "Album"
+        )
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(parent), "--batch", "--interactive"],
+            input="1\ny\n",  # Select first result, then confirm tagging
+        )
+        import re
+
+        clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+
+        assert result.exit_code == 0
+        assert mock_discogs.search_releases.called
+        assert "Batch Search:" in clean_output
+        assert "1 succeeded" in clean_output
+
     def test_batch_incompatible_with_id(self, runner, tmp_path) -> None:
         result = runner.invoke(
             cli,
@@ -328,14 +360,6 @@ class TestBatchTag:
         result = runner.invoke(
             cli,
             ["tag", str(tmp_path), "--batch", "--search", "foo"],
-        )
-        assert result.exit_code != 0
-        assert "--batch cannot be combined" in result.output
-
-    def test_batch_incompatible_with_format(self, runner, tmp_path) -> None:
-        result = runner.invoke(
-            cli,
-            ["tag", str(tmp_path), "--batch", "--format", "Vinyl"],
         )
         assert result.exit_code != 0
         assert "--batch cannot be combined" in result.output
@@ -466,10 +490,14 @@ class TestBatchTag:
             cli,
             ["tag", str(parent), "--batch", "--auto-move"],
         )
+        import re
+
+        clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+
         assert result.exit_code == 0
-        assert "1 skipped" in result.output
-        assert "2 audio file(s)" in result.output
-        assert "10 track(s)" in result.output
+        assert "1 skipped" in clean_output
+        assert "2 audio file(s)" in clean_output
+        assert "10 track(s)" in clean_output
 
     def test_batch_no_move_renames_in_place(
         self, runner, tmp_path, mock_discogs, mocker
@@ -487,11 +515,15 @@ class TestBatchTag:
             cli,
             ["tag", str(parent), "--batch", "--no-move"],
         )
+        import re
+
+        clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+
         assert result.exit_code == 0
-        assert "1 succeeded" in result.output
+        assert "1 succeeded" in clean_output
         # Batch mode uses full naming pattern structure
-        assert "renamed into" in result.output
-        assert "A/2000 - T" in result.output
+        assert "renamed into" in clean_output
+        assert "A/2000 - T" in clean_output
 
     def test_single_no_move_renames_in_place(
         self, runner, tmp_path, mock_discogs, mocker

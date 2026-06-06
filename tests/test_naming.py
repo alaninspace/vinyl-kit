@@ -277,5 +277,3 @@ def test_generate_path_full_title() -> None:
     # Release artist track: should NOT include artist (avoid redundancy)
     path2 = generate_path(root, "{full_title}", release, 1, ".mp3")
     assert path2.name == "Release Song.mp3"
-
-
