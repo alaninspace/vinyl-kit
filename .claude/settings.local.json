@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "defaultMode": "bypassPermissions"
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "python -c \"import sys,json;d=json.load(sys.stdin);m=d.get('model',{}).get('display_name','');r=d.get('context_window',{}).get('remaining_percentage');print(f'{m} | Context: {r:.0f}% remaining' if r is not None else m)\""
-  }
-}

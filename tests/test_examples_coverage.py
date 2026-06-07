@@ -447,6 +447,74 @@ def test_ex_batch_no_move(runner, tmp_path, mock_discogs, mocker):
     assert "renamed into" in result.output
 
 
+def test_ex_batch_interactive_windows(runner, tmp_path, mock_discogs):
+    """Covers: vinylkit tag "D:\\Music\\DJ\\#Unsorted\\Vinyl"
+    with flags: --batch --interactive --library-root
+    --rename --auto-move --delete-source
+    """
+    unsorted = tmp_path / "Unsorted"
+    unsorted.mkdir()
+    f1 = unsorted / "Artist - Album"
+    f1.mkdir()
+    (f1 / "01.mp3").write_text("audio")
+
+    mock_discogs.search_releases.return_value = [
+        {"id": 999, "title": "Artist - Album", "year": "2020", "format": ["Vinyl"]}
+    ]
+    mock_discogs.get_release.return_value = create_mock_release(999, "Artist", "Album")
+
+    result = runner.invoke(
+        cli,
+        [
+            "tag",
+            str(unsorted),
+            "--batch",
+            "--interactive",
+            "--library-root",
+            str(tmp_path / "Vinyl"),
+            "--rename",
+            "--auto-move",
+            "--delete-source",
+        ],
+        input="1\ny\n",
+    )
+    assert result.exit_code == 0
+
+
+def test_ex_batch_interactive_macos(runner, tmp_path, mock_discogs):
+    """Covers: vinylkit tag "/Volumes/HomeMedia/Music/DJ/#Unsorted/Vinyl"
+    with flags: --batch --interactive --library-root
+    --rename --auto-move --delete-source
+    """
+    unsorted = tmp_path / "Unsorted"
+    unsorted.mkdir()
+    f1 = unsorted / "Artist - Album"
+    f1.mkdir()
+    (f1 / "01.mp3").write_text("audio")
+
+    mock_discogs.search_releases.return_value = [
+        {"id": 999, "title": "Artist - Album", "year": "2020", "format": ["Vinyl"]}
+    ]
+    mock_discogs.get_release.return_value = create_mock_release(999, "Artist", "Album")
+
+    result = runner.invoke(
+        cli,
+        [
+            "tag",
+            str(unsorted),
+            "--batch",
+            "--interactive",
+            "--library-root",
+            str(tmp_path / "Vinyl"),
+            "--rename",
+            "--auto-move",
+            "--delete-source",
+        ],
+        input="1\ny\n",
+    )
+    assert result.exit_code == 0
+
+
 ## 4c. Tag Flags: --no-artwork, --no-rename
 
 

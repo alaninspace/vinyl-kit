@@ -203,9 +203,17 @@ If you have a folder full of unsorted music (e.g. from friends or unlabelled dow
 
 This command will iterate through every folder. It automatically converts the folder name into a search query (e.g., `Desired State Desired State EP STRAT 8`), and shows you the Discogs results table. You just type `1` to confirm, and VinylKit will instantly tag, rename, move to your library, and delete the source folder, before moving on to the next folder.
 
-```bash
-# Bash / PowerShell
+**Windows (Mapped Network Drive Example):**
+```powershell
 vinylkit tag "D:\Music\DJ\#Unsorted\Vinyl" --batch --interactive --library-root "D:\Music\DJ\Vinyl" --rename --auto-move --delete-source
+```
+
+**macOS (Mounted Network Share SMB Example):**
+> [!NOTE]
+> Command-line tools cannot directly resolve `smb://` paths. You must mount the network share first (e.g., via Finder using `Cmd + K` to connect to `smb://DiskStation/HomeMedia`), which will make it accessible under `/Volumes/`.
+
+```bash
+vinylkit tag "/Volumes/HomeMedia/Music/DJ/#Unsorted/Vinyl" --batch --interactive --library-root "/Volumes/HomeMedia/Music/DJ/Vinyl" --rename --auto-move --delete-source
 ```
 
 ### Skip Artwork Embedding
