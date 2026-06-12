@@ -265,6 +265,41 @@ mypy runs in **strict mode**. All new code must be fully type-hinted.
 
 ---
 
+## Documentation Web Application
+
+VinylKit includes a built-in documentation server that serves this guide, the User Guide, and other references locally. It is styled with the **"Vintage Stripe Doc System"** and features real-time full-text search.
+
+### Running the Docs Server Locally
+
+To start the documentation web server, run:
+
+```bash
+# Bash / PowerShell
+uv run vinylkit-docs
+```
+
+By default, the server runs on `http://localhost:8080`. You can override the port by setting the `PORT` environment variable:
+
+```bash
+# Bash
+PORT=9090 uv run vinylkit-docs
+```
+
+### Architecture & Mechanics
+
+- **FastAPI Backend (`src/docs_web/main.py`)**: A lightweight FastAPI application that dynamically parses local markdown files using Python's `markdown` library and serves them through Jinja2 templates.
+- **Jinja2 Templates (`src/docs_web/templates/`)**: Defines the layout (`base.html` and `page.html`), including navigation links, table of contents sidebars, and the search overlay.
+- **Search System (`/docs/search`)**: Scans all local markdown files, matches the query phrase case-insensitively, and returns highlighted match snippets to the frontend search palette.
+- **On-the-fly Link Rewriting**: The backend includes a helper `rewrite_md_links()` that intercepts and rewrites relative `.md` references (e.g. `[User Guide](user-guide.md)`) into clean absolute paths (e.g. `/docs/user-guide`), guaranteeing robust page routing.
+
+### Developer Workflow for Doc Changes
+
+- **Editable Install**: Because the package is installed in editable mode in the development virtualenv, any changes to code or documentation markdown files are picked up immediately.
+- **Hot-Reload**: The FastAPI backend runs via Uvicorn with hot-reload enabled. Changes to Python files will trigger an automatic server restart.
+- **Browser Refresh**: Changes to HTML templates, static CSS stylesheet (`src/docs_web/static/css/style.css`), or JavaScript (`src/docs_web/static/js/main.js`) will reflect on the next browser refresh.
+
+---
+
 ## Adding a New CLI Command
 
 1. **Create a command** in the appropriate `commands/` module (or a new module). Use `@click.command()` (not `@cli.command()`) and register it in `cli.py` via `cli.add_command(my_command)`:
