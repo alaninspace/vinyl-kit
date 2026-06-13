@@ -72,3 +72,8 @@ dummy*/
 
 # Discogs collection
 *_collection.csv
+
+# Azure deployment artifacts and scripts
+.azure/
+
+

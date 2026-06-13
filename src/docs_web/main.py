@@ -29,6 +29,16 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
+@app.middleware("http")
+async def redirect_default_hostname(request: Request, call_next: Any) -> Any:
+    """Redirect requests from the default Azure domain to the custom domain."""
+    host = request.headers.get("host", "")
+    if "azurewebsites.net" in host:
+        url = request.url.replace(scheme="https", hostname="vinylkit.app")
+        return RedirectResponse(url=str(url), status_code=301)
+    return await call_next(request)
+
+
 def extract_toc(markdown_text: str) -> list[dict[str, Any]]:
     """Extract headings for the Table of Contents sidebar."""
     toc: list[dict[str, Any]] = []
@@ -229,9 +239,9 @@ def read_doc(request: Request, page_name: str) -> HTMLResponse:
 
 
 def main() -> None:
-    """Start uvicorn dev server."""
+    """Start uvicorn for local or Azure hosting."""
     port = int(os.environ.get("PORT", 8080))
-    uvicorn.run("docs_web.main:app", host="127.0.0.1", port=port, reload=True)
+    uvicorn.run("src.docs_web.main:app", host="0.0.0.0", port=port, reload=False)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,32 @@ from fastapi.testclient import TestClient
 from docs_web.main import app
 
 
+def test_main_uses_azure_friendly_uvicorn_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ensure the startup command is production-friendly for Azure hosting."""
+    calls: list[dict[str, object]] = []
+
+    def fake_run(target: str, host: str, port: int, reload: bool) -> None:
+        calls.append({"target": target, "host": host, "port": port, "reload": reload})
+
+    monkeypatch.setattr("docs_web.main.uvicorn.run", fake_run)
+    monkeypatch.setenv("PORT", "8081")
+
+    from docs_web.main import main
+
+    main()
+
+    assert calls == [
+        {
+            "target": "src.docs_web.main:app",
+            "host": "0.0.0.0",
+            "port": 8081,
+            "reload": False,
+        }
+    ]
+
+
 @pytest.fixture
 def client() -> TestClient:
     """Create a TestClient instance for FastAPI app."""
@@ -17,6 +43,14 @@ def test_root_redirect(client: TestClient) -> None:
     response = client.get("/", follow_redirects=False)
     assert response.status_code == 307
     assert response.headers["location"] == "/docs/quickstart"
+
+
+def test_default_hostname_redirect(client: TestClient) -> None:
+    """Test requests from default azurewebsites.net redirect to custom domain."""
+    headers = {"host": "vinylkit-webapp.azurewebsites.net"}
+    response = client.get("/docs/quickstart", headers=headers, follow_redirects=False)
+    assert response.status_code == 301
+    assert response.headers["location"] == "https://vinylkit.app/docs/quickstart"
 
 
 def test_docs_page_rendering(client: TestClient) -> None:

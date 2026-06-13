@@ -22,7 +22,7 @@ uv tool install git+https://github.com/alaninspace/vinyl-kit.git
 
 ### Updating VinylKit
 
-If you pull new changes or modify the code yourself, simply run the install command again with the `--force` and `--no-cache` flags. This ensures `uv` rebuilds the tool from your latest local source without affecting your saved settings.
+If you pull new changes or modify the code yourself, run the install command again with the `--force` and `--no-cache` flags. This ensures `uv` rebuilds the tool from your latest local source without affecting your saved settings.
 
 ```bash
 # Bash / PowerShell
