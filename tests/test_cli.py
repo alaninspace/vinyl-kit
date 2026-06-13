@@ -337,3 +337,45 @@ def test_tag_rename_two_phase_files_renamed_on_move_failure(
     # Phase 2 failed: helpful error message shown
     assert "Move to library failed" in result.output
     assert "tagged and renamed" in result.output
+
+
+def test_tag_no_results_loop_repro(runner: CliRunner, tmp_path: Path, mocker) -> None:
+    # Setup: a subfolder with an mp3 for batch mode
+    album_folder = tmp_path / "album"
+    album_folder.mkdir()
+    (album_folder / "song.mp3").write_text("audio")
+
+    mock_client = mocker.patch("vinylkit.commands._helpers.get_client")
+    mock_inst = mock_client.return_value
+    mock_inst.search_releases.return_value = []  # No results
+
+    # We provide a search term, then '0' to skip.
+    result = runner.invoke(
+        cli, ["tag", str(tmp_path), "--batch", "--interactive"], input="nothing\n0\n"
+    )
+
+    assert "No results found for query/filters." in result.output
+    # If it's fixed, we should be able to skip and see the summary.
+    assert "0 succeeded" in result.output
+    assert "1 skipped" in result.output
+    assert result.exit_code == 0
+
+
+def test_tag_quit_from_search_prompt(runner: CliRunner, tmp_path: Path, mocker) -> None:
+    # Setup: a subfolder with an mp3 for batch mode
+    album_folder = tmp_path / "album"
+    album_folder.mkdir()
+    (album_folder / "song.mp3").write_text("audio")
+
+    mock_client = mocker.patch("vinylkit.commands._helpers.get_client")
+    mock_inst = mock_client.return_value
+    mock_inst.search_releases.return_value = []  # No results
+
+    # We provide 'q' to quit.
+    result = runner.invoke(
+        cli, ["tag", str(tmp_path), "--batch", "--interactive"], input="nothing\nq\n"
+    )
+
+    assert "Aborting tag session." in result.output
+    # It should exit with 0 (as we raised ClickExit(0))
+    assert result.exit_code == 0

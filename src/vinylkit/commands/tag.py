@@ -570,9 +570,16 @@ def _search_loop(
             and not current_artist
             and not current_album
         ):
-            current_query = click.prompt(
+            prompt_msg = (
                 f"Enter search query or Release ID for {path.name}"
+                " ('0' to skip, 'q' to quit)"
             )
+            current_query = click.prompt(prompt_msg)
+            if current_query.lower() == "q":
+                _helpers.console.print("[yellow]Aborting tag session.[/yellow]")
+                raise ClickExit(0)
+            if current_query == "0":
+                return None
             if current_query.isdigit():
                 current_release_id = int(current_query)
                 current_query = None
