@@ -1,5 +1,7 @@
 # VinylKit
 
+[![Documentation](https://img.shields.io/badge/docs-vinylkit.app-blue)](https://vinylkit.app/)
+
 VinylKit is a cross-platform CLI tool for managing digitized vinyl record audio files using metadata from Discogs. It helps you tag, organize, and maintain your collection with high-quality metadata.
 
 ## Features
@@ -75,14 +77,17 @@ Settings are stored in a platform-appropriate TOML file. You can view your curre
 vinylkit config show
 ```
 
-For detailed guides, see:
+For detailed interactive guides, visit **[vinylkit.app](https://vinylkit.app/)** or see the local documentation files:
 
 - **[Quick Start](docs/quickstart.md)**: Setup and basic workflow.
 - **[User Guide](docs/user-guide.md)**: In-depth command and feature reference.
 - **[Examples](docs/examples.md)**: Real-world command combinations.
 - **[Configuration Guide](docs/configuration.md)**: Full list of all settings.
+- **[Developer Guide](docs/developer-guide.md)**: Setup, code architecture, and testing.
+- **[Authentication Guide](docs/auth.md)**: Setting up Discogs credentials and OAuth.
 - **[Tag Mapping Reference](docs/tag-mapping.md)**: Complete tag list with MP3/FLAC field names.
-- **[Data Model](docs/data-model.md)**: Data structures and schemas.
+- **[Data Model Reference](docs/data-model.md)**: Data structures, database types, and schemas.
+- **[Specification Spec](docs/spec.md)**: Product specs and technical requirements.
 
 ## Development
 
