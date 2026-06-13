@@ -34,6 +34,21 @@ async def redirect_default_hostname(request: Request, call_next: Any) -> Any:
     """Redirect requests from the default Azure domain to the custom domain."""
     host = request.headers.get("host", "")
     if "azurewebsites.net" in host:
+        user_agent = request.headers.get("user-agent", "").lower()
+        # Exclude system probes and deployment checkers from redirection
+        probes = [
+            "appservice",
+            "readyforrequest",
+            "kube-probe",
+            "azure-cli",
+            "python",
+            "urllib",
+            "requests",
+            "httpx",
+        ]
+        if any(probe in user_agent for probe in probes):
+            return await call_next(request)
+
         url = request.url.replace(scheme="https", hostname="vinylkit.app")
         return RedirectResponse(url=str(url), status_code=301)
     return await call_next(request)
