@@ -9,7 +9,7 @@ from typing import Any
 import markdown  # type: ignore[import-untyped]
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -120,6 +120,7 @@ def get_nav_items() -> list[dict[str, str]]:
     return [
         {"title": "Introduction", "name": "readme"},
         {"title": "Quickstart Guide", "name": "quickstart"},
+        {"title": "Download & Install", "name": "download"},
         {"title": "User Guide", "name": "user-guide"},
         {"title": "Configuration Reference", "name": "configuration"},
         {"title": "Tag Mapping Guide", "name": "tag-mapping"},
@@ -129,6 +130,36 @@ def get_nav_items() -> list[dict[str, str]]:
         {"title": "Specification Spec", "name": "spec"},
         {"title": "Examples Guide", "name": "examples"},
     ]
+
+
+@app.get("/install.sh")
+def get_install_sh() -> FileResponse:
+    """Serve the macOS/Linux bash installer script."""
+    return FileResponse(
+        path=STATIC_DIR / "install.sh",
+        media_type="text/x-shellscript",
+        filename="install.sh",
+    )
+
+
+@app.get("/install.ps1")
+def get_install_ps1() -> FileResponse:
+    """Serve the Windows PowerShell installer script."""
+    return FileResponse(
+        path=STATIC_DIR / "install.ps1",
+        media_type="text/plain",
+        filename="install.ps1",
+    )
+
+
+@app.get("/install.cmd")
+def get_install_cmd() -> FileResponse:
+    """Serve the Windows CMD installer script."""
+    return FileResponse(
+        path=STATIC_DIR / "install.cmd",
+        media_type="text/plain",
+        filename="install.cmd",
+    )
 
 
 @app.get("/", response_class=RedirectResponse)

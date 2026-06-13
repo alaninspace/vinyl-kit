@@ -1,0 +1,145 @@
+name: Build and Release Standalone CLI
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }} - ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - os: macos
+            arch: arm64
+            runner: macos-14
+            artifact_name: vinylkit-macos-arm64
+            archive_ext: .zip
+          - os: macos
+            arch: x86_64
+            runner: macos-13
+            artifact_name: vinylkit-macos-x86_64
+            archive_ext: .zip
+          - os: windows
+            arch: amd64
+            runner: windows-latest
+            artifact_name: vinylkit-windows-amd64
+            archive_ext: .zip
+          - os: linux
+            arch: amd64
+            runner: ubuntu-latest
+            artifact_name: vinylkit-linux-amd64
+            archive_ext: .tar.gz
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system .
+          uv pip install --system pyinstaller
+          cargo install pyapp
+
+      - name: Build Standalone Binary (PyInstaller)
+        run: |
+          pyinstaller --onefile --name vinylkit src/vinylkit/__main__.py
+
+      - name: Test Compiled Binary
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            ./dist/vinylkit.exe --version
+          else
+            ./dist/vinylkit --version
+          fi
+
+      - name: Archive PyInstaller Binary
+        shell: bash
+        run: |
+          mkdir -p archive_dist
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            powershell -Command "Compress-Archive -Path dist/vinylkit.exe -DestinationPath archive_dist/${{ matrix.artifact_name }}.zip -Force"
+          elif [ "${{ matrix.archive_ext }}" = ".zip" ]; then
+            cd dist && zip ../archive_dist/${{ matrix.artifact_name }}.zip vinylkit && cd ..
+          else
+            cd dist && tar -czf ../archive_dist/${{ matrix.artifact_name }}.tar.gz vinylkit && cd ..
+          fi
+
+      - name: Build PyApp Binary
+        shell: bash
+        run: |
+          # Build wheel
+          uv build --wheel
+          WHEEL_PATH=$(ls dist/*.whl | head -n 1)
+          # Configure PyApp env vars
+          export PYAPP_PROJECT_PATH="$WHEEL_PATH"
+          export PYAPP_EMBED=1
+          pyapp build
+          # Rename output binary and place in archive_dist
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            mv dist/vinylkit.exe archive_dist/vinylkit-pyapp-windows-amd64.exe
+          elif [ "${{ matrix.os }}" = "macos" ]; then
+            mv dist/vinylkit archive_dist/vinylkit-pyapp-macos-${{ matrix.arch }}
+          else
+            mv dist/vinylkit archive_dist/vinylkit-pyapp-linux-amd64
+          fi
+
+      - name: Upload Artifacts to Job
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts-${{ matrix.os }}-${{ matrix.arch }}
+          path: archive_dist/*
+
+  create-release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: all-artifacts/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Hashes in Package Managers
+        run: |
+          # Checkout main branch to apply updates directly to main
+          git checkout main
+          git pull origin main
+          
+          # Run script to update files on main
+          python3 scripts/update_hashes.py
+          
+          # Commit and push
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/vinyl-kit.rb scoop/vinylkit.json
+          git commit -m "chore: update release checksums for ${{ github.ref_name }} [skip ci]" || echo "No changes to commit"
+          git push origin main

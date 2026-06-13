@@ -60,49 +60,32 @@ The script will automatically validate tests, check type-safety, package your di
 
 ---
 
-## 3. GitHub Actions CI/CD Workflow
+## 3. GitHub Actions CI/CD Workflows
 
-The file `.github/workflows/main_vinylkit-webapp.yml` contains the deployment configuration. It performs a ZIP deployment using modern GitHub Actions.
+Pushing a version tag triggers **two parallel workflows** to release the website and standalone binaries simultaneously:
 
-### Dual triggers
+1. **Docs Website Deployment (`main_vinylkit-webapp.yml`):** Automatically packages the documentation app and deploys it as a ZIP file to Azure App Service.
+2. **Standalone CLI Releases (`release_vinylkit-cli.yml`):** Compiles standalone binaries (PyInstaller and PyApp) for macOS, Windows, and Linux, and attaches them to a new GitHub Release under the corresponding version tag.
 
-The workflow supports two modes of execution:
+### Dual Triggers
 
-1. **Automated (Git Tags):** Triggers automatically whenever you push a tag matching `v*` (e.g. `v1.0.1`).
+Both workflows support two modes of execution:
+
+1. **Automated (Git Tags):** Triggers automatically whenever you push a tag matching `v*` (e.g., `v0.13.11`).
 2. **Manual (Workflow Dispatch):** Can be triggered manually via the **Actions** tab on your GitHub repository.
 
-### Workflow Configuration
+### Workflow Configurations
 
-```yaml
-name: Deploy Docs Web to Azure App Service
+You can view the full, active configuration files directly in the repository:
+*   [main_vinylkit-webapp.yml](file:///Users/Alan/Code/Python/Projects/vinyl-kit/.github/workflows/main_vinylkit-webapp.yml) (Deploys docs website)
+*   [release_vinylkit-cli.yml](file:///Users/Alan/Code/Python/Projects/vinyl-kit/.github/workflows/release_vinylkit-cli.yml) (Compiles and publishes CLI binaries)
 
-on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+#### Web App Deployment Steps Overview:
+1. **Checkout Code:** Pulls the codebase to the runner.
+2. **Packaging:** Compiles the application files into a deployment archive `deploy.zip`.
+3. **Deployment:** Pushes the package to Azure using the `azure/webapps-deploy` action.
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Package application files
-      run: |
-        zip -r deploy.zip src docs requirements.txt README.md
-
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v3
-      with:
-        app-name: 'vinylkit-webapp'
-        publish-profile: ${{ secrets.AzureAppService_PublishProfile_<SECRET_HASH> }}
-        package: './deploy.zip'
-```
-
-Configure your GitHub repository secret `AzureAppService_PublishProfile_<SECRET_HASH>` with the Web App's XML Publishing Profile.
+To authenticate the deployment, configure your GitHub repository secret `AzureAppService_PublishProfile_<SECRET_HASH>` with the Web App's XML Publishing Profile.
 
 ### How to Commit and Push Tags (Triggers Deployment)
 

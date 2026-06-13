@@ -181,6 +181,7 @@ Manages your persistent settings.
 
 - `config show`: Displays the VinylKit version, all current settings, and the config file path.
 - `config set <KEY> <VALUE>`: Updates a setting.
+- `config reset`: Resets all configuration settings back to factory defaults (deleting your custom `config.toml` file).
 
 ### `--version`
 

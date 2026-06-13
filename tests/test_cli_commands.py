@@ -211,6 +211,34 @@ class TestConfigCommands:
         result = runner.invoke(cli, ["config", "set", "nonexistent_key", "val"])
         assert "Unknown configuration key" in result.output
 
+    def test_config_reset_no_file(self, runner: CliRunner) -> None:
+        """If config.toml does not exist, config reset prints already at defaults."""
+        result = runner.invoke(cli, ["config", "reset", "--yes"])
+        assert result.exit_code == 0
+        assert "No custom configuration file found" in result.output
+
+    def test_config_reset_cancel(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Declining the reset prompt keeps the config file intact."""
+        runner.invoke(cli, ["config", "set", "auto_move", "true"])
+        config_file = tmp_path / "config.toml"
+        assert config_file.exists()
+
+        result = runner.invoke(cli, ["config", "reset"], input="n\n")
+        assert result.exit_code == 0
+        assert "Reset cancelled" in result.output
+        assert config_file.exists()
+
+    def test_config_reset_confirm(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Confirming the reset deletes the config file."""
+        runner.invoke(cli, ["config", "set", "auto_move", "true"])
+        config_file = tmp_path / "config.toml"
+        assert config_file.exists()
+
+        result = runner.invoke(cli, ["config", "reset", "-y"])
+        assert result.exit_code == 0
+        assert "Successfully reset configuration" in result.output
+        assert not config_file.exists()
+
 
 # ---------------------------------------------------------------------------
 # tag search loop quit uses click.exceptions.Exit

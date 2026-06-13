@@ -293,3 +293,38 @@ def config_set(config_obj: AppConfig, key: str, value: str) -> None:
     new_config = AppConfig(**new_data)
     save_config(new_config)
     console.print(f"[bold green]Successfully set {key} to {value}[/bold green]")
+
+
+@config_group.command(name="reset")
+@click.option(
+    "-y",
+    "--yes",
+    is_flag=True,
+    help="Reset without prompting for confirmation.",
+)
+def config_reset(yes: bool) -> None:
+    """Reset configuration to factory defaults."""
+    path = get_config_path()
+    if not path.exists():
+        console.print(
+            "[yellow]No custom configuration file found. "
+            "Already at factory defaults.[/yellow]"
+        )
+        return
+
+    if not yes and not click.confirm(
+        f"Are you sure you want to delete the configuration file at {path} "
+        "and reset all settings to defaults?",
+        default=False,
+    ):
+        console.print("[yellow]Reset cancelled.[/yellow]")
+        return
+
+    try:
+        path.unlink()
+        console.print(
+            "[bold green]Successfully reset configuration to "
+            "factory defaults.[/bold green]"
+        )
+    except OSError as e:
+        console.print(f"[red]Failed to delete configuration file: {e}[/red]")

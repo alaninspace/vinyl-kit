@@ -1,6 +1,6 @@
 [project]
 name = "vinylkit"
-version = "0.13.10"
+version = "0.14.0"
 description = "A cross-platform CLI tool for managing digitized vinyl record audio files using metadata from Discogs."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -74,6 +74,7 @@ mypy_path = "stubs"
 dev = [
     "httpx2>=2.4.0",
     "mypy>=1.19.1",
+    "pyinstaller>=6.5.0",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
@@ -81,5 +82,8 @@ dev = [
     "ruff>=0.15.0",
     "types-authlib>=1.6.7.20260208",
 ]
+
+[tool.pyright]
+extraPaths = ["tests"]
 
 

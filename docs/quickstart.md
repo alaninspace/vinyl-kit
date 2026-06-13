@@ -2,32 +2,23 @@
 
 ## Installation
 
-### From Source (For Developers)
+To get VinylKit up and running instantly on your machine without manually setting up Python or package managers, run the automated installer command:
 
-Ensure you have `uv` installed. From the project root, run:
-
-```bash
-# Bash / PowerShell
-uv tool install . --force
-```
-
-### From Git (For Users)
-
-Users can install VinylKit directly from the repository:
+### macOS & Linux (Bash/Zsh)
 
 ```bash
-# Bash / PowerShell
-uv tool install git+https://github.com/alaninspace/vinyl-kit.git
+curl -fsSL https://vinylkit.app/install.sh | bash
 ```
 
-### Updating VinylKit
+### Windows (PowerShell)
 
-If you pull new changes or modify the code yourself, run the install command again with the `--force` and `--no-cache` flags. This ensures `uv` rebuilds the tool from your latest local source without affecting your saved settings.
-
-```bash
-# Bash / PowerShell
-uv tool install . --force --no-cache
+```powershell
+irm https://vinylkit.app/install.ps1 | iex
 ```
+
+### Alternative Installation Options
+
+We also support direct standalone downloads (both PyInstaller and PyApp), Homebrew, Scoop, and installation from source. For a detailed breakdown of all five installation methods, visit our **[Download & Install Guide](download.md)**.
 
 ---
 

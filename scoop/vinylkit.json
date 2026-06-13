@@ -1,0 +1,15 @@
+{
+  "version": "0.14.0",
+  "description": "A cross-platform CLI tool for managing digitized vinyl record audio files using metadata from Discogs.",
+  "homepage": "https://vinylkit.app",
+  "license": "MIT",
+  "url": "https://github.com/alaninspace/vinyl-kit/releases/download/v0.14.0/vinylkit-windows-amd64.zip",
+  "hash": "PLACEHOLDER_WIN_AMD64",
+  "bin": "vinylkit.exe",
+  "checkver": {
+    "github": "https://github.com/alaninspace/vinyl-kit"
+  },
+  "autoupdate": {
+    "url": "https://github.com/alaninspace/vinyl-kit/releases/download/v$version/vinylkit-windows-amd64.zip"
+  }
+}

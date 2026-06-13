@@ -21,8 +21,15 @@ To update a setting, use the `set` command:
 vinylkit config set <KEY> <VALUE>
 ```
 
+To reset all settings back to factory defaults (deleting your custom `config.toml` file), use the `reset` command:
+
+```bash
+# Bash / PowerShell
+vinylkit config reset
+```
+
 > [!TIP]
-> Run `vinylkit config set -h` to see all valid keys and examples directly in your terminal.
+> Run `vinylkit config set -h` and `vinylkit config reset -h` to see options and help directly in your terminal.
 
 ---
 
