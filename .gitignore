@@ -67,5 +67,8 @@ Thumbs.db
 !.specify/memory/
 !.specify/memory/constitution.md
 
+# Dummy folders for testing
+dummy*/
+
 # Discogs collection
 *_collection.csv
