@@ -75,32 +75,34 @@
     <div class="layout-wrapper">
         <!-- Left Sidebar: Navigation & Search -->
         <aside class="sidebar-nav">
-            <!-- Search Entry Box -->
-            <div class="search-trigger-container">
-                <button id="search-trigger-btn" class="search-trigger-input">
-                    <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <span class="search-placeholder">Search docs...</span>
-                    <span class="search-kbd-shortcut"><kbd>⌘K</kbd></span>
-                </button>
-            </div>
+            <div class="sidebar-scroll-content">
+                <!-- Search Entry Box -->
+                <div class="search-trigger-container">
+                    <button id="search-trigger-btn" class="search-trigger-input">
+                        <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <span class="search-placeholder">Search docs...</span>
+                        <span class="search-kbd-shortcut"><kbd>⌘K</kbd></span>
+                    </button>
+                </div>
 
-            <!-- Navigation Links -->
-            <nav class="nav-links">
-                <span class="nav-group-title">Documentation</span>
-                <ul>
-                    {% for item in nav_items %}
-                    <li>
-                        <a href="/docs/{{ item.name }}" class="nav-item {% if active_page == item.name %}active{% endif %}">
-                            <span class="needle-indicator"></span>
-                            {{ item.title }}
-                        </a>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </nav>
+                <!-- Navigation Links -->
+                <nav class="nav-links">
+                    <span class="nav-group-title">Documentation</span>
+                    <ul>
+                        {% for item in nav_items %}
+                        <li>
+                            <a href="/docs/{{ item.name }}" class="nav-item {% if active_page == item.name %}active{% endif %}">
+                                <span class="needle-indicator"></span>
+                                {{ item.title }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </nav>
+            </div>
 
             <!-- Sidebar Footer: Versioning Info -->
             <div class="sidebar-footer">

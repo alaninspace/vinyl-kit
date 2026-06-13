@@ -80,4 +80,4 @@ dev = [
 ]
 
 [tool.vinylkit.docs]
-version = "0.13.5"
+version = "1.0.0"
