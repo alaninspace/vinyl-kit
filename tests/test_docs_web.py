@@ -53,6 +53,16 @@ def test_default_hostname_redirect(client: TestClient) -> None:
     assert response.headers["location"] == "https://vinylkit.app/docs/quickstart"
 
 
+def test_default_hostname_bypass_probes(client: TestClient) -> None:
+    """Test that system probes with azurewebsites.net hosts do not redirect."""
+    headers = {
+        "host": "vinylkit-webapp.azurewebsites.net",
+        "user-agent": "AppService-Warmup",
+    }
+    response = client.get("/docs/quickstart", headers=headers, follow_redirects=False)
+    assert response.status_code == 200
+
+
 def test_docs_page_rendering(client: TestClient) -> None:
     """Test rendering a valid documentation page."""
     response = client.get("/docs/quickstart")
