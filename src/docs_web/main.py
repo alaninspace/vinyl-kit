@@ -255,8 +255,21 @@ def read_doc(request: Request, page_name: str) -> HTMLResponse:
 
 def main() -> None:
     """Start uvicorn for local or Azure hosting."""
+    import importlib.util
+
     port = int(os.environ.get("PORT", 8080))
-    uvicorn.run("src.docs_web.main:app", host="0.0.0.0", port=port, reload=False)
+    host = os.environ.get("HOST", "127.0.0.1")
+
+    # Dynamically determine the import module path
+    try:
+        if importlib.util.find_spec("src.docs_web.main") is not None:
+            module_path = "src.docs_web.main:app"
+        else:
+            module_path = "docs_web.main:app"
+    except ModuleNotFoundError:
+        module_path = "docs_web.main:app"
+
+    uvicorn.run(module_path, host=host, port=port, reload=False)
 
 
 if __name__ == "__main__":

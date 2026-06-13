@@ -24,8 +24,8 @@ def test_main_uses_azure_friendly_uvicorn_settings(
 
     assert calls == [
         {
-            "target": "src.docs_web.main:app",
-            "host": "0.0.0.0",
+            "target": "docs_web.main:app",
+            "host": "127.0.0.1",
             "port": 8081,
             "reload": False,
         }
