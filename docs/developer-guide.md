@@ -300,6 +300,35 @@ PORT=9090 uv run vinylkit-docs
 
 ---
 
+## Deploying the Docs Web App
+
+If you have target Azure credentials and want to deploy the documentation server to Azure App Service:
+
+### 1. Configure Local Deployment Settings
+
+To prevent sensitive subscription details from being checked into version control, the deployment script reads configuration parameters from a local file that is ignored by Git.
+
+Create a file named `.azure/local-config.json` in the root of your project:
+
+```json
+{
+    "subscriptionId": "<YOUR_AZURE_SUBSCRIPTION_ID>",
+    "resourceGroup": "<YOUR_TARGET_RESOURCE_GROUP>",
+    "webAppName": "<YOUR_TARGET_WEB_APP_NAME>"
+}
+```
+
+### 2. Deploy Locally
+
+1. Run `az login` to authenticate the Azure CLI.
+2. Run the deployment script:
+
+   ```powershell
+   .\.azure\deploy.ps1
+   ```
+
+---
+
 ## Adding a New CLI Command
 
 1. **Create a command** in the appropriate `commands/` module (or a new module). Use `@click.command()` (not `@cli.command()`) and register it in `cli.py` via `cli.add_command(my_command)`:

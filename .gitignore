@@ -74,6 +74,7 @@ dummy*/
 *_collection.csv
 
 # Azure deployment artifacts and scripts
-.azure/
+.azure/*
+!.azure/deployment-plan.md
 
 
