@@ -25,7 +25,7 @@ jobs:
       uses: azure/webapps-deploy@v3
       with:
         app-name: 'vinylkit-webapp'
-        slot-name: 'production'
         publish-profile: ${{ secrets.AzureAppService_PublishProfile_b781f0014cc94d3b98feadfc68a917e0 }}
         package: './deploy.zip'
+
 
