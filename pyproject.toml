@@ -78,3 +78,6 @@ dev = [
     "ruff>=0.15.0",
     "types-authlib>=1.6.7.20260208",
 ]
+
+[tool.vinylkit.docs]
+version = "0.13.5"

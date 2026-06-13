@@ -19,7 +19,7 @@ jobs:
 
     - name: Package application files
       run: |
-        zip -r deploy.zip src docs requirements.txt README.md
+        zip -r deploy.zip src docs requirements.txt README.md pyproject.toml
 
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v3

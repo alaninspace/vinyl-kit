@@ -1,5 +1,6 @@
 # VinylKit
 
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/alaninspace/vinyl-kit?sort=semver)](https://github.com/alaninspace/vinyl-kit/releases)
 [![Documentation](https://img.shields.io/badge/docs-vinylkit.app-blue)](https://vinylkit.app/)
 
 VinylKit is a cross-platform CLI tool for managing digitized vinyl record audio files using metadata from Discogs. It helps you tag, organize, and maintain your collection with high-quality metadata.

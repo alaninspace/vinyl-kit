@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -18,10 +19,34 @@ DOCS_DIR = BASE_DIR.parent.parent / "docs"
 STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
 
+
+def get_versions() -> tuple[str, str]:
+    """Read the CLI and docs website versions from pyproject.toml."""
+    cli_ver = "0.13.10"
+    docs_ver = "0.13.5"
+    try:
+        pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+        if pyproject_path.exists():
+            with pyproject_path.open("rb") as f:
+                data = tomllib.load(f)
+                cli_ver = data.get("project", {}).get("version", cli_ver)
+                docs_ver = (
+                    data.get("tool", {})
+                    .get("vinylkit", {})
+                    .get("docs", {})
+                    .get("version", docs_ver)
+                )
+    except Exception:
+        pass
+    return cli_ver, docs_ver
+
+
+CLI_VERSION, DOCS_VERSION = get_versions()
+
 app = FastAPI(
     title="VinylKit Documentation",
     description="Documentation server for the VinylKit CLI",
-    version="0.13.5",
+    version=DOCS_VERSION,
 )
 
 # Mount static files and setup templates
@@ -249,6 +274,8 @@ def read_doc(request: Request, page_name: str) -> HTMLResponse:
             "toc": toc,
             "nav_items": nav_items,
             "active_page": page_name,
+            "cli_version": CLI_VERSION,
+            "docs_version": DOCS_VERSION,
         },
     )
 

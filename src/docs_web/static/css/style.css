@@ -797,3 +797,31 @@ tr:hover td {
         padding: 24px 16px;
     }
 }
+
+/* Sidebar Footer & Version info styling */
+.sidebar-footer {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: var(--ghost-border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.version-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.version-label {
+    opacity: 0.65;
+}
+
+.version-val {
+    font-weight: 500;
+    color: var(--text-color);
+}
