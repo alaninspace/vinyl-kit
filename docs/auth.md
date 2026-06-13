@@ -11,10 +11,10 @@ This is the fastest way to get started. It doesn't require a browser-based login
 3. Copy the token.
 4. Configure VinylKit to use it:
 
-    ```bash
-    # Bash / PowerShell
-    vinylkit config set discogs_token <YOUR_TOKEN>
-    ```
+```bash
+# Bash / PowerShell
+vinylkit config set discogs_token <YOUR_TOKEN>
+```
 
 ---
 

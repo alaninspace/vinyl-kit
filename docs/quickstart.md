@@ -104,31 +104,31 @@ You can control exactly how your library is organized and how deep the folders a
 
 - **Standard Chronological (Default):** `Artist / Year - Album / Track - Title`
 
-    ```bash
-    # Bash / PowerShell
-    vinylkit config set naming_pattern "{artist}/{year} - {album}/{track_number} - {title}"
-    ```
+```bash
+# Bash / PowerShell
+vinylkit config set naming_pattern "{artist}/{year} - {album}/{track_number} - {title}"
+```
 
 - **Deep Parentheses:** `Artist / Album (Year) / Track - Title`
 
-    ```bash
-    # Bash / PowerShell
-    vinylkit config set naming_pattern "{artist}/{album} ({year})/{track_number} - {title}"
-    ```
+```bash
+# Bash / PowerShell
+vinylkit config set naming_pattern "{artist}/{album} ({year})/{track_number} - {title}"
+```
 
 - **Flat Album Folders:** `Year - Artist - Album / Track - Title` (One folder per album)
 
-    ```bash
-    # Bash / PowerShell
-    vinylkit config set naming_pattern "{year} - {artist} - {album}/{track_number} - {title}"
-    ```
+```bash
+# Bash / PowerShell
+vinylkit config set naming_pattern "{year} - {artist} - {album}/{track_number} - {title}"
+```
 
 - **Completely Flat:** Everything in one folder
 
-    ```bash
-    # Bash / PowerShell
-    vinylkit config set naming_pattern "{year} - {id} - {artist} - {album} - {track_number} - {title}"
-    ```
+```bash
+# Bash / PowerShell
+vinylkit config set naming_pattern "{year} - {id} - {artist} - {album} - {track_number} - {title}"
+```
 
 ---
 
