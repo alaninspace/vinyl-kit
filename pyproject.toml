@@ -20,6 +20,9 @@ dependencies = [
     "uvicorn>=0.28.0",
 ]
 
+[tool.vinylkit.docs]
+version = "1.0.1"
+
 [project.scripts]
 vinylkit = "vinylkit.cli:main"
 vinylkit-docs = "docs_web.main:main"
@@ -79,5 +82,4 @@ dev = [
     "types-authlib>=1.6.7.20260208",
 ]
 
-[tool.vinylkit.docs]
-version = "1.0.0"
+
