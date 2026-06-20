@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+
 
 jobs:
   build:
@@ -129,6 +131,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Hashes in Package Managers
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           # Checkout main branch to apply updates directly to main
           git checkout main
