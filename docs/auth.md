@@ -2,7 +2,7 @@
 
 To fetch metadata and cover art from Discogs, VinylKit needs access to their API. You can authenticate in two ways: with a **Personal Access Token** (simplest) or via **OAuth 1.0a** (needed for account features like fetching your collection).
 
-## Option 1: Personal Access Token (Recommended)
+## Option 1: Personal Access Token
 
 This is the easiest way to get started. It doesn't need a browser login flow.
 
@@ -84,11 +84,11 @@ vinylkit config set auth_mode oauth
 vinylkit config set auth_mode auto
 ```
 
-| Mode | Images? | Identity? | Best For... |
+| Mode | Images? | Identity? | Use Case |
 | :--- | :--- | :--- | :--- |
-| `token` | Yes | Yes | Fast setup, personal use |
-| `oauth` | Yes | Yes | 3rd-party app feel, full account access |
-| `key_secret` | Yes | No | Quick testing without account identity |
+| `token` | Yes | Yes | Personal use |
+| `oauth` | Yes | Yes | Account-linked features |
+| `key_secret` | Yes | No | Public data retrieval without identity |
 | `none` | No | No | Public data only (Low rate limit) |
 
 ---

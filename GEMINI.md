@@ -64,6 +64,7 @@ All `ruff` and `mypy` checks MUST pass with **zero warnings and zero errors**. N
 
 - **Tone:** Use a casual, direct, matter-of-fact "indie dev" style (e.g. replace academic passive structures like "VinylKit offers multiple options depending on your preferences" with "There are a few ways to install VinylKit. Pick the one that fits your setup").
 - **Matter-of-Fact (No Hype):** Avoid marketing jargon, sales pitches, or hype adjectives (e.g., "freshly", "instantly", "beautifully", "perfectly", "safely"). Write clearly and directly from one developer to another.
+- **Neutral Presentation:** Do not use self-aggrandizing or subjective recommendations (e.g., avoid "highly recommended" or "best choice"). State the facts and options neutrally and let the user decide for themselves.
 </critical_directives>
 
 <anti_patterns>

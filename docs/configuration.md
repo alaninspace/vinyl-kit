@@ -116,16 +116,16 @@ Controls how VinylKit writes metadata to files.
 
 Controls how track numbers are written to files. Essential for software like Roon.
 
-- `numeric`: (Default) Converts vinyl positions (A1, B1) to sequential numbers (1, 2, 3...). **Recommended for Roon.**
+- `numeric`: (Default) Converts vinyl positions (A1, B1) to sequential numbers (1, 2, 3...). **Needed for Roon.**
 - `original`: Keeps the original Discogs position (e.g., "A1").
-- `per_side`: Resets the count for each side (A1->1, B1->1). Best used with `disc_mapping per_side`.
+- `per_side`: Resets the count for each side (A1->1, B1->1). Works with `disc_mapping per_side`.
 - **Example:** `vinylkit config set track_numbering original`
 
 ### `normalize_discogs_duplicates`
 
 Controls whether VinylKit automatically strips the Discogs disambiguation suffix (e.g., `(2)`, `(15)`) from artist, label, and company names.
 
-- `true`: (Default) Automatically cleans names to their natural form. **Recommended for cleaner file paths and tags.**
+- `true`: (Default) Automatically cleans names to their natural form. **Helps keep file paths and tags clean.**
 - `false`: Preserve the raw names exactly as they appear in the Discogs database.
 - **Example:** `vinylkit config set normalize_discogs_duplicates false`
 
@@ -133,7 +133,7 @@ Controls whether VinylKit automatically strips the Discogs disambiguation suffix
 
 Controls how vinyl sides are mapped to the `DISCNUMBER` tag.
 
-- `physical`: (Default) Intelligently groups sides. Pairs of sides (A/B, C/D) are mapped to Discs 1, 2, etc. Also respects numeric prefixes (e.g., "1A" maps to Disc 1). **Best for multi-LP sets.**
+- `physical`: (Default) Intelligently groups sides. Pairs of sides (A/B, C/D) are mapped to Discs 1, 2, etc. Also respects numeric prefixes (e.g., "1A" maps to Disc 1). **Designed for multi-LP sets.**
 - `single`: All tracks are on Disc 1.
 - `per_side`: Each vinyl side is treated as a separate disc (Side A=1, B=2...).
 - `original`: Always disc 1 (Discogs format_quantity support is not yet implemented).

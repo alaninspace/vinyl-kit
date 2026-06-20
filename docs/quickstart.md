@@ -2,11 +2,11 @@
 
 ## Installation
 
-VinylKit offers multiple installation methods depending on your preferences:
+There are a few ways to install VinylKit. Pick the one that fits your setup:
 
-### Option 1: Standalone Installer (Fastest & Easiest)
+### Option 1: Standalone Installer
 
-To get VinylKit up and running instantly without manually setting up Python or package managers:
+To get VinylKit running without manually setting up Python or package managers:
 
 * **macOS & Linux (Bash/Zsh):**
   ```bash

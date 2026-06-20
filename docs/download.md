@@ -1,12 +1,12 @@
 # Download & Install VinylKit
 
-[**Install**](#1-quick-one-line-script-recommended) &bull; [**Update**](#updating-vinylkit) &bull; [**Uninstall**](#uninstallation)
+[**Install**](#1-quick-one-line-script) &bull; [**Update**](#updating-vinylkit) &bull; [**Uninstall**](#uninstallation)
 
 There are a few ways to get VinylKit onto your machine. Pick the one that fits your setup:
 
 ---
 
-## 1. Quick One-Line Script (Recommended)
+## 1. Quick One-Line Script
 
 The installer script automatically detects your operating system and CPU architecture, downloads the latest pre-compiled binary, saves it to a local folder, and sets up your system `PATH`.
 

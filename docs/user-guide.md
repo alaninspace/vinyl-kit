@@ -58,7 +58,7 @@ The `library_root` is where your organized music lives. When VinylKit renames or
 
 ### The Recordings Root (The Inbox)
 
-The `recordings_root` is an optional but highly recommended "inbox". By pointing this to the folder where your recording software exports files, you can run `vinylkit scan` or `vinylkit tag` without specifying a path.
+The `recordings_root` is an optional "inbox" folder. By pointing this to the folder where your recording software exports files, you can run `vinylkit scan` or `vinylkit tag` without specifying a path.
 
 ### Safety & Overwrite Protection
 
@@ -202,7 +202,7 @@ This is a "catch-all" search. Discogs tries to find your terms anywhere in the r
 
 #### 2. Filtered Search (`--artist`, `--album`, `--format`)
 
-This is the **recommended** method for precision. It tells Discogs exactly which fields to match, which drastically reduces irrelevant results.
+This is the most precise method. It tells Discogs exactly which fields to match, which reduces irrelevant results.
 
 - **Usage**: `vinylkit tag --artist "Faithless" --album "Insomnia"`
 - **Best for**: Common artist names or finding specific pressings.

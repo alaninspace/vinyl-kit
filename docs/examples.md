@@ -84,7 +84,7 @@ vinylkit tag "D:\Music\DJ\Vinyl\#Unsorted" --id 182338,74044 --library-root "D:\
 
 ## 2. Precision Searching (Filtered)
 
-Highly recommended for common artists or finding specific pressings.
+Useful for common artists or finding specific pressings.
 
 ### Filter by Artist and Album
 
