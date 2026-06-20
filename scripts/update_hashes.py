@@ -33,7 +33,6 @@ def main() -> int:
     # Map target filenames to their respective paths
     file_map = {
         "mac_arm64": artifacts_dir / "vinylkit-macos-arm64.zip",
-        "mac_x86_64": artifacts_dir / "vinylkit-macos-x86_64.zip",
         "linux_amd64": artifacts_dir / "vinylkit-linux-amd64.tar.gz",
         "win_amd64": artifacts_dir / "vinylkit-windows-amd64.zip",
     }
@@ -53,7 +52,6 @@ def main() -> int:
 
         # Replace placeholders
         content = content.replace("PLACEHOLDER_MAC_ARM64", hashes["mac_arm64"])
-        content = content.replace("PLACEHOLDER_MAC_X86_64", hashes["mac_x86_64"])
         content = content.replace("PLACEHOLDER_LINUX_AMD64", hashes["linux_amd64"])
 
         formula_path.write_text(content, encoding="utf-8")
