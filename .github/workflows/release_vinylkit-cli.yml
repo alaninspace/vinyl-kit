@@ -50,6 +50,9 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
+        env:
+          PYAPP_PROJECT_NAME: vinylkit
+          PYAPP_PROJECT_VERSION: 0.0.0
         run: |
           uv pip install --system .
           uv pip install --system pyinstaller
