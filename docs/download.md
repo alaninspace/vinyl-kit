@@ -58,10 +58,16 @@ If you prefer to download and configure your path manually, you can download the
 > [!WARNING]
 > **Migrating from `uv`?** If you previously installed VinylKit using `uv tool install vinylkit`, your system `PATH` is currently pointing to the `uv` version. If you add this standalone executable to your `PATH` as well, they will conflict depending on which folder appears first. To migrate to the standalone executable, first run `uv tool uninstall vinylkit` to completely remove the old version.
 
+> [!NOTE]
+> **macOS Quarantine:** If you download the standalone binary directly via a web browser, macOS will flag it as quarantined. You can remove the quarantine flag by running:
+> ```bash
+> xattr -d com.apple.quarantine vinylkit
+> ```
+
 ### Testing Without Modifying `PATH`
 You do not have to add the executable to your `PATH` just to test it! You can run it directly by specifying its explicit path in your terminal. For example, if you extracted it to your current folder, run:
 - **Windows (PowerShell):** `.\vinylkit.exe --help`
-- **macOS / Linux:** `./vinylkit --help`
+- **macOS / Linux:** Run `chmod +x vinylkit` first to make it executable, then run `./vinylkit --help`
 
 By prefixing the command with `.\` or `./`, your terminal ignores your system `PATH` entirely and runs the exact file you extracted.
 
@@ -75,6 +81,11 @@ PyApp provides extremely lightweight Rust-based bootstrappers. Rather than downl
 *   [Download for macOS (Intel)](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-pyapp-macos-x86_64)
 *   [Download for Windows (x64)](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-pyapp-windows-amd64.exe)
 *   [Download for Linux (x64)](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-pyapp-linux-amd64)
+
+> [!TIP]
+> **macOS / Linux Standalone Launchers:** Just like PyInstaller binaries, PyApp launcher binaries require execution permissions. If downloaded directly:
+> 1. Grant execution permissions: `chmod +x vinylkit-pyapp-linux-amd64` (or `vinylkit-pyapp-macos-arm64`).
+> 2. On macOS, if downloaded via browser, bypass quarantine: `xattr -d com.apple.quarantine vinylkit-pyapp-macos-arm64`.
 
 ---
 

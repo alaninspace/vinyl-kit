@@ -167,6 +167,9 @@ vinylkit tag "C:\Some\Other\Folder" --id 56903 --rename
 
 ### Scenario: Batch tagging multiple releases
 
+> [!IMPORTANT]
+> **Configuration Requirement:** Batch tagging requires the `recordings_root` configuration option to be set first (see Step 2 under Setup & Configuration), as it scans this directory for folders to process.
+
 Name your folders with the Discogs ID so VinylKit can pick it up automatically. Three formats are supported:
 
 - Bracket suffix: `Album Name [12345]`
