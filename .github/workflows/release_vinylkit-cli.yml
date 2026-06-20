@@ -50,13 +50,9 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        env:
-          PYAPP_PROJECT_NAME: vinylkit
-          PYAPP_PROJECT_VERSION: 0.0.0
         run: |
           uv pip install --system .
           uv pip install --system pyinstaller
-          cargo install pyapp
 
       - name: Build Standalone Binary (PyInstaller)
         run: |
@@ -92,7 +88,16 @@ jobs:
           # Configure PyApp env vars
           export PYAPP_PROJECT_PATH="$WHEEL_PATH"
           export PYAPP_EMBED=1
-          pyapp build
+          export PYAPP_PROJECT_NAME="vinylkit"
+          export PYAPP_PROJECT_VERSION="0.0.0"
+          cargo install pyapp
+          # The resulting executable is placed in ~/.cargo/bin/pyapp (or pyapp.exe on Windows)
+          # We need to copy it to dist/vinylkit (or dist/vinylkit.exe)
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            cp ~/.cargo/bin/pyapp.exe dist/vinylkit.exe
+          else
+            cp ~/.cargo/bin/pyapp dist/vinylkit
+          fi
           # Rename output binary and place in archive_dist
           if [ "${{ matrix.os }}" = "windows" ]; then
             mv dist/vinylkit.exe archive_dist/vinylkit-pyapp-windows-amd64.exe
