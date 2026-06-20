@@ -46,7 +46,7 @@ If you prefer to download and configure your path manually, you can download the
 | Operating System | Architecture | Archive Format | Download Link |
 | :--- | :--- | :--- | :--- |
 | **macOS** | Apple Silicon (M1/M2/M3) | `.zip` | [Download](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-macos-arm64.zip) |
-| **macOS** | Intel | `.zip` | [Download](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-macos-x86_64.zip) |
+
 | **Windows** | x64 (AMD64) | `.zip` | [Download](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-windows-amd64.zip) |
 | **Linux** | x64 (AMD64) | `.tar.gz` | [Download](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-linux-amd64.tar.gz) |
 
@@ -54,6 +54,16 @@ If you prefer to download and configure your path manually, you can download the
 1. Extract the downloaded archive.
 2. Move the `vinylkit` (or `vinylkit.exe`) binary to a folder of your choice (e.g., `~/bin` or `C:\bin`).
 3. Add that folder to your system `PATH` environment variable.
+
+> [!WARNING]
+> **Migrating from `uv`?** If you previously installed VinylKit using `uv tool install vinylkit`, your system `PATH` is currently pointing to the `uv` version. If you add this standalone executable to your `PATH` as well, they will conflict depending on which folder appears first. To migrate to the standalone executable, first run `uv tool uninstall vinylkit` to completely remove the old version.
+
+### Testing Without Modifying `PATH`
+You do not have to add the executable to your `PATH` just to test it! You can run it directly by specifying its explicit path in your terminal. For example, if you extracted it to your current folder, run:
+- **Windows (PowerShell):** `.\vinylkit.exe --help`
+- **macOS / Linux:** `./vinylkit --help`
+
+By prefixing the command with `.\` or `./`, your terminal ignores your system `PATH` entirely and runs the exact file you extracted.
 
 ---
 
@@ -134,6 +144,9 @@ Run the install command with `--force` and `--no-cache` to pull the latest versi
 ```bash
 uv tool install git+https://github.com/alaninspace/vinyl-kit.git --force --no-cache
 ```
+
+> [!TIP]
+> **Switching from `uv` to a standalone executable?** Don't forget to run `uv tool uninstall vinylkit` before configuring your new `PATH` to avoid command conflicts!
 
 ---
 

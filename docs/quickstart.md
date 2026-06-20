@@ -20,6 +20,9 @@ irm https://vinylkit.app/install.ps1 | iex
 
 We also support direct standalone downloads (both PyInstaller and PyApp), Homebrew, Scoop, and installation from source. For a detailed breakdown of all five installation methods, visit our **[Download & Install Guide](download.md)**.
 
+> [!TIP]
+> **Migrating from `uv` to a standalone executable?** If you already have VinylKit installed globally via `uv`, make sure to run `uv tool uninstall vinylkit` before installing the standalone version to avoid system `PATH` conflicts!
+
 ---
 
 ## Setup & Configuration

@@ -1,6 +1,6 @@
 [project]
 name = "vinylkit"
-version = "0.14.0"
+version = "0.14.1"
 description = "A cross-platform CLI tool for managing digitized vinyl record audio files using metadata from Discogs."
 readme = "README.md"
 requires-python = ">=3.12"
