@@ -86,7 +86,7 @@ jobs:
           uv build --wheel
           WHEEL_PATH=$(ls dist/*.whl | head -n 1)
           # Configure PyApp env vars
-          export PYAPP_PROJECT_PATH="$WHEEL_PATH"
+          export PYAPP_PROJECT_PATH="${{ github.workspace }}/$WHEEL_PATH"
           export PYAPP_EMBED=1
           export PYAPP_PROJECT_NAME="vinylkit"
           export PYAPP_PROJECT_VERSION="0.0.0"
