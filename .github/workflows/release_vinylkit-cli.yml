@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'feature/standalone-dist'
   workflow_dispatch:
 
 
