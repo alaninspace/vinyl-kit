@@ -1,6 +1,6 @@
 # Tag Mapping Reference
 
-VinylKit writes up to 32 tags per audio file using metadata from the Discogs API. This document is the authoritative reference for what gets written, where it comes from, and how to control it.
+VinylKit writes up to 32 tags per audio file using metadata from the Discogs API. This document lists what gets written, where it comes from, and how to control it.
 
 ---
 

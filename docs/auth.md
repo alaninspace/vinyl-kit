@@ -1,10 +1,10 @@
 # Authentication Guide: Discogs API
 
-VinylKit requires access to the Discogs API to fetch metadata and images. You can authenticate in two ways: using a **Personal Access Token** (simplest) or via **OAuth 1.0a** (required for full identity features).
+To fetch metadata and cover art from Discogs, VinylKit needs access to their API. You can authenticate in two ways: with a **Personal Access Token** (simplest) or via **OAuth 1.0a** (needed for account features like fetching your collection).
 
 ## Option 1: Personal Access Token (Recommended)
 
-This is the fastest way to get started. It doesn't require a browser-based login flow.
+This is the easiest way to get started. It doesn't need a browser login flow.
 
 1. Log in to your [Discogs Settings](https://www.discogs.com/settings/developers).
 2. Click **"Generate new personal access token"**.
@@ -20,7 +20,7 @@ vinylkit config set discogs_token <YOUR_TOKEN>
 
 ## Option 2: OAuth 1.0a (Browser Login)
 
-If you prefer to use the interactive login flow, you must first create a "Discogs Application" to get a Consumer Key and Secret.
+If you want to use the interactive login flow, you first need to create a "Discogs Application" to get a Consumer Key and Secret.
 
 ### 1. Create a Discogs Application
 
@@ -31,7 +31,7 @@ If you prefer to use the interactive login flow, you must first create a "Discog
 
 ### 2. Configure VinylKit with your App Credentials
 
-Since VinylKit is a local tool, you need to provide these credentials once:
+Because VinylKit runs locally on your machine, you only need to set these App credentials once:
 
 ```bash
 # Bash / PowerShell
@@ -57,7 +57,7 @@ vinylkit auth login
 
 ## Understanding Auth Modes
 
-VinylKit can store multiple types of credentials at once. You can control which one is used via the `auth_mode` setting.
+VinylKit can store different kinds of credentials at the same time. You can choose which one to use via the `auth_mode` setting.
 
 ### How it chooses (Auto-Priority)
 

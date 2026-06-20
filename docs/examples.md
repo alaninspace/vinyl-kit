@@ -1,6 +1,6 @@
 # VinylKit Usage Examples
 
-This guide provides comprehensive examples of how to use VinylKit with various parameter combinations. All examples use real electronic music releases from the collection.
+This guide shows examples of how to run VinylKit commands. All examples use real electronic music releases to show how they work in practice.
 
 ## Getting Help
 
@@ -201,7 +201,7 @@ vinylkit tag C:\Path\To\Batch\Folder\* --rename
 
 If you have a folder full of unsorted music (e.g. from friends or unlabelled downloads) where the folders are named with Artist and Title (e.g., `Desired_State-Desired_State_EP-(STRAT_8)`), you can use `--interactive` with `--batch` to rapidly process them.
 
-This command will iterate through every folder. It automatically converts the folder name into a search query (e.g., `Desired State Desired State EP STRAT 8`), and shows you the Discogs results table. You just type `1` to confirm, and VinylKit will instantly tag, rename, move to your library, and delete the source folder, before moving on to the next folder.
+This command goes through every folder, converts the folder name into a search query (e.g., `Desired State Desired State EP STRAT 8`), and displays the Discogs results. Type `1` to confirm, and VinylKit tags, renames, moves the files, and deletes the source folder before moving to the next one.
 
 If no results are found, or if you want to skip a folder at any point, you can enter `0`. To quit the entire session, enter `q`.
 
@@ -312,7 +312,7 @@ Enable or disable the automatic removal of Discogs disambiguation suffixes (like
 # Keep raw Discogs names (e.g. "What's In It For Me Music (2)")
 vinylkit config set normalize_discogs_duplicates false
 
-# Use clensed names (e.g. "What's In It For Me Music") - [DEFAULT]
+# Use cleaned names (e.g. "What's In It For Me Music") - [DEFAULT]
 vinylkit config set normalize_discogs_duplicates true
 ```
 
@@ -474,7 +474,7 @@ vinylkit migrate "C:\Music\Old" "C:\Music\New" --dry-run
 
 ### Replace Artwork and Tags During Migration
 
-Force fresh artwork and tags from Discogs, even if the files already have metadata.
+Force new artwork and tags from Discogs, even if the files already have metadata.
 
 ```bash
 # Bash / PowerShell

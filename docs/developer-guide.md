@@ -1,6 +1,6 @@
 # Developer Guide
 
-This guide covers everything you need to set up a development environment, run tests, and contribute to VinylKit.
+This guide covers how to set up your dev environment, run tests, and contribute to VinylKit.
 
 ---
 
@@ -128,7 +128,7 @@ docs/
 
 ### Synchronous CLI
 
-VinylKit is a synchronous CLI built on **Click** (via **rich-click** for enhanced help output) with **httpx** `Client` for API calls. There is no async code — this keeps the CLI simple and debuggable.
+VinylKit is a synchronous CLI built on **Click** (via **rich-click** for enhanced help output) with **httpx** `Client` for API calls. There is no async code — this keeps the CLI simple and easy to debug.
 
 ### rich-click Setup
 

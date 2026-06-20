@@ -156,7 +156,7 @@ Authentication method for the Discogs API.
 
 Controls how tags are written.
 
-- `replace` — (Default) Clear existing tags and write fresh.
+- `replace` — (Default) Clear existing tags and write new metadata.
 - `merge` — Preserve existing tags, only add/update from Discogs.
 
 ### ImageHandling

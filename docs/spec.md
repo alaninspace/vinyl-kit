@@ -9,7 +9,7 @@
 
 ### User Story 1 - Initial Tagging of a Recorded Album (Priority: P1)
 
-As a vinyl enthusiast, I want to tag a folder of freshly recorded audio files with full Discogs metadata so that my digital library is organized and searchable.
+As a vinyl enthusiast, I want to tag a folder of new vinyl recordings with full Discogs metadata so that my digital library is organized and searchable.
 
 **Why this priority**: This is the core value proposition of the tool. Without the ability to tag files from Discogs, the tool serves no purpose.
 

@@ -2,13 +2,13 @@
 
 [**Install**](#1-quick-one-line-script-recommended) &bull; [**Update**](#updating-vinylkit) &bull; [**Uninstall**](#uninstallation)
 
-VinylKit can be installed in several different ways depending on your technical comfort level.
+There are a few ways to get VinylKit onto your machine. Pick the one that fits your setup:
 
 ---
 
 ## 1. Quick One-Line Script (Recommended)
 
-This is the fastest and most convenient method. The installer script automatically detects your operating system and CPU architecture, downloads the latest pre-compiled binary, installs it to a local folder, and configures your system `PATH`.
+The installer script automatically detects your operating system and CPU architecture, downloads the latest pre-compiled binary, saves it to a local folder, and sets up your system `PATH`.
 
 ### macOS & Linux (Bash/Zsh)
 
@@ -75,7 +75,7 @@ By prefixing the command with `.\` or `./`, your terminal ignores your system `P
 
 ## 3. Standalone Launchers (PyApp)
 
-PyApp provides extremely lightweight Rust-based bootstrappers. Rather than downloading a large 25MB+ binary, the launcher is under 1MB. Upon first execution, it fetches and caches the required Python runtime and VinylKit files.
+PyApp provides lightweight Rust-based bootstrappers. Rather than downloading a 25MB+ binary, the launcher is under 1MB. On the first run, it fetches and caches the Python runtime and VinylKit files automatically.
 
 *   [Download for macOS (Apple Silicon)](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-pyapp-macos-arm64)
 *   [Download for macOS (Intel)](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-pyapp-macos-x86_64)
@@ -91,7 +91,7 @@ PyApp provides extremely lightweight Rust-based bootstrappers. Rather than downl
 
 ## 4. Package Managers
 
-If you prefer to manage your CLI applications via standard package managers:
+If you use Homebrew or Scoop to manage your command-line tools:
 
 ### macOS / Linux (Homebrew)
 
@@ -113,7 +113,7 @@ scoop install https://raw.githubusercontent.com/alaninspace/vinyl-kit/main/scoop
 
 ## 5. Developer Path (From Source / Git)
 
-If you are a developer and already have the Python runtime and `uv` installed, you can build and run VinylKit directly:
+If you already have Python and `uv` installed, you can run this to install it directly from source:
 
 ```bash
 # Install globally via uv
@@ -130,10 +130,10 @@ uv tool install git+https://github.com/alaninspace/vinyl-kit.git --force --no-ca
 
 ## Updating VinylKit
 
-When a new version is released, here is how you update your installation based on the method you chose:
+Here is how to update VinylKit depending on how you installed it:
 
 ### 1. One-Line Scripts
-Simply re-run the installation command. The script will fetch the latest binary and safely overwrite your existing one without affecting your configuration:
+Re-run the install command. The script gets the latest binary and replaces the old one without changing your settings:
 - **macOS/Linux:** `curl -fsSL https://vinylkit.app/install.sh | bash`
 - **Windows (PowerShell):** `irm https://vinylkit.app/install.ps1 | iex`
 
@@ -163,7 +163,7 @@ uv tool install git+https://github.com/alaninspace/vinyl-kit.git --force --no-ca
 
 ## Uninstallation
 
-To completely remove VinylKit:
+To remove VinylKit from your system:
 
 ### Script / Direct Installs
 Delete the `.vinylkit` directory from your home folder:

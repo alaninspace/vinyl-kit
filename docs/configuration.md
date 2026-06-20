@@ -7,7 +7,7 @@ You can check the installed version at any time with:
 vinylkit --version
 ```
 
-VinylKit settings are stored in a TOML file. You can view your current configuration (including version) at any time with:
+Settings are stored in a TOML file. To see your current settings and version, run:
 
 ```bash
 # Bash / PowerShell
@@ -21,7 +21,7 @@ To update a setting, use the `set` command:
 vinylkit config set <KEY> <VALUE>
 ```
 
-To reset all settings back to factory defaults (deleting your custom `config.toml` file), use the `reset` command:
+To reset everything back to the defaults (which deletes your custom `config.toml` file), run:
 
 ```bash
 # Bash / PowerShell
@@ -49,7 +49,7 @@ The final destination for your organized music library.
 
 ### `recordings_root`
 
-The "Inbox" folder where you put fresh vinyl rips. If set, commands like `scan` and `tag` will default to this path if no other path is provided.
+The "Inbox" folder where you put new vinyl rips. If set, commands like `scan` and `tag` will default to this folder when no path is provided.
 
 **Bash:**
 
@@ -108,7 +108,7 @@ The template used to generate folder and file paths.
 
 Controls how VinylKit writes metadata to files.
 
-- `replace`: (Default) Clears all existing tags and writes fresh data from Discogs.
+- `replace`: (Default) Clears all existing tags and writes new data from Discogs.
 - `merge`: Preserves existing tags and only adds/updates the fields provided by Discogs.
 - **Example:** `vinylkit config set tag_mode merge`
 
@@ -125,7 +125,7 @@ Controls how track numbers are written to files. Essential for software like Roo
 
 Controls whether VinylKit automatically strips the Discogs disambiguation suffix (e.g., `(2)`, `(15)`) from artist, label, and company names.
 
-- `true`: (Default) Automatically "clense" names to their natural form. **Highly recommended for cleaner file paths and tags.**
+- `true`: (Default) Automatically cleans names to their natural form. **Recommended for cleaner file paths and tags.**
 - `false`: Preserve the raw names exactly as they appear in the Discogs database.
 - **Example:** `vinylkit config set normalize_discogs_duplicates false`
 
@@ -141,7 +141,7 @@ Controls how vinyl sides are mapped to the `DISCNUMBER` tag.
 
 ### `info_filename`
 
-The name of the professional release information file generated in each album folder.
+The name of the release info text file generated in each album folder.
 
 - **Default:** `release_info.txt`
 - **Example:** `vinylkit config set info_filename "00_metadata.txt"`
@@ -296,7 +296,7 @@ Automatically delete the source folders after a successful migration.
 
 ### `replace_artwork_on_migration`
 
-Whether to replace existing embedded artwork in audio files during migration with fresh images from Discogs. Artwork *files* (e.g. `folder.jpg`) are always saved per the `image_handling` config regardless of this setting.
+Whether to replace existing embedded artwork in audio files during migration with new images from Discogs. Artwork *files* (e.g. `folder.jpg`) are always saved per the `image_handling` config regardless of this setting.
 
 - **Default:** `true`
 - **Example:** `vinylkit config set replace_artwork_on_migration false`

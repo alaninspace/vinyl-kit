@@ -59,6 +59,11 @@ All `ruff` and `mypy` checks MUST pass with **zero warnings and zero errors**. N
 - **Domain Enums:** Use `StrEnum` for domain logic (`TagMode`, `AuthMode`, `ImageHandling`, `TrackNumbering`, `DiscMapping`). Always use enum members for comparisons and assignments (e.g., `TagMode.REPLACE`, never `"replace"`).
 - **Canonical Tags:** Use `TagName` members defined in `tagging.py` for all tag-writing code.
 - **Function Signatures:** All functions must be fully type-hinted and pass `mypy --strict`.
+
+### 4. Documentation Style & Tone
+
+- **Tone:** Use a casual, direct, matter-of-fact "indie dev" style (e.g. replace academic passive structures like "VinylKit offers multiple options depending on your preferences" with "There are a few ways to install VinylKit. Pick the one that fits your setup").
+- **Matter-of-Fact (No Hype):** Avoid marketing jargon, sales pitches, or hype adjectives (e.g., "freshly", "instantly", "beautifully", "perfectly", "safely"). Write clearly and directly from one developer to another.
 </critical_directives>
 
 <anti_patterns>

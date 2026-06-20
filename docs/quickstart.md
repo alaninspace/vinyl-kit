@@ -2,26 +2,33 @@
 
 ## Installation
 
-To get VinylKit up and running instantly on your machine without manually setting up Python or package managers, run the automated installer command:
+VinylKit offers multiple installation methods depending on your preferences:
 
-### macOS & Linux (Bash/Zsh)
+### Option 1: Standalone Installer (Fastest & Easiest)
+
+To get VinylKit up and running instantly without manually setting up Python or package managers:
+
+* **macOS & Linux (Bash/Zsh):**
+  ```bash
+  curl -fsSL https://vinylkit.app/install.sh | bash
+  ```
+* **Windows (PowerShell):**
+  ```powershell
+  irm https://vinylkit.app/install.ps1 | iex
+  ```
+
+### Option 2: Python / Developer Tool (`uv`)
+
+For developers and power users who already have Python and `uv` installed:
 
 ```bash
-curl -fsSL https://vinylkit.app/install.sh | bash
+uv tool install git+https://github.com/alaninspace/vinyl-kit.git
 ```
-
-### Windows (PowerShell)
-
-```powershell
-irm https://vinylkit.app/install.ps1 | iex
-```
-
-### Alternative Installation Options
-
-We also support direct standalone downloads (both PyInstaller and PyApp), Homebrew, Scoop, and installation from source. For a detailed breakdown of all five installation methods, visit our **[Download & Install Guide](download.md)**.
 
 > [!TIP]
 > **Migrating from `uv` to a standalone executable?** If you already have VinylKit installed globally via `uv`, make sure to run `uv tool uninstall vinylkit` before installing the standalone version to avoid system `PATH` conflicts!
+
+*For alternative installation options—including manual PyInstaller downloads, PyApp bootstrappers, Homebrew, and Scoop—see the full **[Download & Install Guide](download.md)**.*
 
 ---
 
@@ -31,7 +38,7 @@ VinylKit needs to know where your music library is, where you put your new recor
 
 ### 1. Set your Library Location
 
-This is the final destination for your tagged and organized music.
+This is where your tagged and organized music library will live.
 
 **Bash:**
 
@@ -47,7 +54,7 @@ vinylkit config set library_root "D:\Music\VinylLibrary"
 
 ### 2. Set your Recordings Location (The "Inbox")
 
-This is where you drop your fresh vinyl recordings (e.g. `01.flac`, `02.flac`) before tagging them. Setting this allows you to run commands without typing the path every time.
+This is where you place your new vinyl recordings (e.g. `01.flac`, `02.flac`) before tagging them. Setting this lets you run commands without typing the folder path every time.
 
 **Bash:**
 
@@ -126,13 +133,13 @@ vinylkit config set naming_pattern "{year} - {id} - {artist} - {album} - {track_
 
 ---
 
-## Example Scenarios (The Easy Way)
+## Common Workflows
 
-If you have configured your `recordings_root`, your daily workflow becomes much simpler.
+If you configure your `recordings_root`, tagging files becomes much simpler because you don't have to specify the path every time.
 
 ### Scenario: Tagging and Moving a New Recording
 
-You just finished recording an album and the files are in your recordings folder.
+If you just finished recording an album and the files are in your default recordings folder:
 
 ```bash
 # Bash / PowerShell
@@ -145,9 +152,9 @@ vinylkit scan
 vinylkit tag --id 165
 ```
 
-### Scenario: Overriding the defaults
+### Scenario: Tagging a specific folder
 
-If you want to tag files in a *specific* folder instead of your default recordings folder:
+To tag files outside your default recordings folder, specify the path in the command:
 
 **Bash:**
 
@@ -168,7 +175,7 @@ vinylkit tag "C:\Some\Other\Folder" --id 56903 --rename
 ### Scenario: Batch tagging multiple releases
 
 > [!IMPORTANT]
-> **Configuration Requirement:** Batch tagging requires the `recordings_root` configuration option to be set first (see Step 2 under Setup & Configuration), as it scans this directory for folders to process.
+> **Configuration Requirement:** Batch tagging requires setting your `recordings_root` (see Step 2 under Setup & Configuration), because the command scans this directory for folders named with Discogs IDs.
 
 Name your folders with the Discogs ID so VinylKit can pick it up automatically. Three formats are supported:
 
@@ -192,7 +199,7 @@ vinylkit tag --batch --no-move
 
 ## Available Commands
 
-VinylKit provides the following commands:
+Here is what you can run:
 
 - **`scan`** — View audio files and their tagging status.
 - **`tag`** — Tag files using a Discogs Release ID or interactive search, with optional rename/move.
@@ -215,7 +222,7 @@ For full syntax, options, and search tips, see the **[User Guide — Command Ref
 
 ## Where is my config?
 
-Your settings and keys are stored in a persistent location:
+Your settings and keys live in a standard config file on your system:
 
 - **Windows**: `%LOCALAPPDATA%\vinylkit\vinylkit\config.toml`
 - **macOS**: `~/Library/Application Support/vinylkit/config.toml`

@@ -1,6 +1,6 @@
 # VinylKit User Guide
 
-A comprehensive guide to managing your digitized vinyl collection with VinylKit.
+A full guide to managing your vinyl rips with VinylKit.
 
 ## Table of Contents
 
@@ -42,19 +42,19 @@ vinylkit config set -h     # Lists all valid configuration keys
 vinylkit cache clear -h    # Shows examples for cache management
 ```
 
-Options are organised into logical groups (e.g. "Release Identification", "Output Control") so you can quickly find what you need.
+Options are grouped (like "Release Identification" or "Output Control") so you can find what you need.
 
 ---
 
 ## 1. Introduction
 
-VinylKit is designed to bridge the gap between high-quality vinyl digitizations and organized digital music libraries. By leveraging the Discogs API, it automates the tedious process of tagging files with accurate metadata, downloading artwork, and organizing them into a clean folder structure.
+VinylKit helps organize your vinyl digitizations into a clean music library. It talks to the Discogs API to automate tagging files, downloading artwork, and organizing them into folders.
 
 ## 2. Core Concepts
 
 ### The Library Root
 
-The `library_root` is the final destination for your music. When VinylKit renames or moves files, it uses this directory as the base.
+The `library_root` is where your organized music lives. When VinylKit renames or moves files, it uses this folder as the base.
 
 ### The Recordings Root (The Inbox)
 
@@ -62,11 +62,11 @@ The `recordings_root` is an optional but highly recommended "inbox". By pointing
 
 ### Safety & Overwrite Protection
 
-VinylKit prioritizes the safety of your existing music library. Before performing any move or rename operation:
+VinylKit tries to keep your existing music library safe. Before moving or renaming files:
 
-1. **Dry Run Support**: Every destructive command supports a `--dry-run` or defaults to one (in `rename`) to show you exactly what will happen.
-2. **Collision Detection**: If the generated destination path already contains a file or folder, VinylKit will halt and display a warning list of all affected items.
-3. **User Confirmation**: You will be prompted to explicitly confirm if you want to overwrite existing files. If you decline, the entire move operation for that folder is aborted, keeping your library and your original files intact.
+1. **Dry Run Support**: Every file-modifying command supports a `--dry-run` (or defaults to one in `rename`) so you can preview changes.
+2. **Collision Detection**: If a generated path already has a file or folder, VinylKit stops and lists the conflicts.
+3. **User Confirmation**: You'll be asked to confirm if you want to overwrite anything. If you decline, the move is canceled, keeping your files safe.
 
 ---
 
@@ -81,7 +81,7 @@ Scans directories for supported audio files (MP3, FLAC) and reports their status
 
 ### `tag`
 
-The primary command for applying metadata to your files.
+The main command for tagging files.
 
 - **Usage**: `vinylkit tag [PATHS]... [OPTIONS]`
 - **Options**:
@@ -121,7 +121,7 @@ The primary command for applying metadata to your files.
 
 ### `rename`
 
-Organizes already-tagged files into the library structure without re-tagging.
+Organizes files that are already tagged, without fetching metadata again.
 
 - **Usage**: `vinylkit rename [PATHS]... [OPTIONS]`
 - **Options**:
@@ -131,7 +131,7 @@ Organizes already-tagged files into the library structure without re-tagging.
 
 ### `migrate`
 
-Migrates an existing library to the new structure.
+Copies or moves an existing library folder into the new structure.
 
 - **Usage**: `vinylkit migrate <SOURCE_DIR> <DEST_DIR> [OPTIONS]`
 - **Behavior**:
@@ -152,13 +152,13 @@ Migrates an existing library to the new structure.
 
 ### `collection`
 
-Manages your Discogs collection data.
+Manages your Discogs collection.
 
 - `collection download`: Fetches your entire collection from Discogs and saves it as a date-prefixed CSV file (e.g., `2026-02-08_auzziehood_collection.csv`). Warns if the file already exists.
 
 ### `auth`
 
-Manages your connection to Discogs.
+Manages your Discogs credentials.
 
 - `auth login`: Starts the OAuth process in your browser.
 - `auth identity`: Displays the currently logged-in user.
@@ -168,7 +168,7 @@ Manages your connection to Discogs.
 
 ### `cache`
 
-Manages the Discogs API response cache stored in the platform cache directory.
+Manages cached Discogs API responses on your computer.
 
 - `cache list`: Lists all cached releases with ID, artist, album, and age.
 - `cache clear`: Deletes all cached releases (prompts for confirmation).
@@ -177,7 +177,7 @@ Manages the Discogs API response cache stored in the platform cache directory.
 
 ### `config`
 
-Manages your persistent settings.
+Manages your settings.
 
 - `config show`: Displays the VinylKit version, all current settings, and the config file path.
 - `config set <KEY> <VALUE>`: Updates a setting.

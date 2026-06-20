@@ -20,25 +20,30 @@ VinylKit is a cross-platform CLI tool for managing digitized vinyl record audio 
 
 ## Installation
 
-VinylKit requires Python 3.12+ and is managed with `uv`.
+There are a few ways to install VinylKit. Pick the one that fits your setup:
 
-### As a Global Tool (Recommended)
+### Option 1: Standalone Installer
 
-This makes the `vinylkit` command available everywhere in your terminal.
+This doesn't require Python or any package managers. The script automatically detects your system and installs a pre-compiled binary:
+
+* **macOS & Linux (Bash/Zsh):**
+  ```bash
+  curl -fsSL https://vinylkit.app/install.sh | bash
+  ```
+* **Windows (PowerShell):**
+  ```powershell
+  irm https://vinylkit.app/install.ps1 | iex
+  ```
+
+### Option 2: Python / Developer Tool (`uv`)
+
+If you already have Python and `uv` installed, you can install it as a global tool:
 
 ```bash
-git clone https://github.com/alaninspace/vinyl-kit.git
-cd vinyl-kit
-uv tool install . --force
+uv tool install git+https://github.com/alaninspace/vinyl-kit.git
 ```
 
-### Updating
-
-To update to the latest version after pulling changes:
-
-```bash
-uv tool install . --force --no-cache
-```
+*For other installation options—including manual PyInstaller executables, PyApp bootstrappers, Homebrew, and Scoop—see the full **[Download & Install Guide](docs/download.md)**.*
 
 ## Quick Start
 
@@ -48,7 +53,7 @@ uv tool install . --force --no-cache
    vinylkit config set library_root "/path/to/VinylLibrary"
    ```
 
-2. **Set your recordings inbox** (where fresh vinyl rips land):
+2. **Set your recordings inbox** (where new vinyl recordings are placed):
 
    ```bash
    vinylkit config set recordings_root "/path/to/RecordedVinyl"
@@ -68,17 +73,17 @@ uv tool install . --force --no-cache
    ```
 
 > [!TIP]
-> For OAuth setup, naming patterns, and advanced configuration see the **[Quickstart Guide](docs/quickstart.md)**.
+> For OAuth setup, naming patterns, and other configuration settings, see the **[Quickstart Guide](docs/quickstart.md)**.
 
 ## Configuration
 
-Settings are stored in a platform-appropriate TOML file. You can view your current config with:
+Settings are stored in a TOML file. You can view your current configuration with:
 
 ```bash
 vinylkit config show
 ```
 
-For detailed interactive guides, visit **[vinylkit.app](https://vinylkit.app/)** or see the local documentation files:
+For more details, check out **[vinylkit.app](https://vinylkit.app/)** or see these local files:
 
 - **[Quick Start](docs/quickstart.md)**: Setup and basic workflow.
 - **[User Guide](docs/user-guide.md)**: In-depth command and feature reference.
@@ -89,32 +94,3 @@ For detailed interactive guides, visit **[vinylkit.app](https://vinylkit.app/)**
 - **[Tag Mapping Reference](docs/tag-mapping.md)**: Complete tag list with MP3/FLAC field names.
 - **[Data Model Reference](docs/data-model.md)**: Data structures, database types, and schemas.
 - **[Specification Spec](docs/spec.md)**: Product specs and technical requirements.
-
-## Development
-
-VinylKit uses `uv` for development. Ensure you have it installed. See the **[Developer Guide](docs/developer-guide.md)** for full setup, architecture, and contribution details.
-
-### Run Tests
-
-```bash
-uv run pytest
-```
-
-### Linting & Formatting
-
-```bash
-# Check for linting errors
-uv run ruff check .
-
-# Fix linting errors automatically
-uv run ruff check . --fix
-
-# Format code
-uv run ruff format .
-```
-
-### Type Checking
-
-```bash
-uv run mypy src/
-```
