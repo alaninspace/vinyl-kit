@@ -1,31 +1,49 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
-name: Deploy Docs Web to Azure App Service
+name: Deploy Docs Web to CogitoVM
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'docs-v*'
   workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Package application files
-      run: |
-        zip -r deploy.zip src docs requirements.txt README.md pyproject.toml
+      - name: Set up SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.COGITOVM_SSH_KEY }}
 
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v3
-      with:
-        app-name: 'vinylkit-webapp'
-        publish-profile: ${{ secrets.AzureAppService_PublishProfile_b781f0014cc94d3b98feadfc68a917e0 }}
-        package: './deploy.zip'
+      - name: Deploy to CogitoVM
+        env:
+          HOST: ${{ secrets.COGITOVM_HOST }}
+          USER: ${{ secrets.COGITOVM_USER }}
+        run: |
+          # Add remote host to known_hosts
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
 
+          # Ensure remote directories exist
+          ssh "$USER@$HOST" "sudo mkdir -p /srv/apps/vinylkit-docs /srv/apps/caddy/conf.d && sudo chown -R $USER:$USER /srv/apps/vinylkit-docs"
 
+          # Sync project files to remote VM
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude '.venv' \
+            --exclude '__pycache__' \
+            --exclude '.pytest_cache' \
+            ./ "$USER@$HOST:/srv/apps/vinylkit-docs/"
+
+          # Copy Caddy drop-in configuration
+          ssh "$USER@$HOST" "sudo cp /srv/apps/vinylkit-docs/vinylkit.caddy /srv/apps/caddy/conf.d/vinylkit.caddy"
+
+          # Build and restart Docker container
+          ssh "$USER@$HOST" "cd /srv/apps/vinylkit-docs && sudo docker compose up -d --build"
+
+          # Reload Caddy gateway configuration
+          ssh "$USER@$HOST" "sudo docker exec caddy_gateway caddy reload --config /etc/caddy/Caddyfile"

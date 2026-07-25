@@ -1,0 +1,20 @@
+services:
+  vinylkit-docs:
+    build: .
+    container_name: vinylkit-docs
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    networks:
+      - caddy_gateway
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+        reservations:
+          memory: 32M
+
+networks:
+  caddy_gateway:
+    name: caddy_gateway
+    external: true

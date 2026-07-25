@@ -302,30 +302,29 @@ PORT=9090 uv run vinylkit-docs
 
 ## Deploying the Docs Web App
 
-If you have target Azure credentials and want to deploy the documentation server to Azure App Service:
+The documentation server is self-hosted on **CogitoVM** via Docker and proxied by Caddy gateway with automated Let's Encrypt TLS for `vinylkit.app`.
 
-### 1. Configure Local Deployment Settings
+### 1. Local Validation
 
-To prevent sensitive subscription details from being checked into version control, the deployment script reads configuration parameters from a local file that is ignored by Git.
+Run the validation script to execute tests, linter, and type checks:
 
-Create a file named `.azure/local-config.json` in the root of your project:
-
-```json
-{
-    "subscriptionId": "<YOUR_AZURE_SUBSCRIPTION_ID>",
-    "resourceGroup": "<YOUR_TARGET_RESOURCE_GROUP>",
-    "webAppName": "<YOUR_TARGET_WEB_APP_NAME>"
-}
+```powershell
+.\.deploy\deploy.ps1
 ```
 
-### 2. Deploy Locally
+### 2. Automated Release via GitHub Actions
 
-1. Run `az login` to authenticate the Azure CLI.
-2. Run the deployment script:
+Deploying a documentation release is triggered by pushing a tag matching `docs-v*` (e.g. `docs-v1.0.2`):
 
-   ```powershell
-   .\.azure\deploy.ps1
-   ```
+```bash
+git add .
+git commit -m "docs: update documentation webapp (v1.0.2)"
+git push origin main
+git tag docs-v1.0.2
+git push origin docs-v1.0.2
+```
+
+The GitHub Action (`main_vinylkit-webapp.yml`) will automatically deploy the updated container to CogitoVM and reload Caddy gateway.
 
 ---
 
