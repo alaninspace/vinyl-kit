@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [tool.vinylkit.docs]
-version = "1.0.3"
+version = "1.0.4"
 
 [project.scripts]
 vinylkit = "vinylkit.cli:main"
