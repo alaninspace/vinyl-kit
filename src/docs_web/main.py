@@ -40,6 +40,8 @@ LATENCY_HISTOGRAM = Histogram(
 def custom_telemetry(info: Info) -> None:
     """Record Prometheus metrics using actual URL path as handler."""
     handler = info.request.url.path
+    if handler in ("/metrics", "/favicon.ico"):
+        return
     REQUEST_COUNTER.labels(
         handler=handler, method=info.method, status=info.modified_status
     ).inc()
@@ -51,7 +53,7 @@ def custom_telemetry(info: Info) -> None:
 def get_versions() -> tuple[str, str]:
     """Read the CLI and docs website versions from pyproject.toml."""
     cli_ver = "0.14.3"
-    docs_ver = "1.0.5"
+    docs_ver = "1.0.6"
     candidates = [
         Path(__file__).parent.parent.parent / "pyproject.toml",
         Path.cwd() / "pyproject.toml",
