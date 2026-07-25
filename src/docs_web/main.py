@@ -4,7 +4,7 @@ import os
 import re
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import markdown  # type: ignore[import-untyped]
 import uvicorn
@@ -12,7 +12,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
+
+if TYPE_CHECKING:
+    from prometheus_fastapi_instrumentator.metrics import Info
 
 # Setup paths relative to this file location
 BASE_DIR = Path(__file__).parent
@@ -20,11 +24,34 @@ DOCS_DIR = BASE_DIR.parent.parent / "docs"
 STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
 
+REQUEST_COUNTER = Counter(
+    "http_requests_total",
+    "Total number of HTTP requests by method, status and handler.",
+    labelnames=["handler", "method", "status"],
+)
+
+LATENCY_HISTOGRAM = Histogram(
+    "http_request_duration_seconds",
+    "HTTP request duration in seconds for all requests.",
+    labelnames=["handler", "method", "status"],
+)
+
+
+def custom_telemetry(info: Info) -> None:
+    """Record Prometheus metrics using actual URL path as handler."""
+    handler = info.request.url.path
+    REQUEST_COUNTER.labels(
+        handler=handler, method=info.method, status=info.modified_status
+    ).inc()
+    LATENCY_HISTOGRAM.labels(
+        handler=handler, method=info.method, status=info.modified_status
+    ).observe(info.modified_duration)
+
 
 def get_versions() -> tuple[str, str]:
     """Read the CLI and docs website versions from pyproject.toml."""
     cli_ver = "0.14.3"
-    docs_ver = "1.0.4"
+    docs_ver = "1.0.5"
     candidates = [
         Path(__file__).parent.parent.parent / "pyproject.toml",
         Path.cwd() / "pyproject.toml",
@@ -56,8 +83,9 @@ app = FastAPI(
     version=DOCS_VERSION,
 )
 
-# Instrument FastAPI app and expose Prometheus /metrics endpoint
-Instrumentator().instrument(app).expose(app)
+# Instrument FastAPI app with custom telemetry exposing actual URL paths
+instrumentator = Instrumentator()
+instrumentator.add(custom_telemetry).instrument(app).expose(app)
 
 # Mount static files and setup templates
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
