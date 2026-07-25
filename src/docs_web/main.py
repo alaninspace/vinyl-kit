@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # Setup paths relative to this file location
 BASE_DIR = Path(__file__).parent
@@ -23,7 +24,7 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 def get_versions() -> tuple[str, str]:
     """Read the CLI and docs website versions from pyproject.toml."""
     cli_ver = "0.14.3"
-    docs_ver = "1.0.2"
+    docs_ver = "1.0.3"
     candidates = [
         Path(__file__).parent.parent.parent / "pyproject.toml",
         Path.cwd() / "pyproject.toml",
@@ -54,6 +55,9 @@ app = FastAPI(
     description="Documentation server for the VinylKit CLI",
     version=DOCS_VERSION,
 )
+
+# Instrument FastAPI app and expose Prometheus /metrics endpoint
+Instrumentator().instrument(app).expose(app)
 
 # Mount static files and setup templates
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

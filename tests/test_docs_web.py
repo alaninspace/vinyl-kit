@@ -145,3 +145,11 @@ def test_rewrite_md_links() -> None:
     # External link (should NOT be rewritten)
     html = '<p>Visit <a href="https://example.com/user-guide.md">External</a>.</p>'
     assert rewrite_md_links(html) == html
+
+
+def test_metrics_endpoint_returns_prometheus_format(client: TestClient) -> None:
+    """Ensure the /metrics endpoint returns Prometheus telemetry metrics."""
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    assert "text/plain" in response.headers["content-type"]
+    assert "http_requests_total" in response.text
