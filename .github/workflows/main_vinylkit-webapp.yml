@@ -14,36 +14,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up SSH Key
-        uses: webfactory/ssh-agent@v0.9.0
+      - name: Copy files to CogitoVM
+        uses: appleboy/scp-action@v0.1.7
         with:
-          ssh-private-key: ${{ secrets.COGITOVM_SSH_KEY }}
+          host: ${{ secrets.COGITOVM_HOST }}
+          username: ${{ secrets.COGITOVM_USER }}
+          key: ${{ secrets.COGITOVM_SSH_KEY }}
+          source: "Dockerfile,docker-compose.yml,vinylkit.caddy,requirements.txt,pyproject.toml,README.md,src,docs"
+          target: "/srv/apps/vinylkit-docs"
 
-      - name: Deploy to CogitoVM
-        env:
-          HOST: ${{ secrets.COGITOVM_HOST }}
-          USER: ${{ secrets.COGITOVM_USER }}
-        run: |
-          # Add remote host to known_hosts
-          mkdir -p ~/.ssh
-          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
-
-          # Ensure remote directories exist
-          ssh "$USER@$HOST" "sudo mkdir -p /srv/apps/vinylkit-docs /srv/apps/caddy/conf.d && sudo chown -R $USER:$USER /srv/apps/vinylkit-docs"
-
-          # Sync project files to remote VM
-          rsync -avz --delete \
-            --exclude '.git' \
-            --exclude '.venv' \
-            --exclude '__pycache__' \
-            --exclude '.pytest_cache' \
-            ./ "$USER@$HOST:/srv/apps/vinylkit-docs/"
-
-          # Copy Caddy drop-in configuration
-          ssh "$USER@$HOST" "sudo cp /srv/apps/vinylkit-docs/vinylkit.caddy /srv/apps/caddy/conf.d/vinylkit.caddy"
-
-          # Build and restart Docker container
-          ssh "$USER@$HOST" "cd /srv/apps/vinylkit-docs && sudo docker compose up -d --build"
-
-          # Reload Caddy gateway configuration
-          ssh "$USER@$HOST" "sudo docker exec caddy_gateway caddy reload --config /etc/caddy/Caddyfile"
+      - name: Execute remote deployment commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.COGITOVM_HOST }}
+          username: ${{ secrets.COGITOVM_USER }}
+          key: ${{ secrets.COGITOVM_SSH_KEY }}
+          script: |
+            sudo cp /srv/apps/vinylkit-docs/vinylkit.caddy /srv/apps/caddy/conf.d/vinylkit.caddy
+            cd /srv/apps/vinylkit-docs && sudo docker compose up -d --build
+            sudo docker exec caddy_gateway caddy reload --config /etc/caddy/Caddyfile
