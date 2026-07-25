@@ -22,22 +22,28 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 
 def get_versions() -> tuple[str, str]:
     """Read the CLI and docs website versions from pyproject.toml."""
-    cli_ver = "0.13.10"
-    docs_ver = "0.13.5"
-    try:
-        pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+    cli_ver = "0.14.3"
+    docs_ver = "1.0.2"
+    candidates = [
+        Path(__file__).parent.parent.parent / "pyproject.toml",
+        Path.cwd() / "pyproject.toml",
+        Path("/app/pyproject.toml"),
+    ]
+    for pyproject_path in candidates:
         if pyproject_path.exists():
-            with pyproject_path.open("rb") as f:
-                data = tomllib.load(f)
-                cli_ver = data.get("project", {}).get("version", cli_ver)
-                docs_ver = (
-                    data.get("tool", {})
-                    .get("vinylkit", {})
-                    .get("docs", {})
-                    .get("version", docs_ver)
-                )
-    except Exception:
-        pass
+            try:
+                with pyproject_path.open("rb") as f:
+                    data = tomllib.load(f)
+                    cli_ver = data.get("project", {}).get("version", cli_ver)
+                    docs_ver = (
+                        data.get("tool", {})
+                        .get("vinylkit", {})
+                        .get("docs", {})
+                        .get("version", docs_ver)
+                    )
+                    break
+            except Exception:
+                pass
     return cli_ver, docs_ver
 
 
