@@ -67,6 +67,9 @@ Thumbs.db
 !.specify/memory/
 !.specify/memory/constitution.md
 
+# Agent local customizations
+.agents/
+
 # Dummy folders for testing
 dummy*/
 
@@ -77,4 +80,5 @@ dummy*/
 .azure/*
 !.azure/deployment-plan.md
 
-
+# Scratch scripts
+scripts/scratch/
