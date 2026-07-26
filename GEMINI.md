@@ -138,10 +138,11 @@ Before marking any task as complete, you MUST execute this workflow sequentially
    - Documented in `configuration.md` with an example.
    - Shown in at least one example in `docs/examples.md`.
    - Covered by an automated test in `tests/test_examples_coverage.py`.
-5. **Version Bump:** Increment the semantic version in `pyproject.toml` for EVERY CLI code change (Patch for CLI bug fixes, Minor for new CLI features, Major for breaking CLI changes). When bumping the version, you MUST also update the version strings and download URLs in:
+5. **Version Bump:** Increment the semantic version for EVERY code change (Patch for bug fixes, Minor for new features, Major for breaking changes). When bumping versions, you MUST update all version strings in:
+   - `pyproject.toml` (`[project] version` AND `[tool.vinylkit.docs] version`)
+   - `src/docs_web/main.py` (`cli_ver` AND `docs_ver` fallback defaults)
    - [Formula/vinyl-kit.rb](file:///Users/Alan/Code/Python/Projects/vinyl-kit/Formula/vinyl-kit.rb)
    - [scoop/vinylkit.json](file:///Users/Alan/Code/Python/Projects/vinyl-kit/scoop/vinylkit.json)
-   Version bumps are **not required** for changes that only affect documentation files (inside `docs/`) or the documentation website itself (inside `src/docs_web/` and its assets/templates). For example, if the version is `0.13.2`, increment it to `0.13.3` for a CLI bug fix.
 6. **Final Validation Suite:** Execute the full check suite to guarantee the zero-warning policy:
    `uv run pytest && uv run ruff check . && uv run ruff format --check . && uv run mypy src/`
 </definition_of_done>
