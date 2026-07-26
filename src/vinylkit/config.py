@@ -10,6 +10,7 @@ from platformdirs import user_config_dir
 
 from vinylkit.exceptions import ConfigError
 from vinylkit.models import (
+    ANVHandling,
     AppConfig,
     AuthMode,
     DiscMapping,
@@ -81,6 +82,8 @@ def load_config() -> AppConfig:
         log_file=Path(data["log_file"]) if "log_file" in data else None,
         log_rotation=data.get("log_rotation", "5 MB"),
         log_retention=data.get("log_retention", 5),
+        anv_handling=ANVHandling(data.get("anv_handling", "none")),
+        position_overrides=dict(data.get("position_overrides", {})),
     )
 
 
@@ -114,7 +117,10 @@ def save_config(config: AppConfig) -> None:
         "log_rotation": config.log_rotation,
         "log_retention": config.log_retention,
         "normalize_discogs_duplicates": config.normalize_discogs_duplicates,
+        "anv_handling": config.anv_handling,
     }
+    if config.position_overrides:
+        data["position_overrides"] = config.position_overrides
     if config.skip_tags:
         data["skip_tags"] = config.skip_tags
     if config.consumer_key:

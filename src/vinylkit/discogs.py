@@ -13,6 +13,7 @@ from platformdirs import user_cache_dir
 
 from vinylkit.exceptions import AuthError, DiscogsAPIError
 from vinylkit.models import (
+    ANVHandling,
     AuthMode,
     CompanyInfo,
     DiscogsRelease,
@@ -84,9 +85,13 @@ class DiscogsClient:
         cache_enabled: bool = True,
         auth_mode: AuthMode = AuthMode.AUTO,
         normalize_discogs_duplicates: bool = True,
+        anv_handling: ANVHandling = ANVHandling.NONE,
+        position_overrides: dict[str, str] | None = None,
     ) -> None:
         self.cache_enabled = cache_enabled
         self.normalize_discogs_duplicates = normalize_discogs_duplicates
+        self.anv_handling = anv_handling
+        self.position_overrides = position_overrides or {}
         self.cache_dir = get_cache_dir()
         if self.cache_enabled:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -321,6 +326,12 @@ class DiscogsClient:
                 if t.get("type_", "track") != "track":
                     continue
                 pos = t.get("position", "")
+                if self.position_overrides:
+                    for old_prefix, new_prefix in self.position_overrides.items():
+                        if old_prefix and pos.upper().startswith(old_prefix.upper()):
+                            pos = new_prefix + pos[len(old_prefix) :]
+                            break
+
                 side = None
                 # Handle 1A, 2A prefix
                 disc_side_match = re.match(r"^(\d+)([A-Z]+)", pos)
@@ -338,6 +349,7 @@ class DiscogsClient:
                             a.get("name") or "",
                             a.get("anv") or "",
                             normalize=self.normalize_discogs_duplicates,
+                            anv_handling=self.anv_handling,
                         ),
                         role=a.get("role") or "",
                     )
@@ -368,6 +380,7 @@ class DiscogsClient:
                                 a.get("name") or "",
                                 a.get("anv") or "",
                                 normalize=self.normalize_discogs_duplicates,
+                                anv_handling=self.anv_handling,
                             )
                             for a in t.get("artists", [])
                         ]
@@ -426,6 +439,7 @@ class DiscogsClient:
                         a.get("name") or "",
                         a.get("anv") or "",
                         normalize=self.normalize_discogs_duplicates,
+                        anv_handling=self.anv_handling,
                     ),
                     role=a.get("role") or "",
                 )
@@ -441,6 +455,7 @@ class DiscogsClient:
                         a.get("name") or "",
                         a.get("anv") or "",
                         normalize=self.normalize_discogs_duplicates,
+                        anv_handling=self.anv_handling,
                     )
                     for a in data.get("artists", [])
                 ],

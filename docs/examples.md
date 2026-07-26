@@ -156,6 +156,19 @@ Always use `--dry-run` to see what tags will be written and where files will mov
 vinylkit tag --id 1480380 --rename --dry-run
 ```
 
+### Batch Mode with Primary Artist Name Resolution
+
+Resolves Discogs Artist Name Variations (ANVs) to the Primary Artist Name upfront, keeping top-level artist folders unified and preventing duplicate artist folders.
+
+```bash
+# Bash / PowerShell
+# Example: Batch tag unsorted vinyl folder and resolve ANVs to Primary Artist Name
+vinylkit tag "./unsorted" --batch --interactive --anv-handling primary --rename --auto-move
+
+# Equivalent convenience flag usage
+vinylkit tag --id 166682 --use-primary-artist --rename --auto-move
+```
+
 ### Batch Mode
 
 Automatically tag all subfolders in your recordings inbox. Each folder
@@ -530,4 +543,23 @@ Turn off API response caching entirely.
 ```bash
 # Bash / PowerShell
 vinylkit config set cache_enabled false
+```
+
+### Managing Vinyl Position Overrides
+
+Map non-standard vinyl side labels (e.g., `THIS`, `THAT`, `LOGO`, `INFO`) to standard side letters (`A`, `B`).
+
+```bash
+# Add or update side mappings
+vinylkit config override set THIS A
+vinylkit config override set THAT B
+
+# List all active overrides
+vinylkit config override list
+
+# Remove a side mapping
+vinylkit config override remove THIS
+
+# Set multiple overrides at once
+vinylkit config set position_overrides "THIS:A,THAT:B,LOGO:A,INFO:B"
 ```

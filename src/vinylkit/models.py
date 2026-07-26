@@ -34,6 +34,12 @@ class TagMode(StrEnum):
     MERGE = "merge"
 
 
+class ANVHandling(StrEnum):
+    NONE = "none"  # Standard Discogs: keep exact release typography/ANVs
+    PROMPT = "prompt"  # Prompt to select Primary Artist Name vs Release ANV
+    PRIMARY = "primary"  # Resolve ANVs to Primary Artist Name
+
+
 class TrackNumbering(StrEnum):
     NUMERIC = "numeric"  # 1, 2, 3...
     ORIGINAL = "original"  # A1, B1...
@@ -182,3 +188,5 @@ class AppConfig:
     log_rotation: str = "5 MB"
     log_retention: int = 5
     normalize_discogs_duplicates: bool = True
+    anv_handling: ANVHandling = ANVHandling.NONE
+    position_overrides: dict[str, str] = field(default_factory=dict)

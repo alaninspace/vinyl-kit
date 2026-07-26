@@ -5,6 +5,8 @@ import shutil
 import unicodedata
 from pathlib import Path
 
+from vinylkit.models import ANVHandling
+
 
 def backup_file(source: Path, backup_dir: Path) -> Path:
     """
@@ -69,13 +71,24 @@ def remove_discogs_disambiguation(name: str) -> str:
     return _DISAMBIGUATION_RE.sub("", name).strip()
 
 
-def clean_artist_name(name: str, anv: str = "", normalize: bool = True) -> str:
+def clean_artist_name(
+    name: str,
+    anv: str = "",
+    normalize: bool = True,
+    anv_handling: ANVHandling = ANVHandling.NONE,
+) -> str:
     """Return the display name for a Discogs artist.
 
+    When anv_handling is PRIMARY, ignores anv and returns the primary artist name.
     Uses anv (artist name variation) when set — it reflects the name as
     credited on the release. Falls back to stripping the Discogs
     disambiguation suffix (e.g. 'Pariah (2)' → 'Pariah') if normalize is True.
     """
+    if anv_handling == ANVHandling.PRIMARY:
+        if normalize:
+            return remove_discogs_disambiguation(name)
+        return name.strip()
+
     if anv.strip():
         return anv.strip()
     if normalize:

@@ -949,3 +949,64 @@ def test_ex_12_3_config_set_help(runner) -> None:
     result = runner.invoke(cli, ["config", "set", "-h"])
     assert result.exit_code == 0
     assert "library_root" in result.output
+
+
+def test_ex_anv_handling_primary_flag(runner, tmp_path, mock_discogs):
+    """Covers: vinylkit tag --id 166682 --anv-handling primary"""
+    (tmp_path / "01.flac").write_text("audio")
+    mock_discogs.get_release.return_value = create_mock_release(
+        166682, "Gappa G & Hyper Hypa", "The Information Centre"
+    )
+    result = runner.invoke(
+        cli,
+        [
+            "tag",
+            str(tmp_path),
+            "--id",
+            "166682",
+            "--anv-handling",
+            "primary",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Loaded Release: Gappa G & Hyper Hypa" in result.output
+
+
+def test_ex_use_primary_artist_alias_flag(runner, tmp_path, mock_discogs):
+    """Covers: vinylkit tag --id 166682 --use-primary-artist"""
+    (tmp_path / "01.flac").write_text("audio")
+    mock_discogs.get_release.return_value = create_mock_release(
+        166682, "Gappa G & Hyper Hypa", "The Information Centre"
+    )
+    result = runner.invoke(
+        cli,
+        [
+            "tag",
+            str(tmp_path),
+            "--id",
+            "166682",
+            "--use-primary-artist",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Loaded Release: Gappa G & Hyper Hypa" in result.output
+
+
+def test_ex_position_overrides_examples(runner):
+    """Covers position_overrides config and override CLI command examples."""
+    res1 = runner.invoke(cli, ["config", "override", "set", "THIS", "A"])
+    assert res1.exit_code == 0
+
+    res2 = runner.invoke(cli, ["config", "override", "set", "THAT", "B"])
+    assert res2.exit_code == 0
+
+    res_list = runner.invoke(cli, ["config", "override", "list"])
+    assert res_list.exit_code == 0
+
+    res_rem = runner.invoke(cli, ["config", "override", "remove", "THIS"])
+    assert res_rem.exit_code == 0
+
+    res_csv = runner.invoke(
+        cli, ["config", "set", "position_overrides", "THIS:A,THAT:B,LOGO:A,INFO:B"]
+    )
+    assert res_csv.exit_code == 0

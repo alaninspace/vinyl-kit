@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import dataclasses
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,7 +16,7 @@ from rich.text import Text
 
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import FileOperationError, TaggingError, VinylkitError
-from vinylkit.models import AppConfig, TagMode
+from vinylkit.models import ANVHandling, AppConfig, TagMode
 
 if TYPE_CHECKING:
     from vinylkit.models import DiscogsRelease
@@ -162,6 +163,19 @@ _TAG_EPILOG = (
     is_flag=True,
     help="Delete the source folder after files are successfully moved to the library.",
 )
+@click.option(
+    "--anv-handling",
+    "anv_handling_arg",
+    type=click.Choice(["none", "prompt", "primary"]),
+    default=None,
+    help="Strategy for handling Discogs Artist Name Variations (ANVs).",
+)
+@click.option(
+    "--use-primary-artist/--no-use-primary-artist",
+    "use_primary_artist",
+    default=None,
+    help="Resolve Discogs ANVs to Primary Artist Name.",
+)
 @click.pass_obj
 def tag(
     config: AppConfig,
@@ -181,6 +195,8 @@ def tag(
     batch: bool,
     no_move: bool,
     delete_source: bool,
+    anv_handling_arg: str | None = None,
+    use_primary_artist: bool | None = None,
 ) -> None:
     """Tag audio files in folders using metadata from Discogs.
 
@@ -190,6 +206,17 @@ def tag(
     """
     lib_root = lib_root_override or config.library_root
     tag_mode = TagMode.MERGE if merge else config.tag_mode
+
+    if anv_handling_arg:
+        effective_anv = ANVHandling(anv_handling_arg)
+    elif use_primary_artist is True:
+        effective_anv = ANVHandling.PRIMARY
+    elif use_primary_artist is False:
+        effective_anv = ANVHandling.NONE
+    else:
+        effective_anv = config.anv_handling
+
+    config = dataclasses.replace(config, anv_handling=effective_anv)
 
     # Parse --id: single int or comma-separated list
     release_ids: list[int] = []
@@ -487,7 +514,7 @@ def _batch_tag(
             try:
                 if client is None:
                     client = _helpers.get_client(config)
-                release = client.get_release(rid)
+                release = _resolve_release_anv(client, rid, config)
                 audio_files = _helpers.collect_audio_files(folder)
                 num_files = len(audio_files)
                 num_tracks = len(release.tracklist)
@@ -701,6 +728,43 @@ def _paginated_search(
     return None
 
 
+def _resolve_release_anv(
+    client: _helpers.DiscogsClient, release_id: int, config: AppConfig
+) -> DiscogsRelease:
+    """Fetch release, resolving ANVs according to config.anv_handling."""
+    if config.anv_handling == ANVHandling.PROMPT:
+        rel_none = client.get_release(release_id)
+        primary_client = _helpers.DiscogsClient(
+            consumer_key=client.consumer_key,
+            consumer_secret=client.consumer_secret,
+            auth_mode=config.auth_mode,
+            anv_handling=ANVHandling.PRIMARY,
+        )
+        rel_primary = primary_client.get_release(release_id)
+        if rel_none.artists != rel_primary.artists:
+            var_str = ", ".join(rel_none.artists)
+            prim_str = ", ".join(rel_primary.artists)
+            _helpers.console.print(
+                "\n[bold cyan]Artist Name Variation (ANV) Detected[/bold cyan]"
+            )
+            _helpers.console.print(
+                f"  • Release Variation:  [yellow]{var_str}[/yellow]"
+            )
+            _helpers.console.print(f"  • Primary Artist:     [green]{prim_str}[/green]")
+            prompt_msg = (
+                "Select artist name for tagging & folder organization:\n"
+                "  1. Primary Artist (Recommended for clean Roon/Plex grouping)\n"
+                "  2. Release Variation\n"
+                "Choice"
+            )
+            choice = click.prompt(prompt_msg, type=str, default="1")
+            if choice.strip() == "1":
+                return rel_primary
+            return rel_none
+        return rel_none
+    return client.get_release(release_id)
+
+
 def _tag_folder(
     client: _helpers.DiscogsClient,
     path: Path,
@@ -722,7 +786,7 @@ def _tag_folder(
     from loguru import logger
 
     if release is None:
-        release = client.get_release(release_id)
+        release = _resolve_release_anv(client, release_id, config)
     artist_str = ", ".join(release.artists)
     logger.info(
         "=== Release: {} - {} (ID: {}) ===",

@@ -15,6 +15,7 @@ def test_config_round_trip(runner: CliRunner) -> None:
     """Verify config survives a full write -> read cycle across all value types."""
     settings = [
         ("naming_pattern", "{artist}/{album}/{title}"),
+        ("anv_handling", "primary"),
         ("auto_move", "true"),
         ("search_page_size", "15"),
         ("backup_enabled", "false"),
@@ -91,3 +92,29 @@ def test_corrupt_toml_raises_config_error(
 
     with pytest.raises(ConfigError, match="Failed to read"):
         load_config()
+
+
+def test_position_override_cli_commands(runner: CliRunner) -> None:
+    """Verify config override set / list / remove commands work cleanly."""
+    res_set = runner.invoke(cli, ["config", "override", "set", "THIS", "A"])
+    assert res_set.exit_code == 0
+    assert "Successfully set position override: THIS -> A" in res_set.output
+
+    res_set2 = runner.invoke(cli, ["config", "override", "set", "THAT", "B"])
+    assert res_set2.exit_code == 0
+
+    res_list = runner.invoke(cli, ["config", "override", "list"])
+    assert res_list.exit_code == 0
+    assert "THIS" in res_list.output
+    assert "A" in res_list.output
+    assert "THAT" in res_list.output
+    assert "B" in res_list.output
+
+    res_rem = runner.invoke(cli, ["config", "override", "remove", "THIS"])
+    assert res_rem.exit_code == 0
+    assert "Successfully removed position override for THIS" in res_rem.output
+
+    res_list2 = runner.invoke(cli, ["config", "override", "list"])
+    assert res_list2.exit_code == 0
+    assert "THIS" not in res_list2.output
+    assert "THAT" in res_list2.output

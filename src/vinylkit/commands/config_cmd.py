@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -13,6 +14,7 @@ from vinylkit import __version__
 from vinylkit.commands._helpers import console
 from vinylkit.config import get_config_path, save_config
 from vinylkit.models import (
+    ANVHandling,
     AppConfig,
     AuthMode,
     DiscMapping,
@@ -27,11 +29,11 @@ if TYPE_CHECKING:
 
 @click.group(name="config")
 def config_group() -> None:
-    """Manage configuration (show, set).
+    """Manage configuration (show, set, override).
 
-    View your current settings with 'config show' or update
-    individual values with 'config set KEY VALUE'.  Run
-    'config set -h' to see all valid keys.
+    View your current settings with 'config show', update values
+    with 'config set KEY VALUE', or manage side overrides with
+    'config override set OLD NEW'. Run 'config set -h' to see all valid keys.
     """
 
 
@@ -57,6 +59,11 @@ def config_show(config_obj: AppConfig) -> None:
     )
     key_display = "****" if config_obj.consumer_key else "[dim]Not Set[/dim]"
     token_display = "****" if config_obj.discogs_token else "[dim]Not Set[/dim]"
+    pos_ov_display = (
+        ", ".join(f"{k} -> {v}" for k, v in config_obj.position_overrides.items())
+        if config_obj.position_overrides
+        else "None"
+    )
 
     sections: list[tuple[str, list[tuple[str, str]]]] = [
         (
@@ -78,6 +85,7 @@ def config_show(config_obj: AppConfig) -> None:
             "Metadata & Tagging",
             [
                 ("naming_pattern", config_obj.naming_pattern),
+                ("anv_handling", config_obj.anv_handling),
                 ("tag_mode", config_obj.tag_mode),
                 (
                     "track_numbering",
@@ -88,6 +96,7 @@ def config_show(config_obj: AppConfig) -> None:
                     "normalize_discogs_duplicates",
                     str(config_obj.normalize_discogs_duplicates),
                 ),
+                ("position_overrides", pos_ov_display),
                 ("info_filename", config_obj.info_filename),
                 (
                     "skip_tags",
@@ -222,11 +231,23 @@ def _parse_format_list(value: str) -> list[str]:
     return [v.strip() for v in value.split(",")]
 
 
+def _parse_dict(value: str) -> dict[str, str]:
+    if value.lower() in ("none", ""):
+        return {}
+    res = {}
+    for item in value.split(","):
+        if ":" in item:
+            k, v = item.split(":", 1)
+            res[k.strip()] = v.strip()
+    return res
+
+
 # Maps config keys to their type converter functions
 _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "library_root": Path,
     "recordings_root": Path,
     "auth_mode": AuthMode,
+    "anv_handling": ANVHandling,
     "tag_mode": TagMode,
     "track_numbering": TrackNumbering,
     "disc_mapping": DiscMapping,
@@ -256,6 +277,7 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "log_file": Path,
     "log_rotation": str,
     "log_retention": int,
+    "position_overrides": _parse_dict,
 }
 
 
@@ -268,7 +290,7 @@ def _build_config_set_epilog() -> str:
         "\n\n[bold]Examples:[/bold]"
         "\n\n  vinylkit config set library_root /music/vinyl"
         "\n\n  vinylkit config set tag_mode merge"
-        "\n\n  vinylkit config set skip_tags 'genre,style'"
+        "\n\n  vinylkit config set position_overrides 'THIS:A,THAT:B'"
         "\n\n  vinylkit config set naming_pattern"
         " '{artist}/{album}/{title}'"
     )
@@ -293,6 +315,60 @@ def config_set(config_obj: AppConfig, key: str, value: str) -> None:
     new_config = AppConfig(**new_data)
     save_config(new_config)
     console.print(f"[bold green]Successfully set {key} to {value}[/bold green]")
+
+
+@config_group.group(name="override")
+def override_group() -> None:
+    """Manage vinyl position overrides (e.g. THIS -> A, THAT -> B)."""
+
+
+@override_group.command(name="set")
+@click.argument("old_side")
+@click.argument("new_side")
+@click.pass_obj
+def override_set(config_obj: AppConfig, old_side: str, new_side: str) -> None:
+    """Add or update a vinyl position override (e.g. 'THIS' 'A')."""
+    overrides = dict(config_obj.position_overrides)
+    overrides[old_side.upper()] = new_side.upper()
+    new_config = dataclasses.replace(config_obj, position_overrides=overrides)
+    save_config(new_config)
+    console.print(
+        f"[bold green]Successfully set position override: "
+        f"{old_side.upper()} -> {new_side.upper()}[/bold green]"
+    )
+
+
+@override_group.command(name="remove")
+@click.argument("old_side")
+@click.pass_obj
+def override_remove(config_obj: AppConfig, old_side: str) -> None:
+    """Remove a position override."""
+    overrides = dict(config_obj.position_overrides)
+    key = old_side.upper()
+    if key in overrides:
+        del overrides[key]
+        new_config = dataclasses.replace(config_obj, position_overrides=overrides)
+        save_config(new_config)
+        console.print(
+            f"[bold green]Successfully removed position override for {key}[/bold green]"
+        )
+    else:
+        console.print(f"[yellow]No position override found for {key}[/yellow]")
+
+
+@override_group.command(name="list")
+@click.pass_obj
+def override_list(config_obj: AppConfig) -> None:
+    """List all current position overrides."""
+    if not config_obj.position_overrides:
+        console.print("[yellow]No position overrides configured.[/yellow]")
+        return
+    table = Table(title="Position Overrides")
+    table.add_column("Original Discogs Side", style="cyan")
+    table.add_column("Mapped Side Letter", style="green")
+    for k, v in config_obj.position_overrides.items():
+        table.add_row(k, v)
+    console.print(table)
 
 
 @config_group.command(name="reset")

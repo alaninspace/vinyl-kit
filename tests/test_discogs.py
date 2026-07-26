@@ -46,6 +46,38 @@ def test_get_release_success() -> None:
 
 
 @respx.mock
+def test_position_overrides_mapping() -> None:
+    """Verify position_overrides maps THIS/THAT positions to A/B side numbers."""
+    release_id = 282603
+    client = DiscogsClient(position_overrides={"THIS": "A", "THAT": "B"})
+
+    mock_data = {
+        "id": release_id,
+        "artists": [{"name": "Generator"}],
+        "title": "Hybrid / Head / 4 Core",
+        "year": 1993,
+        "tracklist": [
+            {"position": "THIS", "title": "Hybrid"},
+            {"position": "THAT1", "title": "Head"},
+            {"position": "THAT2", "title": "4 Core"},
+        ],
+    }
+
+    respx.get(f"{DISCOGS_API_URL}/releases/{release_id}").mock(
+        return_value=Response(200, json=mock_data)
+    )
+
+    release = client.get_release(release_id)
+
+    assert release.tracklist[0].position == "A"
+    assert release.tracklist[0].side == "A"
+    assert release.tracklist[1].position == "B1"
+    assert release.tracklist[1].side == "B"
+    assert release.tracklist[2].position == "B2"
+    assert release.tracklist[2].side == "B"
+
+
+@respx.mock
 def test_get_release_new_fields() -> None:
     """Verify master_id, artists_sort, data_quality, format_quantity are parsed."""
     release_id = 12345

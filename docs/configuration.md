@@ -112,6 +112,15 @@ Controls how VinylKit writes metadata to files.
 - `merge`: Preserves existing tags and only adds/updates the fields provided by Discogs.
 - **Example:** `vinylkit config set tag_mode merge`
 
+### `anv_handling`
+
+Controls how VinylKit handles Discogs Artist Name Variations (ANVs) when writing metadata tags and folder paths.
+
+- `none`: (Default) Keeps the exact release artist typography/ANV specified on the Discogs release.
+- `prompt`: Interactively prompts you to select between the Primary Artist Name and Release ANV during tagging.
+- `primary`: Automatically resolves release and track ANVs to the authoritative Primary Artist Name (e.g. `Gappa G & Hyper Hypa`), preventing top-level folder fragmentation and keeping Roon/Plex libraries unified.
+- **Example:** `vinylkit config set anv_handling primary`
+
 ### `track_numbering`
 
 Controls how track numbers are written to files. Essential for software like Roon.
@@ -120,6 +129,35 @@ Controls how track numbers are written to files. Essential for software like Roo
 - `original`: Keeps the original Discogs position (e.g., "A1").
 - `per_side`: Resets the count for each side (A1->1, B1->1). Works with `disc_mapping per_side`.
 - **Example:** `vinylkit config set track_numbering original`
+
+### `position_overrides`
+
+Map non-standard vinyl side names (e.g. `THIS`, `THAT`, `LOGO`, `INFO`) to standard vinyl side letters (`A`, `B`). You can manage these via CLI commands or directly in `config.toml`.
+
+- **CLI Commands:**
+  ```bash
+  # Add or update position overrides
+  vinylkit config override set THIS A
+  vinylkit config override set THAT B
+
+  # List current overrides
+  vinylkit config override list
+
+  # Remove an override
+  vinylkit config override remove THIS
+
+  # Alternatively set via CSV string
+  vinylkit config set position_overrides "THIS:A,THAT:B"
+  ```
+
+- **TOML Example (`config.toml`):**
+  ```toml
+  [position_overrides]
+  THIS = "A"
+  THAT = "B"
+  LOGO = "A"
+  INFO = "B"
+  ```
 
 ### `normalize_discogs_duplicates`
 
