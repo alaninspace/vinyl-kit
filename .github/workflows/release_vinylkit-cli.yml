@@ -34,10 +34,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
@@ -103,7 +103,7 @@ jobs:
           fi
 
       - name: Upload Artifacts to Job
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: release-artifacts-${{ matrix.os }}-${{ matrix.arch }}
           path: archive_dist/*
@@ -117,15 +117,27 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           path: all-artifacts
           merge-multiple: true
+
+      - name: Extract Release Notes from CHANGELOG
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          python3 -c "
+          import re
+          content = open('CHANGELOG.md').read()
+          match = re.search(r'## \[${TAG}\][^\n]*\n(.*?)(?=\n## \[|\Z)', content, re.DOTALL)
+          notes = match.group(1).strip() if match else ''
+          open('RELEASE_NOTES.md', 'w').write(notes)
+          "
 
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
@@ -133,7 +145,7 @@ jobs:
           files: all-artifacts/*
           draft: false
           prerelease: false
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
