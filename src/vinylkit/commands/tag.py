@@ -5,7 +5,7 @@ from __future__ import annotations
 import concurrent.futures
 import dataclasses
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import rich_click as click
 from click.exceptions import Exit as ClickExit
@@ -14,6 +14,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from vinylkit import utils
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import FileOperationError, TaggingError, VinylkitError
 from vinylkit.models import ANVHandling, AppConfig, TagMode
@@ -461,7 +462,8 @@ def _batch_tag(
     skipped = 0
 
     for parent in paths:
-        subfolders = sorted(f for f in parent.iterdir() if f.is_dir())
+        sort_key = utils.natural_sort_key if config.natural_sort else None
+        subfolders = sorted((f for f in parent.iterdir() if f.is_dir()), key=sort_key)
         for folder in subfolders:
             rid = _helpers.extract_id(folder.name)
 
@@ -475,15 +477,7 @@ def _batch_tag(
                     skipped += 1
                     continue
 
-                # Auto-generate query from folder name
-                # (Matches user preference for cleaning _, -, and parens)
-                clean_query = (
-                    folder.name.replace("_", " ")
-                    .replace("-", " ")
-                    .replace("(", " ")
-                    .replace(")", " ")
-                    .strip()
-                )
+                folder_query = _helpers.parse_folder_search_query(folder.name)
 
                 _helpers.console.print(
                     f"\n[bold blue]Batch Search:[/bold blue] {folder.name}"
@@ -496,11 +490,12 @@ def _batch_tag(
                     client,
                     folder,
                     None,
-                    clean_query,
+                    folder_query.cleaned_query,
                     None,
                     None,
                     search_formats,
                     config,
+                    folder_query=folder_query,
                 )
 
                 if rid is None:
@@ -583,12 +578,15 @@ def _search_loop(
     album: str | None,
     search_formats: list[str],
     config: AppConfig,
+    *,
+    folder_query: _helpers.FolderSearchQuery | None = None,
 ) -> int | None:
     """Run the interactive search/retry loop, returning a release ID."""
     current_release_id = release_id
     current_query = query
     current_artist = artist
     current_album = album
+    active_folder_query = folder_query
 
     while True:
         if (
@@ -602,6 +600,7 @@ def _search_loop(
                 " ('0' to skip, 'q' to quit)"
             )
             current_query = click.prompt(prompt_msg)
+            active_folder_query = None
             if current_query.lower() == "q":
                 _helpers.console.print("[yellow]Aborting tag session.[/yellow]")
                 raise ClickExit(0)
@@ -614,7 +613,7 @@ def _search_loop(
         if current_release_id:
             return current_release_id
 
-        if current_query or current_artist or current_album:
+        if current_query or current_artist or current_album or active_folder_query:
             result = _paginated_search(
                 client,
                 current_query,
@@ -622,12 +621,14 @@ def _search_loop(
                 current_album,
                 search_formats,
                 config,
+                folder_query=active_folder_query,
             )
             if result is None:
                 # Re-search requested
                 current_query = None
                 current_artist = None
                 current_album = None
+                active_folder_query = None
                 continue
             if result == 0:
                 return None  # User skipped
@@ -640,6 +641,7 @@ def _search_loop(
         current_query = None
         current_artist = None
         current_album = None
+        active_folder_query = None
 
 
 def _paginated_search(
@@ -649,6 +651,8 @@ def _paginated_search(
     album: str | None,
     search_formats: list[str],
     config: AppConfig,
+    *,
+    folder_query: _helpers.FolderSearchQuery | None = None,
 ) -> int | None:
     """Run paginated search and return selected release ID.
 
@@ -656,12 +660,45 @@ def _paginated_search(
         A positive int for a selected release ID,
         ``0`` to skip, ``-1`` to quit, ``None`` to re-search.
     """
-    all_results = client.search_releases(
-        query,
-        artist=artist,
-        album=album,
-        format=search_formats,
-    )
+    all_results: list[dict[str, Any]] = []
+
+    if folder_query is not None:
+        # Multi-tier search sequence for batch folder matching:
+        # Tier 1: Cleaned artist & title search (normalizing '_And_' to '&', no catno)
+        # Uses Discogs native full-text relevance engine to rank primary releases at #1.
+        if folder_query.cleaned_query:
+            all_results = client.search_releases(
+                folder_query.cleaned_query,
+                format=search_formats,
+            )
+
+        # Tier 2: Catalog Number fallback search if Tier 1 returns 0 results OR
+        # Tier 1 returned low-quality compilation noise (e.g. Various artist mismatch)
+        if (
+            not all_results
+            or _helpers.is_low_quality_text_match(all_results, folder_query)
+        ) and folder_query.catno:
+            cat_results = client.search_releases(
+                catno=folder_query.catno,
+                format=search_formats,
+            )
+            if cat_results:
+                all_results = cat_results
+
+        # Tier 3: Raw flattened query fallback
+        if not all_results and folder_query.raw_query:
+            all_results = client.search_releases(
+                folder_query.raw_query,
+                format=search_formats,
+            )
+    else:
+        all_results = client.search_releases(
+            query,
+            artist=artist,
+            album=album,
+            format=search_formats,
+        )
+
     if not all_results:
         _helpers.console.print("[yellow]No results found for query/filters.[/yellow]")
         return None

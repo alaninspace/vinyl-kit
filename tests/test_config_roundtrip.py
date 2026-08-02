@@ -62,6 +62,17 @@ def test_cache_enabled_roundtrip(runner: CliRunner) -> None:
     assert "False" in show.output
 
 
+def test_natural_sort_config_roundtrip(runner: CliRunner) -> None:
+    """Verify natural_sort survives a set -> show cycle."""
+    result = runner.invoke(cli, ["config", "set", "natural_sort", "false"])
+    assert result.exit_code == 0
+
+    show = runner.invoke(cli, ["config", "show"])
+    assert show.exit_code == 0
+    assert "natural_sort" in show.output
+    assert "False" in show.output
+
+
 def test_skip_tags_none_clears(runner: CliRunner) -> None:
     """Setting skip_tags to 'none' produces an empty list."""
     runner.invoke(cli, ["config", "set", "skip_tags", "genre,style"])

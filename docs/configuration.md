@@ -270,6 +270,14 @@ The default media format filter(s) applied to all searches. Multiple formats can
 - **Default:** `Vinyl`
 - **Example:** `vinylkit config set default_format "Vinyl, CD"`
 
+### `natural_sort`
+
+Controls directory and audio file sorting during batch scanning operations.
+
+- `true`: (Default) Uses natural string sorting. On Windows, uses native `StrCmpLogicalW` collation to match Windows File Explorer ordering exactly. On macOS/Linux, uses natural numerical chunking.
+- `false`: Uses standard ASCII code-point sorting.
+- **Example:** `vinylkit config set natural_sort false`
+
 ---
 
 ## Cache

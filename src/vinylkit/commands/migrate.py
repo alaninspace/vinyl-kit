@@ -10,6 +10,7 @@ import rich_click as click
 from loguru import logger
 from rich.panel import Panel
 
+from vinylkit import utils
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import VinylkitError
 from vinylkit.models import AppConfig, DiscogsRelease, ImageHandling, TagMode
@@ -119,8 +120,10 @@ def migrate(
     completed = 0
 
     while True:
+        sort_key = utils.natural_sort_key if config.natural_sort else None
         remaining = sorted(
-            f for f in source.iterdir() if f.is_dir() and f.name not in processed
+            (f for f in source.iterdir() if f.is_dir() and f.name not in processed),
+            key=sort_key,
         )
         if not remaining:
             break

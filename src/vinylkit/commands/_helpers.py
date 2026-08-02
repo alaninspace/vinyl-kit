@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import functools
 import re
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 import rich_click as click
 from loguru import logger
@@ -32,7 +33,7 @@ from vinylkit.tagging import (
     tag_audio_file,
     write_release_info,
 )
-from vinylkit.utils import backup_file
+from vinylkit.utils import backup_file, natural_sort_key
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
 # modules via ``_helpers.X`` so that tests can mock them in one place.
 __all__ = [
     "DiscogsClient",
+    "FolderSearchQuery",
     "backup_file",
     "calculate_track_and_disc",
     "clear_audio_tags",
@@ -51,8 +53,10 @@ __all__ = [
     "generate_path",
     "get_cache_dir",
     "get_track_number",
+    "is_low_quality_text_match",
     "move_directory",
     "move_file",
+    "parse_folder_search_query",
     "save_artwork",
     "scan_folder",
     "tag_audio_file",
@@ -103,18 +107,151 @@ def extract_id(folder_name: str) -> int | None:
     return None
 
 
+_STANDALONE_WORDS = {
+    "remix",
+    "remixes",
+    "mix",
+    "mixes",
+    "edit",
+    "ep",
+    "lp",
+    "single",
+    "cd",
+    "flac",
+    "mp3",
+    "vinyl",
+    "various",
+}
+
+
+@dataclass(slots=True, frozen=True)
+class FolderSearchQuery:
+    """Structured query details parsed from a folder name for Discogs API search."""
+
+    catno: str | None
+    cleaned_query: str
+    raw_query: str
+
+
+def parse_folder_search_query(folder_name: str) -> FolderSearchQuery:
+    """Parse folder name into structured search queries for Discogs API.
+
+    Extracts potential catalog numbers (trailing parens, brackets, scene-style,
+    or prefix) and cleans artist/title text (converting '_And_' to '&').
+    """
+    catno: str | None = None
+    m_cat: re.Match[str] | None = None
+
+    # 1. Trailing parens: -(CATNO) or (CATNO)
+    m = re.search(r"[-_\s]*\(([^)]+)\)\s*$", folder_name)
+    if m:
+        raw_cat = m.group(1).strip()
+        if raw_cat.lower() not in _STANDALONE_WORDS:
+            catno = raw_cat
+            m_cat = m
+
+    # 2. Square brackets: -[CATNO]- or [CATNO]
+    if not catno:
+        m = re.search(r"\[([^\]]+)\]", folder_name)
+        if m:
+            catno = m.group(1).strip()
+            m_cat = m
+
+    # 3. Scene style format: -Vinyl-(CATNO)-FLAC-Year or -Vinyl-CATNO-FLAC-Year
+    if not catno:
+        m = re.search(
+            r"-(?:Vinyl|FLAC|MP3|CD)-([^-]+)-(?:Vinyl|FLAC|MP3|CD|\d{4})",
+            folder_name,
+            re.IGNORECASE,
+        )
+        if m:
+            catno = m.group(1).strip()
+            m_cat = m
+
+    # 4. Front catno e.g. SUBBASE 28R - 1993 - DJ Hype...
+    if not catno:
+        m = re.match(
+            r"^\s*([A-Za-z0-9_-]{3,15})\s*-\s*(?:\d{4}\b|[A-Za-z])", folder_name
+        )
+        if m:
+            candidate = m.group(1).strip()
+            if candidate.lower() not in _STANDALONE_WORDS and any(
+                c.isdigit() for c in candidate
+            ):
+                catno = candidate
+                m_cat = m
+
+    # Clean catno (replacing underscores with spaces if any)
+    catno_clean = catno.replace("_", " ").strip() if catno else None
+
+    # Clean artist & title: strip out trailing catno parens/brackets/scene tags
+    cleaned_base = folder_name
+    if m_cat:
+        cleaned_base = folder_name[: m_cat.start()].strip(" -_")
+
+    # Convert _And_ to &
+    cleaned_base = re.sub(r"[\s_-]+[A|a][N|n][D|d][\s_-]+", " & ", cleaned_base)
+    # Remove underscores, hyphens, parentheses, and multiple spaces
+    cleaned_artist_title = re.sub(r"[\._\-\(\)]+", " ", cleaned_base)
+    cleaned_artist_title = re.sub(r"\s+", " ", cleaned_artist_title).strip()
+
+    # Raw clean fallback (existing vinylkit behavior)
+    raw_clean = (
+        folder_name.replace("_", " ")
+        .replace("-", " ")
+        .replace("(", " ")
+        .replace(")", " ")
+        .strip()
+    )
+    raw_clean = re.sub(r"\s+", " ", raw_clean)
+
+    return FolderSearchQuery(
+        catno=catno_clean,
+        cleaned_query=cleaned_artist_title,
+        raw_query=raw_clean,
+    )
+
+
+def is_low_quality_text_match(
+    results: list[dict[str, Any]], folder_query: FolderSearchQuery
+) -> bool:
+    """Check if Tier 1 text search returned low-quality compilation noise."""
+    if not results or not folder_query.catno:
+        return False
+    top = results[0]
+    title_raw = str(top.get("title", "")).lower()
+    res_artist = title_raw.split("-", 1)[0].strip() if "-" in title_raw else title_raw
+
+    q_words = [
+        w.lower()
+        for w in re.sub(r"[^\w\s]+", " ", folder_query.cleaned_query).split()
+        if len(w) > 2
+    ]
+    if not q_words:
+        return False
+
+    first_q_word = q_words[0]
+    if first_q_word != "various" and res_artist == "various":
+        return True
+
+    return first_q_word not in title_raw
+
+
 @functools.lru_cache(maxsize=32)
-def collect_audio_files(path: Path) -> list[Path]:
+def collect_audio_files(path: Path, natural_sort: bool = True) -> list[Path]:
     """Collect and sort supported audio files.
 
     LRU cache is used to avoid redundant network directory scans during
     a single command execution.
     """
-    return sorted(
+    files = [
         p
         for p in path.iterdir()
         if p.is_file() and p.suffix.lower() in (".mp3", ".flac")
-    )
+    ]
+    if natural_sort:
+        return sorted(files, key=natural_sort_key)
+    return sorted(files)
 
 
 def display_relative(path: Path, root: Path) -> Path:

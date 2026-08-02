@@ -176,6 +176,7 @@ class AppConfig:
     artwork_filename: str = "folder.jpg"
     search_page_size: int = 5
     default_format: list[str] = field(default_factory=lambda: ["Vinyl"])
+    natural_sort: bool = True
     auto_move: bool = False
     delete_after_migration: bool = False
     replace_artwork_on_migration: bool = True

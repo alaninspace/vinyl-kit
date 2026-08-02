@@ -390,6 +390,16 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
 
 ---
 
+## Directory & File Natural Sorting
+
+VinylKit scans directories using natural string sorting (`natural_sort_key` in `vinylkit.utils`) when `config.natural_sort` is enabled (default).
+
+- **Windows:** Calls native `shlwapi.StrCmpLogicalW` via `ctypes` for 100% parity with Windows File Explorer sorting rules.
+- **macOS / Linux:** Falls back to regex-based numerical chunking (`re.split(r"(\d+)", name)`) so digit sequences order naturally (e.g. `2` before `10`).
+- **Configuration:** Users can set `natural_sort = false` in `config.toml` or via `vinylkit config set natural_sort false` to revert to standard ASCII ordinal sorting.
+
+---
+
 ## Documentation Rules
 
 - Any **new feature** must include updates to the relevant docs (README, user-guide, etc.).

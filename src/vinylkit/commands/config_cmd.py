@@ -151,6 +151,7 @@ def config_show(config_obj: AppConfig) -> None:
                     str(config_obj.search_page_size),
                 ),
                 ("default_format", default_fmt),
+                ("natural_sort", str(config_obj.natural_sort)),
             ],
         ),
         (
@@ -266,6 +267,7 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "artwork_filename": str,
     "search_page_size": int,
     "default_format": _parse_format_list,
+    "natural_sort": _parse_bool,
     "auto_move": _parse_bool,
     "delete_after_migration": _parse_bool,
     "replace_artwork_on_migration": _parse_bool,

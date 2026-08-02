@@ -8,6 +8,7 @@ from vinylkit.utils import (
     backup_file,
     clean_artist_name,
     ensure_absolute,
+    natural_sort_key,
     sanitize_filename,
 )
 
@@ -147,3 +148,23 @@ class TestEnsureAbsolute:
         result = ensure_absolute("subdir/file.txt", root=tmp_path)
         assert result.is_absolute()
         assert str(tmp_path) in str(result)
+
+
+class TestNaturalSortKey:
+    def test_natural_sort_ordering(self) -> None:
+        items = [
+            "M&M_Feat_Rachel_Wallace-I_Feel_This_Way-(SUB_BASE_006)",
+            "M-Beat-Dark_Magnet-(12RENKT32)",
+            "M_And_M-I_Feel_This_Way",
+            "Mad Dog-Mad Dog",
+            "Manix-Bad_Attitude",
+        ]
+        sorted_items = sorted(items, key=natural_sort_key)
+        assert sorted_items.index("M_And_M-I_Feel_This_Way") < sorted_items.index(
+            "M-Beat-Dark_Magnet-(12RENKT32)"
+        )
+
+    def test_numeric_natural_sorting(self) -> None:
+        items = ["track2.mp3", "track10.mp3", "track1.mp3"]
+        sorted_items = sorted(items, key=natural_sort_key)
+        assert sorted_items == ["track1.mp3", "track2.mp3", "track10.mp3"]

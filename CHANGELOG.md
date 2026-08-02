@@ -2,6 +2,29 @@
 
 All notable changes to VinylKit will be documented in this file.
 
+## [v0.16.1] - 2026-08-02
+
+### Fixed
+- **Smart Multi-Tier Discogs Search for Batch Tagging (`vinylkit tag --batch --interactive`)**:
+  - Automatically parses folder names into catalog numbers (`catno`) and cleaned artist/title text (normalizing `_And_` to `&`).
+  - Implements a multi-tier search sequence against the Discogs API:
+    1. **Tier 1:** Cleaned Artist & Title search (`query="Artist & Title"` without catalog string) leveraging Discogs native relevance engine to rank primary retail releases at #1.
+    2. **Tier 2:** Precise Catalog Number fallback search (`catno=...`) if Tier 1 yields 0 results OR returns low-quality compilation noise (e.g., artist name mismatch such as `Various` compilations).
+    3. **Tier 3:** Raw flattened string fallback search.
+  - Resolves search failures on folders with trailing catalog codes, special characters, or `And` vs `&` variations.
+
+---
+
+## [v0.16.0] - 2026-08-01
+
+### Added
+- **Natural Directory & File Sorting (`natural_sort`)**:
+  - Automatically sorts directories and audio files using Windows File Explorer logical ordering (`StrCmpLogicalW`) on Windows and natural numerical chunking on macOS/Linux.
+  - Option added to **Search & Discovery** settings in `config.toml` (`natural_sort = true`).
+  - Toggle via CLI: `vinylkit config set natural_sort [true|false]`.
+
+---
+
 ## [v0.15.1] - 2026-07-26
 
 ### Added

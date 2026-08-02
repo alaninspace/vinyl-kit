@@ -214,7 +214,12 @@ vinylkit tag C:\Path\To\Batch\Folder\* --rename
 
 If you have a folder full of unsorted music (e.g. from friends or unlabelled downloads) where the folders are named with Artist and Title (e.g., `Desired_State-Desired_State_EP-(STRAT_8)`), you can use `--interactive` with `--batch` to rapidly process them.
 
-This command goes through every folder, converts the folder name into a search query (e.g., `Desired State Desired State EP STRAT 8`), and displays the Discogs results. Type `1` to confirm, and VinylKit tags, renames, moves the files, and deletes the source folder before moving to the next one.
+This command iterates through every subfolder and executes a smart multi-tier search against Discogs:
+1. **Cleaned Artist & Title Search:** Searches for cleaned artist and title text (normalizing `_And_` to `&` and stripping catalog numbers) so Discogs native text relevance ranks standard retail releases at #1.
+2. **Catalog Number Fallback:** Automatically searches using the extracted catalog number (`catno=...`, e.g., `HAN 013` from `Miranda-Volume_Two-(HAN013)`) if Tier 1 returns 0 results OR if Tier 1 returns low-quality compilation noise (e.g. `Various` artist mismatches).
+3. **Raw Fallback:** Searches using the raw flattened folder name if previous tiers return 0 results.
+
+Type `1` to select a result, and VinylKit tags, renames, moves the files, and deletes the source folder before moving to the next one.
 
 If no results are found, or if you want to skip a folder at any point, you can enter `0`. To quit the entire session, enter `q`.
 
@@ -543,6 +548,15 @@ Turn off API response caching entirely.
 ```bash
 # Bash / PowerShell
 vinylkit config set cache_enabled false
+```
+
+### Toggle Natural Directory Sorting
+
+Enable or disable natural directory sorting (matching Windows File Explorer collation).
+
+```bash
+# Bash / PowerShell
+vinylkit config set natural_sort false
 ```
 
 ### Managing Vinyl Position Overrides

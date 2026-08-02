@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import ctypes
+import functools
 import re
 import shutil
+import sys
 import unicodedata
 from pathlib import Path
+from typing import Any
 
 from vinylkit.models import ANVHandling
 
@@ -127,3 +131,24 @@ def ensure_absolute(path: Path | str, root: Path | None = None) -> Path:
     if root:
         return (root / p).resolve()
     return p.resolve()
+
+
+def natural_sort_key(val: str | Path) -> Any:
+    """Return a sort key for natural string ordering (Windows Explorer style).
+
+    Uses Windows API StrCmpLogicalW when running on Windows for 100% parity
+    with Windows File Explorer, and regex numerical chunking on non-Windows OSes.
+    """
+    name = val.name if isinstance(val, Path) else str(val)
+    if sys.platform == "win32":
+        try:
+            windll: Any = getattr(ctypes, "windll", None)
+            if windll is not None:
+                str_cmp = windll.shlwapi.StrCmpLogicalW
+                return functools.cmp_to_key(str_cmp)(name)
+        except (AttributeError, OSError):
+            pass
+    return [
+        int(text) if text.isdigit() else text.lower()
+        for text in re.split(r"(\d+)", name)
+    ]
