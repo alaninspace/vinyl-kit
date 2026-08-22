@@ -273,6 +273,97 @@ class TestTagQuitBehavior:
 
 
 # ---------------------------------------------------------------------------
+# tag search table catalog number column
+# ---------------------------------------------------------------------------
+
+
+class TestTagSearchTable:
+    def test_search_table_displays_catno(self, runner, tmp_path, mock_discogs) -> None:
+        """Search results table includes Cat # column with release catalog number."""
+        source = tmp_path / "inbox"
+        source.mkdir()
+        (source / "01.mp3").write_text("audio")
+
+        mock_discogs.search_releases.return_value = [
+            {
+                "id": 1546871,
+                "title": "D.J. Professor* - Rock Me Steady",
+                "catno": "DBX 030",
+                "year": "1991",
+                "country": "Italy",
+                "format": ["Vinyl", '12"', "Test Pressing"],
+            }
+        ]
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(source), "--search", "Rock Me Steady"],
+            input="q\n",
+        )
+
+        assert result.exit_code == 0
+        assert "Cat #" in result.output
+        assert "DBX 030" in result.output
+
+    def test_search_table_displays_na_when_catno_missing(
+        self, runner, tmp_path, mock_discogs
+    ) -> None:
+        """Search results table displays N/A under Cat # when catno is absent."""
+        source = tmp_path / "inbox"
+        source.mkdir()
+        (source / "01.mp3").write_text("audio")
+
+        mock_discogs.search_releases.return_value = [
+            {
+                "id": 99999,
+                "title": "Unknown Artist - Unknown Title",
+                "year": "2020",
+                "country": "US",
+                "format": ["Vinyl"],
+            }
+        ]
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(source), "--search", "Unknown Title"],
+            input="q\n",
+        )
+
+        assert result.exit_code == 0
+        assert "Cat #" in result.output
+        assert "N/A" in result.output
+
+    def test_search_table_displays_catno_list(
+        self, runner, tmp_path, mock_discogs
+    ) -> None:
+        """Search results table formats list of catalog numbers."""
+        source = tmp_path / "inbox"
+        source.mkdir()
+        (source / "01.mp3").write_text("audio")
+
+        mock_discogs.search_releases.return_value = [
+            {
+                "id": 12345,
+                "title": "Dual Release",
+                "catno": ["CAT 01", "CAT 02"],
+                "year": "2021",
+                "country": "UK",
+                "format": ["Vinyl"],
+            }
+        ]
+
+        result = runner.invoke(
+            cli,
+            ["tag", str(source), "--search", "Dual Release"],
+            input="q\n",
+        )
+
+        assert result.exit_code == 0
+        assert "Cat #" in result.output
+        assert "CAT 01, CAT 02" in result.output
+
+
+# ---------------------------------------------------------------------------
 # batch tag
 # ---------------------------------------------------------------------------
 
@@ -975,4 +1066,33 @@ class TestTagIdLookupAndCsv:
             ["tag", str(unsorted), "--id", "111,222"],
         )
         assert result.exit_code != 0
-        assert "No folder named '222'" in result.output
+        assert "No folder matching ID '222'" in result.output
+
+    def test_find_id_folder_prefixed_slug(
+        self, runner, tmp_path, mock_discogs, mocker
+    ) -> None:
+        """Finds folders with ID prefix when using --id without explicit paths."""
+        inbox = tmp_path / "inbox"
+        lib = tmp_path / "lib"
+        lib.mkdir()
+        f1 = inbox / "82-Wink-Featuring-Lil-Louis-Hows-Your-Evening-So-Far"
+        f2 = inbox / "272765-Wink-Are-You-There"
+        f1.mkdir(parents=True)
+        f2.mkdir(parents=True)
+        (f1 / "01.flac").write_bytes(b"audio")
+        (f2 / "01.flac").write_bytes(b"audio")
+
+        mocker.patch(
+            "vinylkit.cli.load_config",
+            return_value=AppConfig(library_root=lib, recordings_root=inbox),
+        )
+        mock_discogs.get_release.side_effect = [
+            create_mock_release(82, "Wink", "How's Your Evening So Far"),
+            create_mock_release(272765, "Wink", "Are You There"),
+        ]
+        mocker.patch("vinylkit.commands._helpers.move_file")
+        mocker.patch("vinylkit.commands._helpers.move_directory")
+
+        result = runner.invoke(cli, ["tag", "--id", "82,272765", "--auto-move"])
+        assert result.exit_code == 0
+        assert mock_discogs.get_release.call_count == 2

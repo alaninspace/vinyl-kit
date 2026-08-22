@@ -2,6 +2,22 @@
 
 All notable changes to VinylKit will be documented in this file.
 
+## [v0.16.3] - 2026-08-22
+
+### Added
+- **Catalog Number Column in Search Results Table**:
+  - Added `Cat #` column between `Title` and `Year` in interactive search result tables (`vinylkit tag --interactive`, `vinylkit tag --batch --interactive`, etc.) to easily identify specific pressings and catalog codes directly in the console.
+
+---
+
+## [v0.16.2] - 2026-08-10
+
+### Fixed
+- **Release ID Folder Resolution with Prefix Slugs**:
+  - `vinylkit tag --id <IDs>` now resolves folders in `recordings_root` or specified paths formatted with URL-style release ID prefixes (e.g. `82-Wink-Featuring-Lil-Louis-Hows-Your-Evening-So-Far`), matching exact ID folders (`82`) and bracketed suffixes (`[82]`).
+
+---
+
 ## [v0.16.1] - 2026-08-02
 
 ### Fixed

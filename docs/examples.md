@@ -57,9 +57,7 @@ vinylkit tag --id 53088 --rename --auto-move --delete-source
 
 ### Multi-ID Workflow (CSV IDs + Named Folders)
 
-Process several albums in one command. Rename each source folder to its Discogs
-ID, then pass a comma-separated list of IDs. VinylKit performs a direct path
-lookup (`{library-root}/{id}/`) for each ID — no directory scan.
+Process several albums in one command. Name each source folder with its Discogs ID (or URL slug prefix e.g. `82-Wink-Featuring-Lil-Louis-Hows-Your-Evening-So-Far`), then pass a comma-separated list of IDs. VinylKit matches each ID to its folder.
 
 ```bash
 # Bash / PowerShell
@@ -69,15 +67,13 @@ vinylkit tag --id 391682,30038 --library-root "D:\Music\DJ\Vinyl" --rename --aut
 
 ### Multi-ID with a Separate Source Folder
 
-When your unprocessed files live outside the library root, pass the source
-folder as a single PATH. VinylKit looks for `{PATH}/{id}/` for each ID, tags
-the files, and moves them to `--library-root`.
+When your unprocessed files live outside the library root (such as in `recordings_root`), pass a comma-separated list of IDs or pass the source folder as a single PATH. VinylKit matches `{PATH}/{id}/` or `{PATH}/{id}-slug/` for each ID, tags the files, and moves them to `--library-root`.
 
 ```bash
 # Bash / PowerShell
-# Source folders: D:\Music\DJ\Vinyl\#Unsorted\182338\  and  ...\74044\
+# Source folders: D:\Music\DJ\Vinyl\#Unsorted\82-Wink-Featuring-Lil-Louis-Hows-Your-Evening-So-Far\ and ...\272765-Wink-Are-You-There\
 # Destination:    D:\Music\DJ\Vinyl\
-vinylkit tag "D:\Music\DJ\Vinyl\#Unsorted" --id 182338,74044 --library-root "D:\Music\DJ\Vinyl" --rename --auto-move --delete-source
+vinylkit tag "D:\Music\DJ\Vinyl\#Unsorted" --id 82,272765 --library-root "D:\Music\DJ\Vinyl" --rename --auto-move
 ```
 
 ---

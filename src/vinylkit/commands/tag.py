@@ -329,12 +329,12 @@ def tag(
         search_root = paths[0]
         resolved_pairs: list[tuple[Path, int | None]] = []
         for rid in release_ids:
-            candidate = search_root / str(rid)
-            if candidate.is_dir():
+            candidate = _find_id_folder_in_dir(search_root, rid)
+            if candidate is not None:
                 resolved_pairs.append((candidate, rid))
             else:
                 raise click.UsageError(
-                    f"No folder named '{rid}' found in {search_root}."
+                    f"No folder matching ID '{rid}' found in {search_root}."
                 )
         path_id_pairs = resolved_pairs
     elif len(release_ids) > 1:
@@ -404,14 +404,29 @@ def _find_id_folder(
     recordings_root: Path | None,
     lib_root: Path,
 ) -> Path | None:
-    """Return the first directory named exactly *release_id* found in
-    recordings_root (if set) or lib_root.  Single stat call per root — no scan.
+    """Return the first directory matching *release_id* found in
+    recordings_root (if set) or lib_root.
     """
     for root in (recordings_root, lib_root):
-        if root is not None:
-            candidate = root / str(release_id)
-            if candidate.is_dir():
-                return candidate
+        if root is not None and root.is_dir():
+            match = _find_id_folder_in_dir(root, release_id)
+            if match is not None:
+                return match
+    return None
+
+
+def _find_id_folder_in_dir(parent: Path, release_id: int) -> Path | None:
+    """Find directory matching release_id inside parent directory.
+
+    First checks exact match ``parent / str(release_id)``.
+    If not found, scans subdirectories for matching ``extract_id(dirname)``.
+    """
+    exact = parent / str(release_id)
+    if exact.is_dir():
+        return exact
+    for child in parent.iterdir():
+        if child.is_dir() and _helpers.extract_id(child.name) == release_id:
+            return child
     return None
 
 
@@ -717,21 +732,29 @@ def _paginated_search(
         )
         table = Table(title=table_title)
         table.add_column("#", style="dim")
-        table.add_column("ID", style="magenta")
+        table.add_column("ID", style="magenta", no_wrap=True)
         table.add_column("Title", style="cyan")
-        table.add_column("Year", style="green")
+        table.add_column("Cat #", style="white", no_wrap=True)
+        table.add_column("Year", style="green", no_wrap=True)
         table.add_column("Country", style="yellow")
         table.add_column("Format", style="blue")
         table.add_column("Link", style="dim", no_wrap=True)
 
         for i, res in enumerate(page_results, offset + 1):
             title = res.get("title", "Unknown")
+            catno_val = res.get("catno")
+            if isinstance(catno_val, list):
+                catno = ", ".join(str(c) for c in catno_val if c) or "N/A"
+            elif catno_val:
+                catno = str(catno_val)
+            else:
+                catno = "N/A"
             year = str(res.get("year", "N/A"))
             country = res.get("country", "N/A")
             fmt = ", ".join(res.get("format", []))
             rid = str(res.get("id"))
             url = f"https://www.discogs.com/release/{rid}"
-            table.add_row(str(i), rid, title, year, country, fmt, url)
+            table.add_row(str(i), rid, title, catno, year, country, fmt, url)
 
         _helpers.console.print(table)
 
