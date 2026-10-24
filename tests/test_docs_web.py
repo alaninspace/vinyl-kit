@@ -72,6 +72,15 @@ def test_docs_page_rendering(client: TestClient) -> None:
     assert "Installation" in response.text
 
 
+def test_static_assets_are_versioned(client: TestClient) -> None:
+    """Asset URLs carry the docs version so a release busts browser caches."""
+    from docs_web.main import DOCS_VERSION
+
+    response = client.get("/docs/readme")
+    for asset in ("css/style.css", "css/syntax.css", "js/main.js"):
+        assert f"/static/{asset}?v={DOCS_VERSION}" in response.text
+
+
 def test_docs_page_not_found(client: TestClient) -> None:
     """Test 404 error rendering for a non-existent page."""
     response = client.get("/docs/non-existent-page")
