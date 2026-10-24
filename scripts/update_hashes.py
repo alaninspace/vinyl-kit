@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -16,6 +17,26 @@ def get_sha256(filepath: Path) -> str:
         while chunk := f.read(8192):
             sha256.update(chunk)
     return sha256.hexdigest()
+
+
+def update_formula(content: str, hashes: dict[str, str]) -> str:
+    """Return *content* with the sha256 under each artifact URL replaced.
+
+    *hashes* maps an artifact filename (e.g. ``vinylkit-macos-arm64.zip``) to
+    its checksum. Works whether the current value is a placeholder or the
+    previous release's checksum. Raises ``ValueError`` if a URL is missing.
+    """
+    for filename, digest in hashes.items():
+        pattern = re.compile(
+            rf'(url\s+"[^"]*/{re.escape(filename)}"\s+sha256\s+")[^"]*(")'
+        )
+        content, count = pattern.subn(rf"\g<1>{digest}\g<2>", content)
+        if count != 1:
+            raise ValueError(
+                f"Expected one url/sha256 pair for {filename} in the formula,"
+                f" found {count}."
+            )
+    return content
 
 
 def main() -> int:
@@ -49,10 +70,17 @@ def main() -> int:
     # 1. Update Homebrew Formula (Formula/vinyl-kit.rb)
     if formula_path.exists():
         content = formula_path.read_text(encoding="utf-8")
-
-        # Replace placeholders
-        content = content.replace("PLACEHOLDER_MAC_ARM64", hashes["mac_arm64"])
-        content = content.replace("PLACEHOLDER_LINUX_AMD64", hashes["linux_amd64"])
+        try:
+            content = update_formula(
+                content,
+                {
+                    file_map["mac_arm64"].name: hashes["mac_arm64"],
+                    file_map["linux_amd64"].name: hashes["linux_amd64"],
+                },
+            )
+        except ValueError as err:
+            print(f"Error: {err}", file=sys.stderr)
+            return 1
 
         formula_path.write_text(content, encoding="utf-8")
         print("Updated Homebrew formula checksums successfully.")

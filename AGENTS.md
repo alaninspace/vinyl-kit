@@ -145,5 +145,5 @@ Before marking any task as complete, you MUST execute this workflow sequentially
    - [scoop/vinylkit.json](scoop/vinylkit.json)
 6. **Final Validation Suite:** Execute the full check suite to guarantee the zero-warning policy:
    `uv run pytest && uv run ruff check . && uv run ruff format --check . && uv run mypy src/`
-7. **Docs Website Release:** The docs site (`vinylkit.app`) has no CI deploy. Release it with the `deploy-docs` skill (`.claude/skills/deploy-docs/SKILL.md`) from the operator's machine.
+7. **Release:** A commit to `main` is a release. Follow the `release` skill (`.claude/skills/release/SKILL.md`): classify the change, run the docs sweep, bump versions, commit, push, tag `v*` to run the GitHub build, deploy the docs site (via the `deploy-docs` skill), then run `.claude/skills/release/verify_release.py` until every check passes. When offering to commit, offer the whole release (e.g. "Commit and release v0.16.5 + docs-v1.0.16?"), not a bare commit.
 </definition_of_done>
