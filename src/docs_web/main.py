@@ -223,7 +223,7 @@ def api_search(q: str = "") -> list[dict[str, Any]]:
         files.append(readme_path)
 
     for file_path in files:
-        if file_path.name == "GEMINI.md":
+        if file_path.name in ("AGENTS.md", "CLAUDE.md"):
             continue
 
         try:

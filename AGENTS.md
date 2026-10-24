@@ -1,6 +1,6 @@
-# GEMINI.md
+# AGENTS.md
 
-This document provides high-performance system instructions for the Gemini CLI when working on the `vinyl-kit` repository. Follow these directives strictly.
+This document provides system instructions for AI coding agents (Claude Code, Gemini CLI and others) when working on the `vinyl-kit` repository. Follow these directives strictly.
 
 <system_identity>
 **Project Summary:**
@@ -141,8 +141,9 @@ Before marking any task as complete, you MUST execute this workflow sequentially
 5. **Version Bump:** Increment the semantic version for EVERY code change (Patch for bug fixes, Minor for new features, Major for breaking changes). When bumping versions, you MUST update all version strings in:
    - `pyproject.toml` (`[project] version` AND `[tool.vinylkit.docs] version`)
    - `src/docs_web/main.py` (`cli_ver` AND `docs_ver` fallback defaults)
-   - [Formula/vinyl-kit.rb](file:///Users/Alan/Code/Python/Projects/vinyl-kit/Formula/vinyl-kit.rb)
-   - [scoop/vinylkit.json](file:///Users/Alan/Code/Python/Projects/vinyl-kit/scoop/vinylkit.json)
+   - [Formula/vinyl-kit.rb](Formula/vinyl-kit.rb)
+   - [scoop/vinylkit.json](scoop/vinylkit.json)
 6. **Final Validation Suite:** Execute the full check suite to guarantee the zero-warning policy:
    `uv run pytest && uv run ruff check . && uv run ruff format --check . && uv run mypy src/`
+7. **Docs Website Release:** The docs site (`vinylkit.app`) has no CI deploy. Release it with the `deploy-docs` skill (`.claude/skills/deploy-docs/SKILL.md`) from the operator's machine.
 </definition_of_done>
