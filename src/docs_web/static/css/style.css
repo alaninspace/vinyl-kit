@@ -531,25 +531,36 @@ a:hover {
     border-radius: var(--radius-sm);
 }
 
-/* "See It in Action" walkthrough strip (README) */
-.see-it {
+/* "See It in Action" walkthrough strip (README).
+   Authored as a 2x2 <table> so GitHub shows a grid too; here the table's
+   rows dissolve and its cells become panels in a responsive grid. */
+.prose table.see-it {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
     gap: 16px;
     margin: 1.5em 0;
+    font-size: inherit;
 }
 
-.see-it-step {
+.see-it tbody,
+.see-it tr {
+    display: contents;
+}
+
+.see-it td.see-it-step,
+.see-it tr:hover td.see-it-step {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    padding: 0;
     background-color: var(--panel-bg);
     border: var(--ghost-border);
     border-radius: var(--radius-sm);
     overflow: hidden;
 }
 
-.see-it-step.see-it-terminal {
+.see-it td.see-it-step.see-it-terminal,
+.see-it tr:hover td.see-it-step.see-it-terminal {
     background-color: var(--code-bg);
     color: var(--code-text);
 }
@@ -584,15 +595,21 @@ a:hover {
     flex-grow: 1;
 }
 
-.see-it-covers {
+.prose table.see-it-covers {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+    margin: 0;
     padding: 12px;
+    width: auto;
 }
 
-.see-it-covers figure {
-    margin: 0;
+.see-it-covers td,
+.see-it tr:hover .see-it-covers td {
+    padding: 0;
+    border: none;
+    background-color: transparent;
+    min-width: 0;
 }
 
 .see-it-covers img {
@@ -602,7 +619,12 @@ a:hover {
     object-fit: cover;
 }
 
-.see-it-covers figcaption {
+.see-it-covers br {
+    display: none;
+}
+
+.see-it-covers span {
+    display: block;
     margin-top: 6px;
     font-size: 0.8rem;
     line-height: 1.3;
