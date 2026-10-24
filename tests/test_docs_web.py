@@ -147,6 +147,32 @@ def test_rewrite_md_links() -> None:
     assert rewrite_md_links(html) == html
 
 
+def test_rewrite_static_paths() -> None:
+    """Test rewrite_static_paths helper function."""
+    from docs_web.main import rewrite_static_paths
+
+    # Path relative to the repo root (README.md)
+    html = '<img alt="Cover" src="src/docs_web/static/images/examples/a.jpg" />'
+    expected = '<img alt="Cover" src="/static/images/examples/a.jpg" />'
+    assert rewrite_static_paths(html) == expected
+
+    # Path relative to docs/ (single quote)
+    html = "<img src='../src/docs_web/static/images/examples/b.png'>"
+    expected = "<img src='/static/images/examples/b.png'>"
+    assert rewrite_static_paths(html) == expected
+
+    # External image (should NOT be rewritten)
+    html = '<img src="https://img.shields.io/badge/docs-blue">'
+    assert rewrite_static_paths(html) == html
+
+
+def test_example_images_served(client: TestClient) -> None:
+    """Ensure the walkthrough example images are served."""
+    response = client.get("/static/images/examples/roon-loops-of-fury.png")
+    assert response.status_code == 200
+    assert "image/png" in response.headers["content-type"]
+
+
 def test_metrics_endpoint_returns_prometheus_format(client: TestClient) -> None:
     """Ensure the /metrics endpoint returns Prometheus telemetry metrics."""
     response = client.get("/metrics")

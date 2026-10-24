@@ -53,7 +53,7 @@ def custom_telemetry(info: Info) -> None:
 def get_versions() -> tuple[str, str]:
     """Read the CLI and docs website versions from pyproject.toml."""
     cli_ver = "0.16.3"
-    docs_ver = "1.0.9"
+    docs_ver = "1.0.10"
     candidates = [
         Path(__file__).parent.parent.parent / "pyproject.toml",
         Path.cwd() / "pyproject.toml",
@@ -292,6 +292,16 @@ def rewrite_md_links(html: str) -> str:
     return re.sub(pattern, repl, html, flags=re.IGNORECASE)
 
 
+def rewrite_static_paths(html: str) -> str:
+    """Rewrite repo-relative static asset paths to the mounted /static route.
+
+    Markdown references images as ``src/docs_web/static/...`` (or
+    ``../src/docs_web/static/...`` from ``docs/``) so they render on GitHub.
+    """
+    pattern = r'src=(["\'])(?:\.\./)*src/docs_web/static/'
+    return re.sub(pattern, r"src=\1/static/", html)
+
+
 @app.get("/docs/{page_name}", response_class=HTMLResponse)
 def read_doc(request: Request, page_name: str) -> HTMLResponse:
     """Render documentation page."""
@@ -326,6 +336,7 @@ def read_doc(request: Request, page_name: str) -> HTMLResponse:
 
     # Rewrite relative .md links to point to the clean route path name
     html_content = rewrite_md_links(html_content)
+    html_content = rewrite_static_paths(html_content)
 
     # Extract display title from markdown heading
     title = page_name.replace("-", " ").title()

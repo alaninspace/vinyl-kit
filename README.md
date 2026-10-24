@@ -5,6 +5,61 @@
 
 VinylKit is a cross-platform CLI tool for managing digitized vinyl record audio files using metadata from Discogs. It helps you tag, organize, and maintain your collection with high-quality metadata.
 
+## See It in Action
+
+Two needledrops, straight off the turntable, still called `01.flac`, `02.flac`… One command later they are tagged, renamed, filed in your library with cover art, and showing up in Roon.
+
+<div class="see-it">
+<div class="see-it-step">
+<p class="see-it-label"><strong>1 · Drop</strong> recordings_root</p>
+<pre>Recordings
+├── 4008-The-Chemical-Brothers-Hey-Boy-Hey-Girl
+│   ├── 01.flac
+│   ├── 02.flac
+│   └── 03.flac
+└── 13299-The-Chemical-Brothers-Loops-Of-Fury
+    ├── 01.flac
+    ├── 02.flac
+    ├── 03.flac
+    └── 04.flac</pre>
+</div>
+<div class="see-it-step see-it-terminal">
+<p class="see-it-label"><strong>2 · Run</strong> one command</p>
+<pre>&gt; vinylkit tag --id 4008,13299
+&nbsp;
+Processing folder: …\4008-The-Chemical-Brothers-Hey-Boy-Hey-Girl
+Tagged 3 tracks
+Files moved successfully.
+&nbsp;
+Processing folder: …\13299-The-Chemical-Brothers-Loops-Of-Fury
+Tagged 4 tracks
+Files moved successfully.</pre>
+</div>
+<div class="see-it-step">
+<p class="see-it-label"><strong>3 · Filed</strong> library_root</p>
+<pre>Music
+└── The Chemical Brothers
+    ├── 1999 - Hey Boy Hey Girl [Astralwerks]
+    │   ├── A - Hey Boy Hey Girl (Extended Version).flac
+    │   ├── B1 - Flashback.flac
+    │   ├── B2 - Scale.flac
+    │   └── folder.jpg
+    └── 1996 - Loops Of Fury [Astralwerks]
+        ├── A1 - Loops Of Fury.flac
+        ├── A2 - (The Best Part Of) Breaking Up.flac
+        └── … 2 more tracks, folder.jpg, images/</pre>
+</div>
+<div class="see-it-step">
+<p class="see-it-label"><strong>4 · Play</strong> Roon · Plex</p>
+<div class="see-it-covers">
+<figure><img src="src/docs_web/static/images/examples/hey-boy-hey-girl.jpg" alt="Cover of Hey Boy Hey Girl by The Chemical Brothers" width="160"><figcaption>Hey Boy Hey Girl · 1999</figcaption></figure>
+<figure><img src="src/docs_web/static/images/examples/loops-of-fury.jpg" alt="Cover of Loops Of Fury by The Chemical Brothers" width="160"><figcaption>Loops Of Fury · 1996</figcaption></figure>
+</div>
+</div>
+</div>
+
+Walk through it step by step in the **[Quickstart](docs/quickstart.md)**.
+
 ## Features
 
 - **Discogs Integration**: Fetch high-quality metadata (Genres, Styles, Notes) using Release IDs or interactive search.

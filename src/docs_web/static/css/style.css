@@ -524,6 +524,91 @@ a:hover {
     margin: 0;
 }
 
+/* Images inside docs content */
+.prose img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-sm);
+}
+
+/* "See It in Action" walkthrough strip (README) */
+.see-it {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+    gap: 16px;
+    margin: 1.5em 0;
+}
+
+.see-it-step {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background-color: var(--panel-bg);
+    border: var(--ghost-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.see-it-step.see-it-terminal {
+    background-color: var(--code-bg);
+    color: var(--code-text);
+}
+
+.prose .see-it-label {
+    margin: 0;
+    padding: 8px 12px;
+    background-color: var(--tertiary-color);
+    border-bottom: var(--ghost-border);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    opacity: 1;
+}
+
+.see-it-label strong {
+    color: var(--primary-color);
+    margin-right: 6px;
+}
+
+.see-it-step pre {
+    margin: 0;
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: inherit;
+    overflow-x: auto;
+    flex-grow: 1;
+}
+
+.see-it-covers {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 12px;
+}
+
+.see-it-covers figure {
+    margin: 0;
+}
+
+.see-it-covers img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+}
+
+.see-it-covers figcaption {
+    margin-top: 6px;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    color: var(--text-muted);
+}
+
 /* Callouts styling */
 .prose blockquote {
     border-left: 4px solid var(--border-color);

@@ -133,6 +133,118 @@ vinylkit config set naming_pattern "{year} - {id} - {artist} - {album} - {track_
 
 ---
 
+## Your First Tag & Move
+
+Here is the whole loop with two real records, from a drop folder of untitled FLACs to finished albums in Roon. It uses the settings from Setup & Configuration above; these are the ones that matter here:
+
+```toml
+recordings_root     = "D:\\Recordings"
+library_root        = "D:\\Music"
+naming_pattern      = "{artist}/{year} - {album} [{label}]/{track_number} - {full_title}"
+auto_move           = true
+collect_all_artwork = true
+track_numbering     = "numeric"
+```
+
+### 1. Drop Your Recordings
+
+Record each side, save the tracks in order, and put each record in its own folder inside `recordings_root`. The file names don't matter; the order does.
+
+```text
+D:\Recordings
+├── 4008-The-Chemical-Brothers-Hey-Boy-Hey-Girl
+│   ├── 01.flac
+│   ├── 02.flac
+│   └── 03.flac
+└── 13299-The-Chemical-Brothers-Loops-Of-Fury
+    ├── 01.flac
+    ├── 02.flac
+    ├── 03.flac
+    └── 04.flac
+```
+
+> [!TIP]
+> **Name the folder from the Discogs URL.** Copy the end of the release link (`discogs.com/release/4008-The-Chemical-Brothers-Hey-Boy-Hey-Girl`) and VinylKit reads the release ID from the front of the folder name.
+
+### 2. Run One Command
+
+Pass both IDs, comma-separated. VinylKit finds each folder in `recordings_root`, fetches the release from Discogs, tags the files, and moves them into your library.
+
+```bash
+# Bash / PowerShell
+vinylkit tag --id 4008,13299
+```
+
+What you'll see:
+
+```text
+Processing folder: D:\Recordings\4008-The-Chemical-Brothers-Hey-Boy-Hey-Girl
+Loaded Release: The Chemical Brothers - Hey Boy Hey Girl (1999)
+
+╭─── Tagging Complete ────╮
+│ Tagged 3 tracks         │
+│ Saved 6 artwork file(s) │
+╰─────────────────────────╯
+
+Renaming files in 4008-The-Chemical-Brothers-Hey-Boy-Hey-Girl...
+A - Hey Boy Hey Girl (Extended Version) -> The Chemical Brothers/1999 - Hey Boy Hey Girl [Astralwerks]/A - Hey Boy Hey Girl (Extended Version).flac
+B1 - Flashback -> The Chemical Brothers/1999 - Hey Boy Hey Girl [Astralwerks]/B1 - Flashback.flac
+B2 - Scale -> The Chemical Brothers/1999 - Hey Boy Hey Girl [Astralwerks]/B2 - Scale.flac
+
+Files moved successfully.
+
+Processing folder: D:\Recordings\13299-The-Chemical-Brothers-Loops-Of-Fury
+Loaded Release: The Chemical Brothers - Loops Of Fury (1996)
+
+╭─── Tagging Complete ────╮
+│ Tagged 4 tracks         │
+│ Saved 5 artwork file(s) │
+╰─────────────────────────╯
+
+Renaming files in 13299-The-Chemical-Brothers-Loops-Of-Fury...
+A1 - Loops Of Fury -> The Chemical Brothers/1996 - Loops Of Fury [Astralwerks]/A1 - Loops Of Fury.flac
+...
+
+Files moved successfully.
+```
+
+### 3. Check Your Library
+
+Each record now has its own folder under `library_root`, built from your `naming_pattern`, with the cover as `folder.jpg`, every Discogs image in `images/`, and the full release notes in `00-release-info.txt`. The drop folders are left empty.
+
+```text
+D:\Music
+└── The Chemical Brothers
+    ├── 1999 - Hey Boy Hey Girl [Astralwerks]
+    │   ├── images
+    │   ├── 00-release-info.txt
+    │   ├── A - Hey Boy Hey Girl (Extended Version).flac
+    │   ├── B1 - Flashback.flac
+    │   ├── B2 - Scale.flac
+    │   └── folder.jpg
+    └── 1996 - Loops Of Fury [Astralwerks]
+        ├── images
+        ├── 00-release-info.txt
+        ├── A1 - Loops Of Fury.flac
+        ├── A2 - (The Best Part Of) Breaking Up.flac
+        ├── B1 - Get Up On It Like This.flac
+        ├── B2 - Chemical Beats (Dave Clarke Remix).flac
+        └── folder.jpg
+```
+
+> [!NOTE]
+> **Vinyl sides in the file names, plain numbers in the tags.** Files are named `A1`, `B2`… from the Discogs tracklist, while `track_numbering = "numeric"` writes the track numbers as 1, 2, 3, 4 so Roon plays them in order. The original side and position stay in the `SIDE` and `DISCOGS_POSITION` tags.
+
+### 4. Open It in Roon
+
+Point Roon (or Plex) at `library_root`. The cover, artist, label, genre and styles, and track numbers all come from the tags VinylKit wrote. Roon can add its own details on top, such as release dates, if you let it.
+
+<img src="../src/docs_web/static/images/examples/roon-loops-of-fury.png" alt="Loops Of Fury album page in Roon: cover, title, The Chemical Brothers, Big Beat, Breakbeat and Electronic genre tags, Astralwerks label, and four tracks" width="560">
+
+*Loops Of Fury in Roon, straight after tagging. Big Beat, Breakbeat, Electronic, Astralwerks and tracks 1–4 are all read from the files' tags.*
+
+---
+
 ## Common Workflows
 
 If you configure your `recordings_root`, tagging files becomes much simpler because you don't have to specify the path every time.
