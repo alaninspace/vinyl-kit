@@ -26,7 +26,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "Type checks failed! Aborting deployment."
 }
 
-Write-Host "Validation Passed! Pushing docs release tag to trigger GitHub Action deployment..." -ForegroundColor Green
+Write-Host "Validation Passed!" -ForegroundColor Green
 
 # Read current docs version from pyproject.toml
 $pyproject = Get-Content "pyproject.toml" -Raw
@@ -35,9 +35,7 @@ if ($pyproject -match '\[tool\.vinylkit\.docs\]\s*version\s*=\s*"([^"]+)"') {
     $tagName = "docs-v$docsVer"
     Write-Host "Detected docs version: $docsVer (Tag: $tagName)" -ForegroundColor Green
     
-    # Prompt for confirmation or push tag
-    Write-Host "To deploy via GitHub Actions, commit your changes and run:" -ForegroundColor Cyan
-    Write-Host "git tag $tagName && git push origin main --tags" -ForegroundColor White
+    Write-Host "To deploy, follow the deploy-docs skill (.claude/skills/deploy-docs/SKILL.md) for $tagName." -ForegroundColor Cyan
 } else {
     Write-Error "Could not detect docs version in pyproject.toml."
 }

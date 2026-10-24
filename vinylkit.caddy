@@ -1,3 +1,0 @@
-vinylkit.app, www.vinylkit.app {
-    reverse_proxy vinylkit-docs:8000
-}

@@ -312,19 +312,9 @@ Run the validation script to execute tests, linter, and type checks:
 .\.deploy\deploy.ps1
 ```
 
-### 2. Automated Release via GitHub Actions
+### 2. Release
 
-Deploying a documentation release is triggered by pushing a tag matching `docs-v*` (e.g. `docs-v1.0.2`):
-
-```bash
-git add .
-git commit -m "docs: update documentation webapp (v1.0.2)"
-git push origin main
-git tag docs-v1.0.2
-git push origin docs-v1.0.2
-```
-
-The GitHub Action (`main_vinylkit-webapp.yml`) will automatically deploy the updated container to CogitoVM and reload Caddy gateway.
+Docs releases are deployed by the maintainer from their own machine over SSH; pushing a `docs-v*` tag no longer deploys anything. The steps (version bump, validation, tag, upload, container rebuild, live check) are in the `deploy-docs` agent skill, `.claude/skills/deploy-docs/SKILL.md`.
 
 ---
 
