@@ -8,7 +8,7 @@ VinylKit is a cross-platform CLI tool for managing digitized vinyl record audio 
 
 ## See It in Action
 
-Two needledrops, straight off the turntable, still called `01.flac`, `02.flac`… One command later they are tagged, renamed, filed in your library with cover art, and showing up in Roon.
+Record your vinyl into a folder as `01.flac`, `02.flac`… Run one command, and VinylKit tags the files, renames them and moves them into your library with cover art, ready for Roon.
 
 <table class="see-it">
 <tr>
