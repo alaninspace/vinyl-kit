@@ -17,7 +17,7 @@ from rich.text import Text
 from vinylkit import utils
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import FileOperationError, TaggingError, VinylkitError
-from vinylkit.models import ANVHandling, AppConfig, TagMode
+from vinylkit.models import ANVHandling, AppConfig, ImageHandling, TagMode
 
 if TYPE_CHECKING:
     from vinylkit.models import DiscogsRelease
@@ -525,7 +525,7 @@ def _batch_tag(
                 if client is None:
                     client = _helpers.get_client(config)
                 release = _resolve_release_anv(client, rid, config)
-                audio_files = _helpers.collect_audio_files(folder)
+                audio_files = _helpers.collect_audio_files(folder, config.natural_sort)
                 num_files = len(audio_files)
                 num_tracks = len(release.tracklist)
 
@@ -794,11 +794,10 @@ def _resolve_release_anv(
     """Fetch release, resolving ANVs according to config.anv_handling."""
     if config.anv_handling == ANVHandling.PROMPT:
         rel_none = client.get_release(release_id)
-        primary_client = _helpers.DiscogsClient(
-            consumer_key=client.consumer_key,
-            consumer_secret=client.consumer_secret,
-            auth_mode=config.auth_mode,
-            anv_handling=ANVHandling.PRIMARY,
+        # Same credentials, cache, normalisation and position overrides as
+        # the main client; only the ANV strategy differs.
+        primary_client = _helpers.get_client(
+            dataclasses.replace(config, anv_handling=ANVHandling.PRIMARY)
         )
         rel_primary = primary_client.get_release(release_id)
         if rel_none.artists != rel_primary.artists:
@@ -862,13 +861,14 @@ def _tag_folder(
     # Artwork handling
     artwork_data: bytes | None = None
     all_images_data: list[bytes] = []
-    if not no_artwork:
+    if not no_artwork and config.image_handling != ImageHandling.NONE:
         with _helpers.console.status("[bold green]Downloading artwork..."):
             artwork_data, all_images_data = _helpers.download_artwork(
                 client, release, config
             )
+    embed_data = artwork_data if _helpers.embeds_artwork(config) else None
 
-    audio_files = _helpers.collect_audio_files(path)
+    audio_files = _helpers.collect_audio_files(path, config.natural_sort)
 
     if not audio_files:
         _helpers.console.print(
@@ -907,7 +907,7 @@ def _tag_folder(
                 release,
                 i,
                 dry_run=dry_run,
-                artwork_data=artwork_data,
+                artwork_data=embed_data,
                 tag_mode=tag_mode,
                 track_numbering=config.track_numbering,
                 disc_mapping=config.disc_mapping,
@@ -1062,14 +1062,19 @@ def _rename_after_tag(
 
     # Pre-flight: detect collisions among targets.
     # We check this early to avoid partial renames on disk.
-    target_seen: set[Path] = set()
-    for _src, dst in audio_moves:
-        if dst in target_seen:
+    _helpers.check_duplicate_targets(audio_moves)
+
+    # Phase 1 keeps only the filename, so targets in different
+    # subfolders (e.g. per-side folders) can still clash locally, and
+    # a new name can match a file already sitting in the source folder.
+    local_moves = [(src, src.parent / dst.name) for src, dst in audio_moves]
+    _helpers.check_duplicate_targets(local_moves)
+    for src, local_dst in local_moves:
+        if src != local_dst and local_dst.exists() and not local_dst.samefile(src):
             raise FileOperationError(
-                "Two or more tracks would collide at the destination. "
-                "Check for duplicate track titles in the release."
+                f"Renaming {src.name} would overwrite {local_dst.name}"
+                f" in {path}. Move or rename that file and retry."
             )
-        target_seen.add(dst)
 
     # Phase 1: Rename audio files in-place so they have correct
     # names even if the cross-drive move in Phase 2 fails.
@@ -1077,8 +1082,7 @@ def _rename_after_tag(
     # optimizations (parallel tagging, atomic saves) provide the
     # primary performance gains.
     renamed: list[tuple[Path, Path]] = []
-    for src, dst in audio_moves:
-        local_dst = src.parent / dst.name
+    for (src, local_dst), (_src, dst) in zip(local_moves, audio_moves, strict=True):
         if src != local_dst:
             _helpers.move_file(src, local_dst, dry_run=False)
         renamed.append((local_dst, dst))
@@ -1091,26 +1095,35 @@ def _rename_after_tag(
         if rename_folder:
             # Batch mode: build structure alongside the source folder.
             new_folder = path.parent / relative_dir
-            new_folder.mkdir(parents=True, exist_ok=True)
-            for local_src, _dst in renamed:
-                target = new_folder / local_src.name
-                if local_src != target:
-                    _helpers.move_file(local_src, target, dry_run=False)
-            # Move supplementary files into new structure.
+            folder_moves = [
+                (local_src, new_folder / local_src.name) for local_src, _dst in renamed
+            ]
+            # Supplementary files move into the new structure too.
             for name in (
                 config.info_filename,
                 config.artwork_filename,
             ):
                 src_file = path / name
                 if src_file.exists():
-                    _helpers.move_file(src_file, new_folder / name, dry_run=False)
+                    folder_moves.append((src_file, new_folder / name))
+            folder_dir_moves: list[tuple[Path, Path]] = []
             art_subdir = path / config.artwork_subdir
             if art_subdir.exists() and art_subdir.is_dir():
-                _helpers.move_directory(
-                    art_subdir,
-                    new_folder / config.artwork_subdir,
-                    dry_run=False,
+                folder_dir_moves.append(
+                    (art_subdir, new_folder / config.artwork_subdir)
                 )
+
+            if not _helpers.check_collisions(folder_moves, folder_dir_moves):
+                _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
+                _helpers.collect_audio_files.cache_clear()
+                return
+
+            new_folder.mkdir(parents=True, exist_ok=True)
+            for src_file, target in folder_moves:
+                if src_file != target:
+                    _helpers.move_file(src_file, target, dry_run=False)
+            for src_dir, target_dir in folder_dir_moves:
+                _helpers.move_directory(src_dir, target_dir, dry_run=False)
             # Remove empty original folder.
             if path != new_folder:
                 if not any(path.iterdir()):
@@ -1273,7 +1286,7 @@ def rename(
                 )
 
             release = client.get_release(current_release_id)
-            audio_files = _helpers.collect_audio_files(path)
+            audio_files = _helpers.collect_audio_files(path, config.natural_sort)
 
             if not audio_files:
                 _helpers.console.print(
@@ -1299,6 +1312,8 @@ def rename(
                     f"[cyan]{track.position} - {track.title}[/cyan]"
                     f" -> [green]{rel}[/green]"
                 )
+
+            _helpers.check_duplicate_targets(moves)
 
             target_dir = moves[0][1].parent if moves else path
             dir_moves = _helpers.plan_supplementary_moves(

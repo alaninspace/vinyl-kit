@@ -83,6 +83,7 @@ def load_config() -> AppConfig:
         log_file=Path(data["log_file"]) if "log_file" in data else None,
         log_rotation=data.get("log_rotation", "5 MB"),
         log_retention=data.get("log_retention", 5),
+        normalize_discogs_duplicates=data.get("normalize_discogs_duplicates", True),
         anv_handling=ANVHandling(data.get("anv_handling", "none")),
         position_overrides=dict(data.get("position_overrides", {})),
     )

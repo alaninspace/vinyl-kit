@@ -651,10 +651,11 @@ def _tag_mp3(
 ) -> None:
     audio = MP3(path)
     saved_pics: list[APIC] = []
+    write_artwork = _should_write(TagName.ARTWORK, skip_tags) and bool(artwork_data)
 
     if tag_mode == TagMode.REPLACE:
         # Save existing artwork if we're not replacing it
-        if artwork_data is None and audio.tags is not None:
+        if not write_artwork and audio.tags is not None:
             saved_pics = audio.tags.getall("APIC")
 
         # Clear existing tags in memory to avoid redundant disk writes.
@@ -708,7 +709,7 @@ def _tag_mp3(
                 )
             )
 
-    if _should_write(TagName.ARTWORK, skip_tags) and artwork_data:
+    if write_artwork and artwork_data:
         tags.add(
             APIC(
                 encoding=3,
@@ -737,9 +738,10 @@ def _tag_flac(
     skip_tags: frozenset[str] = frozenset(),
 ) -> None:
     audio = FLAC(path)
+    write_artwork = _should_write(TagName.ARTWORK, skip_tags) and bool(artwork_data)
 
     if tag_mode == TagMode.REPLACE:
-        if artwork_data is not None:
+        if write_artwork:
             # Clear pictures in memory
             audio.clear_pictures()
         # Clear Vorbis comments in memory
@@ -763,7 +765,7 @@ def _tag_flac(
         else:
             audio[key] = value
 
-    if _should_write(TagName.ARTWORK, skip_tags) and artwork_data:
+    if write_artwork and artwork_data:
         pic = Picture()
         pic.data = artwork_data
         pic.type = FRONT_COVER_TYPE

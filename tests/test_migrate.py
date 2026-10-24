@@ -5,7 +5,7 @@ from pathlib import Path
 from conftest import create_mock_release
 
 from vinylkit.cli import cli
-from vinylkit.models import ImageInfo
+from vinylkit.models import ImageInfo, TrackInfo
 
 
 def test_migrate_basic_success(runner, tmp_path, mock_discogs, mocker):
@@ -520,3 +520,235 @@ def test_migrate_bare_numeric_folder(runner, tmp_path, mock_discogs, mocker):
     assert result.exit_code == 0
     assert "Migrated: 67890" in result.output
     mock_discogs.get_release.assert_called_once_with(67890)
+
+
+def test_migrate_existing_destination_declined_keeps_source(
+    runner, tmp_path, mock_discogs, mocker
+):
+    """Declining the overwrite prompt skips the folder and never deletes it."""
+    source = tmp_path / "source"
+    album_dir = source / "Dupe [123]"
+    album_dir.mkdir(parents=True)
+    (album_dir / "01.mp3").write_text("second copy")
+
+    dest = tmp_path / "dest"
+    existing = dest / "Artist" / "2000 - Title" / "A1 - Track 1.mp3"
+    existing.parent.mkdir(parents=True)
+    existing.write_text("first copy")
+
+    mock_discogs.get_release.return_value = create_mock_release(123, "Artist", "Title")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
+
+    result = runner.invoke(
+        cli, ["migrate", str(source), str(dest), "--delete"], input="n\n"
+    )
+
+    assert result.exit_code == 0
+    assert "Warning: 1 destination file(s)/folder(s) already exist" in result.output
+    assert existing.read_text() == "first copy"
+    assert (album_dir / "01.mp3").read_text() == "second copy"
+    log_content = (dest / "00-Migration-Results.txt").read_text()
+    assert "SKIPPED: Dupe [123] (Destination files already exist)" in log_content
+
+
+def test_migrate_existing_destination_confirmed_overwrites(
+    runner, tmp_path, mock_discogs, mocker
+):
+    """Confirming the overwrite prompt migrates as before."""
+    source = tmp_path / "source"
+    album_dir = source / "Dupe [123]"
+    album_dir.mkdir(parents=True)
+    (album_dir / "01.mp3").write_text("second copy")
+
+    dest = tmp_path / "dest"
+    existing = dest / "Artist" / "2000 - Title" / "A1 - Track 1.mp3"
+    existing.parent.mkdir(parents=True)
+    existing.write_text("first copy")
+
+    mock_discogs.get_release.return_value = create_mock_release(123, "Artist", "Title")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)], input="y\n")
+
+    assert result.exit_code == 0
+    assert "Migrated: Dupe [123]" in result.output
+    assert existing.read_text() == "second copy"
+
+
+def test_migrate_duplicate_targets_fail_without_delete(
+    runner, tmp_path, mock_discogs, mocker
+):
+    """Two tracks mapping to one path fail the folder and keep the source."""
+    source = tmp_path / "source"
+    album_dir = source / "Untitled [123]"
+    album_dir.mkdir(parents=True)
+    (album_dir / "01.mp3").write_text("a1")
+    (album_dir / "02.mp3").write_text("a2")
+
+    dest = tmp_path / "dest"
+    (tmp_path / "config.toml").write_text(
+        'naming_pattern = "{artist}/{album}/{title}"\n'
+    )
+
+    mock_discogs.get_release.return_value = create_mock_release(
+        123,
+        "Artist",
+        "Title",
+        tracklist=[
+            TrackInfo(position="A1", title="Untitled"),
+            TrackInfo(position="A2", title="Untitled"),
+        ],
+    )
+    mocker.patch(
+        "vinylkit.commands._helpers.get_track_number", side_effect=["A1", "A2"]
+    )
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest), "--delete"])
+
+    assert result.exit_code == 0
+    assert "collide" in result.output.lower()
+    assert (album_dir / "01.mp3").read_text() == "a1"
+    assert (album_dir / "02.mp3").read_text() == "a2"
+    assert not (dest / "Artist").exists()
+    log_content = (dest / "00-Migration-Results.txt").read_text()
+    assert "FAILED: Untitled [123]" in log_content
+
+
+def test_migrate_image_handling_save_keeps_embedded_art(
+    runner, tmp_path, mock_discogs, mocker
+):
+    """image_handling = save must not replace or strip embedded artwork."""
+    from vinylkit.commands import _helpers
+
+    source = tmp_path / "source"
+    album_dir = source / "Album [123]"
+    album_dir.mkdir(parents=True)
+    (album_dir / "01.mp3").write_text("audio")
+    (tmp_path / "config.toml").write_text('image_handling = "save"\n')
+
+    mock_discogs.get_release.return_value = create_mock_release(123, "A", "T")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
+    mocker.patch(
+        "vinylkit.commands._helpers.download_artwork", return_value=(b"img", [])
+    )
+
+    result = runner.invoke(
+        cli, ["migrate", str(source), str(tmp_path / "dest"), "--replace-artwork"]
+    )
+
+    assert result.exit_code == 0, result.output
+    clear_kwargs = _helpers.clear_audio_tags.call_args.kwargs
+    assert clear_kwargs["preserve_artwork"] is True
+    tag_kwargs = _helpers.tag_audio_file.call_args.kwargs
+    assert tag_kwargs["artwork_data"] is None
+
+
+def test_migrate_delete_keeps_files_it_did_not_copy(
+    runner, tmp_path, mock_discogs, mocker
+):
+    """--delete removes migrated audio but keeps cue sheets, logs and the folder."""
+    source = tmp_path / "source"
+    album_dir = source / "Album [123]"
+    album_dir.mkdir(parents=True)
+    (album_dir / "01.mp3").write_text("audio")
+    (album_dir / "rip.log").write_text("log")
+    (album_dir / "album.cue").write_text("cue")
+
+    dest = tmp_path / "dest"
+    mock_discogs.get_release.return_value = create_mock_release(123, "A", "T")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest), "--delete"])
+
+    assert result.exit_code == 0, result.output
+    assert not (album_dir / "01.mp3").exists()
+    assert (album_dir / "rip.log").read_text() == "log"
+    assert (album_dir / "album.cue").read_text() == "cue"
+    assert "Kept Album [123]: 2 item(s) were not migrated" in result.output
+    assert "Migrated and deleted" not in result.output
+    log_content = (dest / "00-Migration-Results.txt").read_text()
+    assert "Source kept, not migrated: album.cue, rip.log" in log_content
+
+
+def test_migrate_delete_removes_regenerated_supplementary_files(
+    runner, tmp_path, mock_discogs, mocker
+):
+    """Info and artwork files are removed when the destination has its own copy."""
+    source = tmp_path / "source"
+    album_dir = source / "Album [123]"
+    (album_dir / "Artwork").mkdir(parents=True)
+    (album_dir / "01.mp3").write_text("audio")
+    (album_dir / "release_info.txt").write_text("old info")
+    (album_dir / "folder.jpg").write_text("old cover")
+    (album_dir / "Artwork" / "primary_01.jpg").write_text("old art")
+
+    def fake_save_release_files(dest, *_args):
+        (dest / "release_info.txt").write_text("new info")
+        (dest / "folder.jpg").write_text("new cover")
+        (dest / "Artwork").mkdir()
+        (dest / "Artwork" / "primary_01.jpg").write_text("new art")
+
+    mocker.patch(
+        "vinylkit.commands._helpers.save_release_files",
+        side_effect=fake_save_release_files,
+    )
+    mock_discogs.get_release.return_value = create_mock_release(123, "A", "T")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
+
+    result = runner.invoke(
+        cli, ["migrate", str(source), str(tmp_path / "dest"), "--delete"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Migrated and deleted: Album [123]" in result.output
+    assert not album_dir.exists()
+
+
+def test_migrate_delete_keeps_cover_missing_at_destination(
+    runner, tmp_path, mock_discogs, mocker
+):
+    """A source cover is kept when the destination didn't get one."""
+    source = tmp_path / "source"
+    album_dir = source / "Album [123]"
+    album_dir.mkdir(parents=True)
+    (album_dir / "01.mp3").write_text("audio")
+    (album_dir / "folder.jpg").write_text("my scan")
+
+    mock_discogs.get_release.return_value = create_mock_release(123, "A", "T")
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value="A1")
+
+    result = runner.invoke(
+        cli, ["migrate", str(source), str(tmp_path / "dest"), "--delete"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (album_dir / "folder.jpg").read_text() == "my scan"
+    assert not (album_dir / "01.mp3").exists()
+
+
+def test_migrate_natural_sort_false_uses_ascii_order(
+    runner, tmp_path, mock_discogs, mocker
+):
+    """natural_sort = false maps files to tracks in plain code-point order."""
+    source = tmp_path / "source"
+    album_dir = source / "Album [123]"
+    album_dir.mkdir(parents=True)
+    (album_dir / "9.mp3").write_text("nine")
+    (album_dir / "10.mp3").write_text("ten")
+    (tmp_path / "config.toml").write_text("natural_sort = false\n")
+
+    dest = tmp_path / "dest"
+    mock_discogs.get_release.return_value = create_mock_release(
+        123,
+        "A",
+        "T",
+        tracklist=[TrackInfo("A1", "First"), TrackInfo("A2", "Second")],
+    )
+    mocker.patch("vinylkit.commands._helpers.get_track_number", return_value=None)
+
+    result = runner.invoke(cli, ["migrate", str(source), str(dest)], input="y\n")
+
+    assert result.exit_code == 0, result.output
+    album_dest = dest / "A" / "2000 - T"
+    assert (album_dest / "A1 - First.mp3").read_text() == "ten"
+    assert (album_dest / "A2 - Second.mp3").read_text() == "nine"

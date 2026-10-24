@@ -434,7 +434,7 @@ vinylkit migrate "C:\Music\Source" "C:\Music\Organized"
 
 ### Migration with Clean-up
 
-Migrate and delete original files once successfully copied and tagged.
+Migrate and delete original files once successfully copied and tagged. Anything that wasn't migrated (e.g. `.cue` or `.log` files) stays in the source folder, and that folder is kept.
 
 **Bash:**
 

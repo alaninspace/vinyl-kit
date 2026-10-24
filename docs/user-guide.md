@@ -65,8 +65,9 @@ The `recordings_root` is an optional "inbox" folder. By pointing this to the fol
 VinylKit tries to keep your existing music library safe. Before moving or renaming files:
 
 1. **Dry Run Support**: Every file-modifying command supports a `--dry-run` (or defaults to one in `rename`) so you can preview changes.
-2. **Collision Detection**: If a generated path already has a file or folder, VinylKit stops and lists the conflicts.
-3. **User Confirmation**: You'll be asked to confirm if you want to overwrite anything. If you decline, the move is canceled, keeping your files safe.
+2. **Collision Detection**: If a generated path already has a file or folder, VinylKit stops and lists the conflicts. This applies to `tag --rename` (including `--batch --no-move`), `rename --commit` and `migrate`.
+3. **User Confirmation**: You'll be asked to confirm if you want to overwrite anything. If you decline, the move is canceled and nothing is overwritten. In `migrate`, the folder is skipped and its source is kept even with `--delete`.
+4. **Duplicate Targets**: If two tracks would end up at the same path (for example, two tracks titled "Untitled" with a `naming_pattern` that has no `{track_number}`), VinylKit refuses to rename or migrate that folder. Add `{track_number}` or `{side}` to your pattern and retry.
 
 ---
 
@@ -144,7 +145,7 @@ Copies or moves an existing library folder into the new structure.
 - **Progress Tracking**: Each folder displays a progress header like `[1/10] Migrating: Album Name (0%)`. The total is recalculated dynamically by re-scanning the source directory before each release, so it adjusts automatically if folders are added or removed during migration.
 - **Smart Throttling**: The migrate command dynamically adjusts API request delays based on remaining rate limit headroom (from Discogs `X-Discogs-Ratelimit-Remaining` headers). When headroom is high, requests are faster; as limits approach, delays increase automatically. Rate limit snapshots are logged to `00-Migration-Results.txt` during migration, along with a summary at the end.
 - **Options**:
-  - `--delete`: Delete source folders after successful migration (Default: False).
+  - `--delete`: Delete migrated files from the source after a successful migration, then remove the folder if it's empty (Default: False). Files that weren't migrated, like cue sheets or rip logs, are kept along with their folder.
   - `--replace-artwork`: Replace existing artwork in tags with fresh downloads (Default: uses config `replace_artwork_on_migration`).
   - `--replace-tags`: Clear and re-write audio tags from Discogs metadata (Default: uses config `replace_tags_on_migration`). When not set, files are copied without tag modifications.
   - `--id <TEXT>`: Only migrate specific Discogs IDs (comma-separated list).

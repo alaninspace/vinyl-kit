@@ -1096,3 +1096,99 @@ class TestTagIdLookupAndCsv:
         result = runner.invoke(cli, ["tag", "--id", "82,272765", "--auto-move"])
         assert result.exit_code == 0
         assert mock_discogs.get_release.call_count == 2
+
+
+@pytest.mark.parametrize(
+    ("image_handling", "downloads", "embedded"),
+    [
+        ("both", True, b"img"),
+        ("embed", True, b"img"),
+        ("save", True, None),
+        ("none", False, None),
+    ],
+)
+def test_tag_respects_image_handling(
+    runner, tmp_path, mock_discogs, mocker, image_handling, downloads, embedded
+):
+    """Artwork is only embedded for 'embed'/'both', and 'none' skips the download."""
+    from vinylkit.commands import _helpers
+
+    source = tmp_path / "inbox"
+    source.mkdir()
+    (source / "01.mp3").write_text("audio")
+    (tmp_path / "config.toml").write_text(f'image_handling = "{image_handling}"\n')
+
+    mock_discogs.get_release.return_value = create_mock_release(123, "A", "T")
+    mock_download = mocker.patch(
+        "vinylkit.commands._helpers.download_artwork", return_value=(b"img", [])
+    )
+
+    result = runner.invoke(cli, ["tag", str(source), "--id", "123", "--no-rename"])
+
+    assert result.exit_code == 0, result.output
+    assert mock_download.called is downloads
+    kwargs = _helpers.tag_audio_file.call_args.kwargs
+    assert kwargs["artwork_data"] == embedded
+
+
+def test_anv_prompt_primary_client_keeps_config(mock_discogs, mocker):
+    """The PRIMARY lookup must reuse credentials, cache and position overrides."""
+    from vinylkit.commands import _helpers
+    from vinylkit.commands.tag import _resolve_release_anv
+    from vinylkit.models import ANVHandling
+
+    config = AppConfig(
+        library_root=Path("lib"),
+        discogs_token="tok",
+        cache_enabled=False,
+        normalize_discogs_duplicates=False,
+        anv_handling=ANVHandling.PROMPT,
+        position_overrides={"THIS": "A"},
+    )
+    mock_discogs.get_release.return_value = create_mock_release(1, "A", "T")
+    mocker.patch("rich_click.prompt", return_value="1")
+
+    _resolve_release_anv(mock_discogs, 1, config)
+
+    primary_config = _helpers.get_client.call_args.args[0]
+    assert primary_config.anv_handling == ANVHandling.PRIMARY
+    assert primary_config.discogs_token == "tok"
+    assert primary_config.cache_enabled is False
+    assert primary_config.normalize_discogs_duplicates is False
+    assert primary_config.position_overrides == {"THIS": "A"}
+
+
+@pytest.mark.parametrize(
+    ("natural_sort", "expected"),
+    [
+        ("true", {"9.mp3": 0, "10.mp3": 1}),
+        ("false", {"10.mp3": 0, "9.mp3": 1}),
+    ],
+)
+def test_tag_respects_natural_sort_for_files(
+    runner, tmp_path, mock_discogs, natural_sort, expected
+):
+    """natural_sort decides which file gets which track."""
+    from vinylkit.commands import _helpers
+    from vinylkit.models import TrackInfo
+
+    source = tmp_path / "inbox"
+    source.mkdir()
+    (source / "9.mp3").write_text("nine")
+    (source / "10.mp3").write_text("ten")
+    (tmp_path / "config.toml").write_text(f"natural_sort = {natural_sort}\n")
+
+    mock_discogs.get_release.return_value = create_mock_release(
+        123,
+        "A",
+        "T",
+        tracklist=[TrackInfo("A1", "First"), TrackInfo("A2", "Second")],
+    )
+
+    result = runner.invoke(cli, ["tag", str(source), "--id", "123", "--no-rename"])
+
+    assert result.exit_code == 0, result.output
+    mapping = {
+        c.args[0].name: c.args[2] for c in _helpers.tag_audio_file.call_args_list
+    }
+    assert mapping == expected

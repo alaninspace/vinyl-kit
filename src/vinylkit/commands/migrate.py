@@ -36,7 +36,10 @@ _MIGRATE_EPILOG = (
 @click.option(
     "--delete",
     is_flag=True,
-    help="Delete source folders after successful migration.",
+    help=(
+        "Delete migrated files from the source, and the folder once it's empty."
+        " Files that weren't migrated are kept."
+    ),
 )
 @click.option(
     "--replace-artwork",
@@ -249,7 +252,7 @@ def _migrate_folder(
         release.title,
         release.id,
     )
-    audio_files = _helpers.collect_audio_files(folder)
+    audio_files = _helpers.collect_audio_files(folder, config.natural_sort)
 
     if not audio_files:
         _helpers.console.print(
@@ -282,6 +285,9 @@ def _migrate_folder(
         rel_dst = dst.relative_to(destination)
         log_entries.append(f"    {src.name} -> {rel_dst}")
 
+    copies = [(src, dst) for src, dst, _idx in planned_moves]
+    _helpers.check_duplicate_targets(copies)
+
     if dry_run:
         _helpers.console.print(
             "[yellow]Dry-run: Migration steps logged to memory.[/yellow]"
@@ -290,26 +296,36 @@ def _migrate_folder(
         log_entries.append("")
         return
 
+    # Existing files at the destination (e.g. a second folder for the same
+    # release) would be overwritten, and --delete would then remove the
+    # only other copy.
+    if not _helpers.check_collisions(copies, []):
+        _helpers.console.print(f"[yellow]Skipped: {folder.name}[/yellow]")
+        log_entries.append(f"SKIPPED: {folder.name} (Destination files already exist)")
+        log_entries.append("")
+        return
+
     # Real implementation
     with _helpers.console.status(f"[green]Migrating {folder.name}..."):
         artwork_data: bytes | None = None
         all_images_data: list[bytes] = []
-        if do_replace_art or config.image_handling != ImageHandling.NONE:
+        if config.image_handling != ImageHandling.NONE:
             artwork_data, all_images_data = _helpers.download_artwork(
                 client, release, config, silent=True
             )
+        embed_art = do_replace_art and _helpers.embeds_artwork(config)
 
         for src, dst, idx in planned_moves:
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
 
             if do_replace_tags:
-                _helpers.clear_audio_tags(dst, preserve_artwork=not do_replace_art)
+                _helpers.clear_audio_tags(dst, preserve_artwork=not embed_art)
                 _helpers.tag_audio_file(
                     dst,
                     release,
                     idx,
-                    artwork_data=(artwork_data if do_replace_art else None),
+                    artwork_data=(artwork_data if embed_art else None),
                     tag_mode=TagMode.REPLACE,
                     track_numbering=config.track_numbering,
                     disc_mapping=config.disc_mapping,
@@ -328,8 +344,30 @@ def _migrate_folder(
     artwork_count = _helpers.count_artwork_saved(artwork_data, all_images_data, config)
 
     if do_delete:
-        shutil.rmtree(folder)
-        _helpers.console.print(f"[green]Migrated and deleted: {folder.name}[/green]")
+        try:
+            remaining = _remove_migrated_source(
+                folder, dest_dir, [src for src, _dst, _idx in planned_moves], config
+            )
+        except OSError as exc:
+            remaining = None
+            _helpers.console.print(
+                f"[yellow]Warning: Could not clean up {folder.name}: {exc}[/yellow]"
+            )
+            log_entries.append(f"  Source cleanup failed: {exc}")
+        if remaining == []:
+            _helpers.console.print(
+                f"[green]Migrated and deleted: {folder.name}[/green]"
+            )
+        else:
+            _helpers.console.print(f"[green]Migrated: {folder.name}[/green]")
+        if remaining:
+            shown = ", ".join(remaining[:5])
+            more = f" and {len(remaining) - 5} more" if len(remaining) > 5 else ""
+            _helpers.console.print(
+                f"[yellow]Kept {folder.name}: {len(remaining)} item(s) were not"
+                f" migrated ({shown}{more}).[/yellow]"
+            )
+            log_entries.append(f"  Source kept, not migrated: {', '.join(remaining)}")
     else:
         _helpers.console.print(f"[green]Migrated: {folder.name}[/green]")
 
@@ -353,6 +391,44 @@ def _migrate_folder(
     )
     log_entries.append("  STATUS: Success")
     log_entries.append("")
+
+
+def _remove_migrated_source(
+    folder: Path,
+    dest_dir: Path,
+    copied: list[Path],
+    config: AppConfig,
+) -> list[str]:
+    """Delete what was migrated out of *folder*, then the folder if it's empty.
+
+    Copied audio files are always removed. The info file, cover and files
+    in the artwork subfolder are removed only when the destination has a
+    file with the same name. Anything else (cue sheets, logs, scans, other
+    formats) stays put.
+
+    Returns the names left in *folder* (empty when the folder was removed).
+    """
+    for src in copied:
+        src.unlink()
+
+    for name in (config.info_filename, config.artwork_filename):
+        src_file = folder / name
+        if src_file.is_file() and (dest_dir / name).is_file():
+            src_file.unlink()
+
+    art_subdir = folder / config.artwork_subdir
+    if art_subdir.is_dir():
+        dest_art = dest_dir / config.artwork_subdir
+        for img in art_subdir.iterdir():
+            if img.is_file() and (dest_art / img.name).is_file():
+                img.unlink()
+        if not any(art_subdir.iterdir()):
+            art_subdir.rmdir()
+
+    remaining = sorted(p.name for p in folder.iterdir())
+    if not remaining:
+        folder.rmdir()
+    return remaining
 
 
 def _build_mapping(

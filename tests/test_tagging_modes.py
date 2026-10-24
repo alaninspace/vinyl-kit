@@ -7,10 +7,11 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003
 
+from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 
 from vinylkit.models import DiscogsRelease, TagMode, TrackInfo
-from vinylkit.tagging import tag_audio_file
+from vinylkit.tagging import TagName, tag_audio_file
 
 
 def test_tag_mode_replace_clears_old_tags(mp3_file: Path) -> None:
@@ -79,3 +80,48 @@ def test_tag_mode_merge_preserves_old_tags(mp3_file: Path) -> None:
     assert str(tags["TIT2"]) == "New Track"
     # Old genre preserved (merge doesn't delete)
     assert str(tags["TCON"]) == "Jazz"
+
+
+def _artwork_release() -> DiscogsRelease:
+    return DiscogsRelease(
+        id=1,
+        artists=["Artist"],
+        title="Album",
+        tracklist=[TrackInfo("A1", "Track")],
+    )
+
+
+def test_skip_artwork_keeps_existing_mp3_artwork(mp3_file: Path) -> None:
+    """Replace mode with 'artwork' skipped must not drop embedded artwork."""
+    release = _artwork_release()
+    tag_audio_file(mp3_file, release, 0, artwork_data=b"original")
+
+    tag_audio_file(
+        mp3_file,
+        release,
+        0,
+        artwork_data=b"downloaded",
+        tag_mode=TagMode.REPLACE,
+        skip_tags=frozenset({TagName.ARTWORK}),
+    )
+
+    tags = MP3(mp3_file).tags
+    assert tags is not None
+    assert [p.data for p in tags.getall("APIC")] == [b"original"]
+
+
+def test_skip_artwork_keeps_existing_flac_artwork(flac_file: Path) -> None:
+    """Replace mode with 'artwork' skipped must not clear FLAC pictures."""
+    release = _artwork_release()
+    tag_audio_file(flac_file, release, 0, artwork_data=b"original")
+
+    tag_audio_file(
+        flac_file,
+        release,
+        0,
+        artwork_data=b"downloaded",
+        tag_mode=TagMode.REPLACE,
+        skip_tags=frozenset({TagName.ARTWORK}),
+    )
+
+    assert [p.data for p in FLAC(flac_file).pictures] == [b"original"]

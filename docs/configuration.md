@@ -189,6 +189,7 @@ The name of the release info text file generated in each album folder.
 A comma-separated list of canonical tag names to exclude from being written to audio files. Useful for omitting metadata you don't want (e.g., Discogs-specific fields, genre, artwork embedding). See the [Tag Mapping Reference](tag-mapping.md) for the full list of canonical names.
 
 - **Default:** (empty — all tags are written)
+- Skipping `artwork` leaves any artwork already embedded in the file alone, even in `replace` mode.
 - **Example:** `vinylkit config set skip_tags "genre,style,discogs_notes"`
 - **Clear:** `vinylkit config set skip_tags "none"`
 
@@ -202,8 +203,9 @@ Controls where the primary album cover is placed.
 
 - `both`: (Default) Embeds the image in the audio files AND saves it as a file.
 - `embed`: Only embeds the image inside the audio files.
-- `save`: Only saves the image as a standalone file.
-- `none`: Disables artwork processing.
+- `save`: Only saves the image as a standalone file. Artwork already embedded in the audio files is kept.
+- `none`: Disables artwork processing. Nothing is downloaded, embedded or saved.
+- Applies to both `vinylkit tag` and `vinylkit migrate` (`--replace-artwork` only embeds when this is `embed` or `both`).
 - **Example:** `vinylkit config set image_handling embed`
 
 ### `artwork_filename`
@@ -336,6 +338,8 @@ These settings apply to the `vinylkit migrate` command.
 ### `delete_after_migration`
 
 Automatically delete the source folders after a successful migration.
+
+Only migrated files are deleted: the copied MP3/FLAC files, plus the info file, cover and artwork-subfolder files when the destination has its own copy with the same name. If anything else is left in the folder (cue sheets, rip logs, scans, other formats), the folder is kept and the leftovers are listed in the output and in `00-Migration-Results.txt`.
 
 - **Default:** `false`
 - **Example:** `vinylkit config set delete_after_migration true`

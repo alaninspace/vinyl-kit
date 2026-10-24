@@ -2,6 +2,24 @@
 
 All notable changes to VinylKit will be documented in this file.
 
+## [v0.16.4] - 2026-10-24
+
+### Fixed
+- **Overwrites During Rename and Migration**:
+  - `vinylkit migrate` now checks for existing destination files and asks before overwriting them. If you decline, the folder is skipped and its source is kept, even with `--delete`. Before, a second folder for the same release overwrote the first one's migrated files and `--delete` then removed both sources.
+  - `vinylkit migrate` and `vinylkit rename --commit` now refuse to process a folder when two tracks would map to the same path, instead of letting the second file overwrite the first.
+  - `vinylkit tag --rename` no longer overwrites files during the in-place rename step when two targets share a filename in different subfolders (e.g. per-side folders), or when a new filename matches a file already in the source folder.
+  - `vinylkit tag --batch --no-move` now asks before overwriting files that already exist in the new folder.
+  - `vinylkit migrate --delete` now deletes only what it migrated: the copied audio files, plus the info file, cover and artwork-subfolder files when the destination has its own copy. Cue sheets, rip logs, scans and other files stay, and their folder is kept and listed in the output and migration log. Before, the whole source folder was removed.
+- **`natural_sort = false` for Audio Files**: The setting now also controls the order in which audio files are matched to tracks (`tag`, `tag --batch`, `rename`, `migrate`), as documented. Before, files were always matched in natural order.
+- **Settings That Were Ignored**:
+  - `normalize_discogs_duplicates = false` is now read from the config file. Before, it always loaded as `true`, and the next `config set` wrote `true` back.
+  - `image_handling` now controls embedding. `save` no longer embeds artwork (existing embedded artwork is kept), and `none` no longer downloads or embeds anything. This applies to `tag` and `migrate`.
+  - Skipping `artwork` in `skip_tags` no longer strips artwork already embedded in files when tagging in `replace` mode.
+- **ANV Prompt Lookup**: Picking "Primary Artist" with `anv_handling = prompt` now uses the same credentials, cache, `normalize_discogs_duplicates` and `position_overrides` as the rest of the run. Before, position overrides were dropped and token-only setups with the cache off got a 401.
+
+---
+
 ## [v0.16.3] - 2026-08-22
 
 ### Added

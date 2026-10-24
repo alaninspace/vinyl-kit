@@ -129,3 +129,18 @@ def test_position_override_cli_commands(runner: CliRunner) -> None:
     assert res_list2.exit_code == 0
     assert "THIS" not in res_list2.output
     assert "THAT" in res_list2.output
+
+
+def test_normalize_discogs_duplicates_roundtrip(runner: CliRunner) -> None:
+    """normalize_discogs_duplicates=false must load back and survive other sets."""
+    from vinylkit.config import load_config
+
+    result = runner.invoke(
+        cli, ["config", "set", "normalize_discogs_duplicates", "false"]
+    )
+    assert result.exit_code == 0
+    assert load_config().normalize_discogs_duplicates is False
+
+    # Setting an unrelated key must not reset it to the default.
+    runner.invoke(cli, ["config", "set", "auto_move", "true"])
+    assert load_config().normalize_discogs_duplicates is False

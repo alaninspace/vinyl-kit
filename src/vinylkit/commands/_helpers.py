@@ -21,7 +21,7 @@ from vinylkit.discogs import (
     describe_throttle_strategy,
     get_cache_dir,
 )
-from vinylkit.exceptions import DiscogsAPIError
+from vinylkit.exceptions import DiscogsAPIError, FileOperationError
 from vinylkit.models import AppConfig, ImageHandling
 from vinylkit.naming import generate_path, move_directory, move_file
 from vinylkit.tagging import (
@@ -47,6 +47,7 @@ __all__ = [
     "FolderSearchQuery",
     "backup_file",
     "calculate_track_and_disc",
+    "check_duplicate_targets",
     "clear_audio_tags",
     "describe_throttle_strategy",
     "extract_id",
@@ -262,6 +263,22 @@ def display_relative(path: Path, root: Path) -> Path:
         return path
 
 
+def check_duplicate_targets(moves: list[tuple[Path, Path]]) -> None:
+    """Raise :class:`FileOperationError` if two planned moves share a target.
+
+    Run this before touching the disk so a duplicate never overwrites a
+    file that was moved earlier in the same batch.
+    """
+    target_seen: set[Path] = set()
+    for _src, dst in moves:
+        if dst in target_seen:
+            raise FileOperationError(
+                "Two or more tracks would collide at the destination "
+                f"({dst.name}). Check for duplicate track titles in the release."
+            )
+        target_seen.add(dst)
+
+
 def check_collisions(
     moves: list[tuple[Path, Path]], dir_moves: list[tuple[Path, Path]]
 ) -> bool:
@@ -350,6 +367,11 @@ def get_rate_limit_str(client: DiscogsClient) -> str:
         )
         return f" | Rate limit: {rl.remaining}/{rl.limit} remaining"
     return ""
+
+
+def embeds_artwork(config: AppConfig) -> bool:
+    """Return ``True`` if *config* asks for artwork embedded in audio files."""
+    return config.image_handling in (ImageHandling.EMBED, ImageHandling.BOTH)
 
 
 def count_artwork_saved(
