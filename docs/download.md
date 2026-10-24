@@ -46,7 +46,6 @@ If you prefer to download and configure your path manually, you can download the
 | Operating System | Architecture | Archive Format | Download Link |
 | :--- | :--- | :--- | :--- |
 | **macOS** | Apple Silicon (M1/M2/M3) | `.zip` | [Download](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-macos-arm64.zip) |
-
 | **Windows** | x64 (AMD64) | `.zip` | [Download](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-windows-amd64.zip) |
 | **Linux** | x64 (AMD64) | `.tar.gz` | [Download](https://github.com/alaninspace/vinyl-kit/releases/latest/download/vinylkit-linux-amd64.tar.gz) |
 

@@ -28,7 +28,7 @@ Check each of these against the diff, and say in your summary which ones you cha
 - `docs/configuration.md`: every new or changed setting, flag and allowed value, with an example.
 - `docs/user-guide.md` and `docs/examples.md`: behaviour changes and new flags. Every new example in `examples.md` needs a test in `tests/test_examples_coverage.py`.
 - Help text: `epilog` strings and `help=` on changed `@click.option`s.
-- `CHANGELOG.md`: a `## [vX.Y.Z] - YYYY-MM-DD` entry (today's date) with Added/Fixed/Changed sections. The release workflow publishes this text as the GitHub release notes, so it must exist before tagging.
+- `CHANGELOG.md` (CLI releases only): a `## [vX.Y.Z] - YYYY-MM-DD` entry (today's date) with Added/Fixed/Changed sections. The release workflow publishes this text as the GitHub release notes, so it must exist before tagging. Docs-only releases don't get an entry; the CHANGELOG follows CLI versions.
 - `README.md`: only if user-facing behaviour shown there changed.
 
 ## 3. Bump versions
