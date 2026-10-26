@@ -1,9 +1,9 @@
 {
-  "version": "0.16.4",
+  "version": "0.16.5",
   "description": "Manage your digitized vinyl collection with Discogs metadata",
   "homepage": "https://vinylkit.app",
   "license": "MIT",
-  "url": "https://github.com/alaninspace/vinyl-kit/releases/download/v0.16.4/vinylkit-windows-amd64.zip",
+  "url": "https://github.com/alaninspace/vinyl-kit/releases/download/v0.16.5/vinylkit-windows-amd64.zip",
   "hash": "6b333bc429ea32012b36a5a21cc50b87c1746415ac312f2c321b8e8e60f01600",
   "bin": "vinylkit.exe",
   "checkver": {

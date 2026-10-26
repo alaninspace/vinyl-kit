@@ -42,7 +42,8 @@ All `ruff` and `mypy` checks MUST pass with **zero warnings and zero errors**. N
 
 - Run `uv run mypy src/` for type checking.
 - Do not introduce new warnings or leave existing ones unresolved.
-- Two `# type: ignore` comments exist in `discogs.py` as workarounds for authlib stub bugs; do not remove them unless the upstream bug is resolved.
+- One `# type: ignore` comment exists in `discogs.py` (on `fetch_access_token`) as a workaround for an authlib stub bug; do not remove it unless the upstream bug is resolved.
+- OAuth 1.0a signing uses authlib's core `ClientAuth` through `OAuth1Auth`/`OAuth1Session` in `discogs.py`. Do not import `authlib.integrations.httpx_client`: it warns about httpx -> httpx2 at import time.
 
 ### 2. Code Style & Syntax
 

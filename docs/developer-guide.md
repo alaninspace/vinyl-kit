@@ -263,6 +263,8 @@ mypy runs in **strict mode**. All new code must be fully type-hinted.
 | `mutagen` | Local stubs in `stubs/mutagen/` (no PyPI package exists) |
 | `authlib` | `types-authlib` dev dependency |
 
+OAuth 1.0a requests are signed by `OAuth1Auth` in `discogs.py`, an `httpx.Auth` built on authlib's core `ClientAuth`. We don't use `authlib.integrations.httpx_client`: newer authlib releases print a deprecation warning there when `httpx2` isn't installed.
+
 ---
 
 ## Documentation Web Application

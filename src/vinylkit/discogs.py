@@ -4,10 +4,11 @@ import json
 import re
 import time
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import httpx
-from authlib.integrations.httpx_client import OAuth1Client
+from authlib.oauth1 import ClientAuth
+from authlib.oauth1.client import OAuth1Client as _BaseOAuth1Client
 from loguru import logger
 from platformdirs import user_cache_dir
 
@@ -30,6 +31,9 @@ from vinylkit.utils import (
     format_artist_list,
     remove_discogs_disambiguation,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 DISCOGS_API_URL = "https://api.discogs.com"
 REQUEST_TOKEN_URL = f"{DISCOGS_API_URL}/oauth/request_token"
@@ -75,6 +79,39 @@ def get_cache_dir() -> Path:
     return Path(user_cache_dir(APP_NAME))
 
 
+class OAuth1Auth(httpx.Auth, ClientAuth):
+    """Sign httpx requests with OAuth 1.0a using authlib's core signer.
+
+    authlib's own httpx integration is moving to httpx2 and prints a
+    deprecation warning when it falls back to httpx, so we sign requests
+    ourselves and keep using plain httpx.
+    """
+
+    requires_request_body = True
+
+    def auth_flow(
+        self, request: httpx.Request
+    ) -> Generator[httpx.Request, httpx.Response, None]:
+        url, headers, body = self.prepare(
+            request.method, str(request.url), request.headers, request.content
+        )
+        headers["Content-Length"] = str(len(body))
+        yield httpx.Request(
+            request.method,
+            url,
+            headers=headers,
+            content=body,
+            extensions=request.extensions,
+        )
+
+
+class OAuth1Session(_BaseOAuth1Client):
+    """OAuth 1.0a token flow (request/access tokens) over an httpx.Client."""
+
+    auth_class = OAuth1Auth
+    auth: OAuth1Auth
+
+
 class DiscogsClient:
     def __init__(
         self,
@@ -103,7 +140,8 @@ class DiscogsClient:
         user_agent = "VinylKit/0.1.0"
 
         # Build the correct client once — no throwaway default.
-        client: httpx.Client | OAuth1Client
+        client: httpx.Client
+        oauth: OAuth1Session | None = None
         mode: str
 
         # 1. Try Full OAuth 1.0a
@@ -115,12 +153,13 @@ class DiscogsClient:
             and consumer_secret
         ):
             mode = "oauth"
-            client = OAuth1Client(
+            client = httpx.Client(headers={"User-Agent": user_agent})
+            oauth = OAuth1Session(
+                client,
                 client_id=consumer_key,
                 client_secret=consumer_secret,
                 token=token,
                 token_secret=secret,
-                headers={"User-Agent": user_agent},
             )
 
         # 2. Try Personal Access Token
@@ -140,10 +179,11 @@ class DiscogsClient:
             and consumer_secret
         ):
             mode = "key_secret"
-            client = OAuth1Client(
+            client = httpx.Client(headers={"User-Agent": user_agent})
+            oauth = OAuth1Session(
+                client,
                 client_id=consumer_key,
                 client_secret=consumer_secret,
-                headers={"User-Agent": user_agent},
             )
 
         # 4. Unauthenticated fallback
@@ -151,8 +191,13 @@ class DiscogsClient:
             mode = "none"
             client = httpx.Client(headers={"User-Agent": user_agent})
 
+        # Every request on an OAuth client is signed with the session's auth,
+        # which the token flow updates in place.
+        if oauth is not None:
+            client.auth = oauth.auth
         self.mode = mode
         self.client = client
+        self.oauth = oauth
 
     def _get_cache_path(self, release_id: int) -> Path:
         return self.cache_dir / f"release_{release_id}.json"
@@ -227,7 +272,7 @@ class DiscogsClient:
             self._last_request_time = time.time()
 
             try:
-                resp = self.client.request(method, url, **kwargs)  # type: ignore[union-attr]  # OAuth1Client inherits httpx.Client.request at runtime
+                resp = self.client.request(method, url, **kwargs)
                 self._update_rate_limit_info(resp)
                 if resp.status_code == 429:
                     rate_limit_attempt += 1
@@ -259,15 +304,15 @@ class DiscogsClient:
 
     def get_authorize_url(self) -> tuple[str, str, str]:
         """Start the OAuth flow."""
-        if not isinstance(self.client, OAuth1Client):
+        if self.oauth is None:
             raise AuthError(
                 "OAuth client not initialized."
                 " Ensure consumer_key and consumer_secret are set."
             )
 
         try:
-            token = self.client.fetch_request_token(REQUEST_TOKEN_URL)
-            url = self.client.create_authorization_url(
+            token = self.oauth.fetch_request_token(REQUEST_TOKEN_URL)
+            url = self.oauth.create_authorization_url(
                 AUTHORIZE_URL, token["oauth_token"]
             )
             return url, token["oauth_token"], token["oauth_token_secret"]
@@ -278,14 +323,14 @@ class DiscogsClient:
         self, req_token: str, req_token_secret: str, verifier: str
     ) -> tuple[str, str]:
         """Complete OAuth flow."""
-        if not isinstance(self.client, OAuth1Client):
+        if self.oauth is None:
             raise AuthError("OAuth client not initialized.")
         try:
-            self.client.token = {
+            self.oauth.token = {
                 "oauth_token": req_token,
                 "oauth_token_secret": req_token_secret,
             }
-            token = self.client.fetch_access_token(ACCESS_TOKEN_URL, verifier=verifier)  # type: ignore[no-untyped-call]  # types-authlib stub missing return type
+            token = self.oauth.fetch_access_token(ACCESS_TOKEN_URL, verifier=verifier)  # type: ignore[no-untyped-call]  # types-authlib stub missing return type
             return token["oauth_token"], token["oauth_token_secret"]
         except Exception as e:
             raise AuthError(f"Failed to fetch access token: {e}") from e

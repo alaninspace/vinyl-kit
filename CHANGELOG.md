@@ -2,6 +2,13 @@
 
 All notable changes to VinylKit will be documented in this file.
 
+## [v0.16.5] - 2026-10-26
+
+### Fixed
+- **authlib Deprecation Warning on Every Command**: Installs that pick up authlib 1.9 or newer (e.g. `uv tool install`) no longer print `AuthlibDeprecationWarning: The httpx module is deprecated; please use httpx2 instead.` on startup. VinylKit now signs OAuth requests with authlib's core OAuth 1.0a signer over plain `httpx`, instead of authlib's httpx integration. OAuth login, token and key/secret auth work the same as before.
+
+---
+
 ## [v0.16.4] - 2026-10-24
 
 ### Fixed

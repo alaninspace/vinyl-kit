@@ -1,9 +1,17 @@
 from __future__ import annotations
 
-import httpx
-from authlib.integrations.httpx_client import OAuth1Client
+import subprocess
+import sys
 
-from vinylkit.discogs import DiscogsClient
+import httpx
+import respx
+
+from vinylkit.discogs import (
+    ACCESS_TOKEN_URL,
+    REQUEST_TOKEN_URL,
+    DiscogsClient,
+    OAuth1Auth,
+)
 from vinylkit.models import AuthMode
 
 
@@ -17,7 +25,9 @@ def test_auth_mode_auto_prioritizes_oauth():
         auth_mode=AuthMode.AUTO,
     )
     assert client.mode == "oauth"
-    assert isinstance(client.client, OAuth1Client)
+    assert isinstance(client.client, httpx.Client)
+    assert isinstance(client.client.auth, OAuth1Auth)
+    assert client.oauth is not None
 
 
 def test_auth_mode_auto_falls_back_to_token():
@@ -29,6 +39,7 @@ def test_auth_mode_auto_falls_back_to_token():
     # Token mode uses standard httpx.Client with headers
     assert isinstance(client.client, httpx.Client)
     assert client.client.headers["Authorization"] == "Discogs token=t"
+    assert client.oauth is None
 
 
 def test_auth_mode_auto_falls_back_to_key_secret():
@@ -37,8 +48,9 @@ def test_auth_mode_auto_falls_back_to_key_secret():
         consumer_key="ck", consumer_secret="cs", auth_mode=AuthMode.AUTO
     )
     assert client.mode == "key_secret"
-    # key_secret uses OAuth1Client (needed for login flow)
-    assert isinstance(client.client, OAuth1Client)
+    # key_secret keeps an OAuth session (needed for login flow)
+    assert isinstance(client.client.auth, OAuth1Auth)
+    assert client.oauth is not None
 
 
 def test_auth_mode_force_token():
@@ -108,3 +120,65 @@ def test_forced_auth_mode_token_ignores_oauth_creds():
         cache_enabled=False,
     )
     assert client.mode == "token"
+
+
+# ---------------------------------------------------------------------------
+# OAuth signing without authlib's httpx integration
+# ---------------------------------------------------------------------------
+
+
+def test_importing_vinylkit_does_not_load_authlib_httpx_integration():
+    """authlib's httpx_client prints a deprecation warning (httpx -> httpx2)."""
+    code = (
+        "import sys, warnings\n"
+        "warnings.simplefilter('always')\n"
+        "with warnings.catch_warnings(record=True) as caught:\n"
+        "    import vinylkit.cli, vinylkit.discogs\n"
+        "assert 'authlib.integrations.httpx_client' not in sys.modules\n"
+        "bad = [w for w in caught if 'httpx2' in str(w.message)]\n"
+        "assert not bad, bad\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stderr
+    assert "httpx2" not in result.stderr
+
+
+@respx.mock
+def test_oauth_requests_are_signed():
+    route = respx.get("https://api.discogs.com/oauth/identity").mock(
+        return_value=httpx.Response(200, json={"id": 1})
+    )
+    client = DiscogsClient("ck", "cs", token="t", secret="s", cache_enabled=False)
+    client.get_identity()
+
+    auth_header = route.calls.last.request.headers["Authorization"]
+    assert auth_header.startswith("OAuth ")
+    assert 'oauth_consumer_key="ck"' in auth_header
+    assert 'oauth_token="t"' in auth_header
+    assert "oauth_signature=" in auth_header
+
+
+@respx.mock
+def test_oauth_login_flow_fetches_and_signs_tokens():
+    request_route = respx.post(REQUEST_TOKEN_URL).mock(
+        return_value=httpx.Response(200, text="oauth_token=rt&oauth_token_secret=rts")
+    )
+    access_route = respx.post(ACCESS_TOKEN_URL).mock(
+        return_value=httpx.Response(200, text="oauth_token=at&oauth_token_secret=ats")
+    )
+    client = DiscogsClient("ck", "cs", cache_enabled=False)
+
+    url, req_token, req_secret = client.get_authorize_url()
+    assert "oauth_token=rt" in url
+    assert (req_token, req_secret) == ("rt", "rts")
+    assert request_route.calls.last.request.headers["Authorization"].startswith(
+        "OAuth "
+    )
+
+    token, secret = client.complete_oauth(req_token, req_secret, "verif")
+    assert (token, secret) == ("at", "ats")
+    access_header = access_route.calls.last.request.headers["Authorization"]
+    assert 'oauth_token="rt"' in access_header
+    assert 'oauth_verifier="verif"' in access_header
