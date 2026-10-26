@@ -4,7 +4,7 @@
   "homepage": "https://vinylkit.app",
   "license": "MIT",
   "url": "https://github.com/alaninspace/vinyl-kit/releases/download/v0.16.5/vinylkit-windows-amd64.zip",
-  "hash": "6b333bc429ea32012b36a5a21cc50b87c1746415ac312f2c321b8e8e60f01600",
+  "hash": "4d85bd633ba9287f2c2571bbeebec47b5e43564847174d83c817a0a8ddc51550",
   "bin": "vinylkit.exe",
   "checkver": {
     "github": "https://github.com/alaninspace/vinyl-kit"
