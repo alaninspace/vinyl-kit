@@ -6,13 +6,13 @@ class VinylKit < Formula
   if OS.mac?
     if Hardware::CPU.arm?
       url "https://github.com/alaninspace/vinyl-kit/releases/download/v0.17.1/vinylkit-macos-arm64.zip"
-      sha256 "4a03a5e7b3d5637882af2dbb47355fd92fe04b50993d9005d11ff68d00529b87"
+      sha256 "d0466a279ed1567c977e0060101f038d4c472a18fa43afa3e58451a601ca6faa"
     else
       odie "Intel Macs are no longer supported via standalone binary. Please install using `uv tool install vinylkit` instead."
     end
   elsif OS.linux?
     url "https://github.com/alaninspace/vinyl-kit/releases/download/v0.17.1/vinylkit-linux-amd64.tar.gz"
-    sha256 "30810b076b8cb5c242e1c6b45227da6b4b227c9e402396f2ca4ee41993ddf9f6"
+    sha256 "124ccc869505431a0c9aabaf18fa10fc6b65a840fd2d1689054a1aa5650c5369"
   end
 
   def install
