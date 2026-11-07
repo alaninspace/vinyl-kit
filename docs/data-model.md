@@ -26,7 +26,7 @@ Represents metadata fetched from the Discogs API.
 - **images**: `list[ImageInfo]`
 - **uri**: `str | None` (Discogs release URL)
 - **master_id**: `int | None` (Discogs master release ID)
-- **master_url**: `str | None` (Discogs master release URL)
+- **master_url**: `str | None` (Discogs master release website URL, built from `master_id` as `https://www.discogs.com/master/<id>`; `None` when there's no master)
 - **artists_sort**: `str | None` (Discogs normalized artist sort name)
 - **data_quality**: `str | None` (Discogs data quality rating, e.g., "Correct")
 - **format_quantity**: `int | None` (Number of physical items in the release)
@@ -116,6 +116,8 @@ User settings stored in TOML.
 - **backup_dir**: `pathlib.Path | None`
 - **info_filename**: `str` (Default: release_info.txt)
 - **artwork_filename**: `str` (Default: folder.jpg)
+- **info_contact_email**: `str | None` (Default: None; adds an Email line to the info file's CONTACT section)
+- **info_contact_website**: `str | None` (Default: None; adds a Website line to the info file's CONTACT section)
 - **track_numbering**: `TrackNumbering` (NUMERIC, ORIGINAL, PER_SIDE)
 - **disc_mapping**: `DiscMapping` (PHYSICAL, SINGLE, PER_SIDE, ORIGINAL)
 - **search_page_size**: `int` (Default: 5)

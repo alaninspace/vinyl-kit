@@ -8,6 +8,7 @@ import pytest
 from click.testing import CliRunner  # noqa: TC002
 
 from vinylkit.cli import cli
+from vinylkit.config import load_config
 from vinylkit.exceptions import ConfigError
 
 
@@ -144,3 +145,27 @@ def test_normalize_discogs_duplicates_roundtrip(runner: CliRunner) -> None:
     # Setting an unrelated key must not reset it to the default.
     runner.invoke(cli, ["config", "set", "auto_move", "true"])
     assert load_config().normalize_discogs_duplicates is False
+
+
+def test_info_contact_roundtrip_and_unset(runner: CliRunner) -> None:
+    """info_contact_* default to unset, round-trip, and '' clears them."""
+    show = runner.invoke(cli, ["config", "show"])
+    assert "info_contact_email" in show.output
+    assert "me@example.com" not in show.output
+
+    for key, value in (
+        ("info_contact_email", "me@example.com"),
+        ("info_contact_website", "example.com"),
+    ):
+        result = runner.invoke(cli, ["config", "set", key, value])
+        assert result.exit_code == 0, result.output
+
+    cfg = load_config()
+    assert cfg.info_contact_email == "me@example.com"
+    assert cfg.info_contact_website == "example.com"
+
+    result = runner.invoke(cli, ["config", "set", "info_contact_website", ""])
+    assert result.exit_code == 0, result.output
+    cfg = load_config()
+    assert cfg.info_contact_email == "me@example.com"
+    assert cfg.info_contact_website is None

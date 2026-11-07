@@ -184,6 +184,32 @@ The name of the release info text file generated in each album folder.
 - **Default:** `release_info.txt`
 - **Example:** `vinylkit config set info_filename "00_metadata.txt"`
 
+The info file lists the Discogs ID, then the master release link (`Master URI`, or `N/A` if the release has no master) and the release link (`Release URI`).
+
+### `info_contact_email`
+
+An email address to add to a `CONTACT` section at the end of each release info file. Set this and/or `info_contact_website`. If neither is set, there's no `CONTACT` section. If only one is set, only that line is written. Set it to an empty string to unset it.
+
+- **Default:** not set
+- **Example:** `vinylkit config set info_contact_email "me@example.com"`
+- **Unset:** `vinylkit config set info_contact_email ""`
+
+### `info_contact_website`
+
+A website to add to the `CONTACT` section of each release info file. Works the same way as `info_contact_email`.
+
+- **Default:** not set
+- **Example:** `vinylkit config set info_contact_website "example.com"`
+
+With both set, the end of the info file looks like this:
+
+```text
+CONTACT
+-------
+  Email: me@example.com
+  Website: example.com
+```
+
 ### `skip_tags`
 
 A comma-separated list of canonical tag names to exclude from being written to audio files. Useful for omitting metadata you don't want (e.g., Discogs-specific fields, genre, artwork embedding). See the [Tag Mapping Reference](tag-mapping.md) for the full list of canonical names.

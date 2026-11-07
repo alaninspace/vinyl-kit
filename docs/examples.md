@@ -330,6 +330,19 @@ vinylkit config set normalize_discogs_duplicates false
 vinylkit config set normalize_discogs_duplicates true
 ```
 
+### Contact Details in the Release Info File
+
+Add a `CONTACT` section to the end of every release info file. Set one or both. Leave both unset and there's no section.
+
+```bash
+# Bash / PowerShell
+vinylkit config set info_contact_email "me@example.com"
+vinylkit config set info_contact_website "example.com"
+
+# Remove a line again
+vinylkit config set info_contact_website ""
+```
+
 ---
 
 ### View Current Configuration

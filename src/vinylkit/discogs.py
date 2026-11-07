@@ -40,6 +40,9 @@ REQUEST_TOKEN_URL = f"{DISCOGS_API_URL}/oauth/request_token"
 AUTHORIZE_URL = "https://www.discogs.com/oauth/authorize"
 ACCESS_TOKEN_URL = f"{DISCOGS_API_URL}/oauth/access_token"
 IDENTITY_URL = f"{DISCOGS_API_URL}/oauth/identity"
+# Website (not API) base URL for master releases; Discogs redirects
+# /master/<id> to the full slugged page.
+DISCOGS_MASTER_WEB_URL = "https://www.discogs.com/master"
 
 RATE_LIMIT_DELAY = 1.0  # seconds between requests to stay safe (60 req/min)
 APP_NAME = "vinylkit"
@@ -522,7 +525,12 @@ class DiscogsClient:
                 images=images,
                 uri=data.get("uri"),
                 master_id=data.get("master_id"),
-                master_url=data.get("master_url"),
+                # The API's "master_url" is an API link; build the website link.
+                master_url=(
+                    f"{DISCOGS_MASTER_WEB_URL}/{data['master_id']}"
+                    if data.get("master_id")
+                    else None
+                ),
                 artists_sort=remove_discogs_disambiguation(
                     data.get("artists_sort") or ""
                 )

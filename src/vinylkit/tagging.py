@@ -115,9 +115,18 @@ def _format_formats(formats: list[FormatInfo]) -> str:
 
 
 def write_release_info(
-    path: Path, release: DiscogsRelease, filename: str = "release_info.txt"
+    path: Path,
+    release: DiscogsRelease,
+    filename: str = "release_info.txt",
+    *,
+    contact_email: str | None = None,
+    contact_website: str | None = None,
 ) -> Path:
-    """Write a release information file (info.txt) to the folder."""
+    """Write a release information file (info.txt) to the folder.
+
+    A CONTACT section is appended only when *contact_email* and/or
+    *contact_website* is set; each line is written only if its value is set.
+    """
 
     target = path / filename
 
@@ -137,7 +146,8 @@ def write_release_info(
         "RELEASE INFORMATION",
         "-------------------",
         f"{'Discogs ID:':<14} {release.id}",
-        f"{'Discogs URI:':<14} {release.uri or 'N/A'}",
+        f"{'Master URI:':<14} {release.master_url or 'N/A'}",
+        f"{'Release URI:':<14} {release.uri or 'N/A'}",
         f"{'Label:':<14} {labels_str}",
         f"{'Country:':<14} {release.country or 'N/A'}",
         f"{'Released:':<14} {release.released or release.year or 'N/A'}",
@@ -200,6 +210,13 @@ def write_release_info(
 
     if release.notes:
         lines.extend(["", "NOTES", "-----", release.notes])
+
+    if contact_email or contact_website:
+        lines.extend(["", "CONTACT", "-------"])
+        if contact_email:
+            lines.append(f"  Email: {contact_email}")
+        if contact_website:
+            lines.append(f"  Website: {contact_website}")
 
     try:
         target.write_text("\n".join(lines), encoding="utf-8")

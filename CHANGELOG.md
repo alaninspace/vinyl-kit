@@ -2,6 +2,17 @@
 
 All notable changes to VinylKit will be documented in this file.
 
+## [v0.17.0] - 2026-11-07
+
+### Added
+- **Contact Details in the Release Info File**: New `info_contact_email` and `info_contact_website` settings add a `CONTACT` section to the end of each release info file. Both are unset by default, and the section is only written when at least one is set. Set either one on its own and only that line is written.
+- **Master Link in the Release Info File**: The info file now shows `Master URI` (or `N/A` when the release has no master) under the Discogs ID, and the release link line is now labelled `Release URI` instead of `Discogs URI`.
+
+### Fixed
+- **`DISCOGS_MASTER_URL` Pointed at the API**: The tag held the Discogs API link (`https://api.discogs.com/masters/<id>`), which shows raw JSON in a browser. It now holds the website link (`https://www.discogs.com/master/<id>`), to match `DISCOGS_RELEASE_URL`. Files tagged by earlier versions keep the old value until they're re-tagged.
+
+---
+
 ## [v0.16.5] - 2026-10-26
 
 ### Fixed

@@ -78,6 +78,26 @@ def test_position_overrides_mapping() -> None:
 
 
 @respx.mock
+def test_get_release_without_master_has_no_master_url() -> None:
+    """A release with no master gets master_url None, not a broken link."""
+    client = DiscogsClient("key", "secret")
+    respx.get(f"{DISCOGS_API_URL}/releases/24282").mock(
+        return_value=Response(
+            200,
+            json={
+                "id": 24282,
+                "artists": [{"name": "Sir Drew"}],
+                "title": "Mates Rates",
+                "tracklist": [{"position": "A", "title": "Mates Rates"}],
+            },
+        )
+    )
+    release = client.get_release(24282)
+    assert release.master_id is None
+    assert release.master_url is None
+
+
+@respx.mock
 def test_get_release_new_fields() -> None:
     """Verify master_id, artists_sort, data_quality, format_quantity are parsed."""
     release_id = 12345
@@ -110,7 +130,8 @@ def test_get_release_new_fields() -> None:
     release = client.get_release(release_id)
 
     assert release.master_id == 9999
-    assert release.master_url == "https://api.discogs.com/masters/9999"
+    # The API's master_url is an API link; we store the website link instead.
+    assert release.master_url == "https://www.discogs.com/master/9999"
     assert release.artists_sort == "Test Artist, The"
     assert release.data_quality == "Correct"
     assert release.format_quantity == 2

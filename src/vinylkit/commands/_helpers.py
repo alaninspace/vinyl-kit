@@ -447,7 +447,13 @@ def save_release_files(
     config: AppConfig,
 ) -> None:
     """Write the release info file and save artwork into *dest*."""
-    write_release_info(dest, release, filename=config.info_filename)
+    write_release_info(
+        dest,
+        release,
+        filename=config.info_filename,
+        contact_email=config.info_contact_email,
+        contact_website=config.info_contact_website,
+    )
     if artwork_data and config.image_handling in (
         ImageHandling.SAVE,
         ImageHandling.BOTH,

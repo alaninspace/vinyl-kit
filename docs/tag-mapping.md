@@ -66,7 +66,7 @@ These carry metadata unique to Discogs and use the `DISCOGS_` prefix to clearly 
 | `discogs_release_id` | DISCOGS_RELEASE_ID | `discogs_release_id` | `release.id` |
 | `discogs_release_url` | DISCOGS_RELEASE_URL | `discogs_release_url` | `release.uri` |
 | `discogs_master_id` | DISCOGS_MASTER_ID | `discogs_master_id` | `release.master_id` |
-| `discogs_master_url` | DISCOGS_MASTER_URL | `discogs_master_url` | `release.master_url` |
+| `discogs_master_url` | DISCOGS_MASTER_URL | `discogs_master_url` | `release.master_url` (website link, `https://www.discogs.com/master/<id>`) |
 | `discogs_notes` | DISCOGS_NOTES | `discogs_notes` | `release.notes` |
 | `discogs_data_quality` | DISCOGS_DATA_QUALITY | `discogs_data_quality` | `release.data_quality` |
 | `discogs_format_quantity` | DISCOGS_FORMAT_QUANTITY | `discogs_format_quantity` | `release.format_quantity` |

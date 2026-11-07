@@ -243,7 +243,7 @@ VinylKit's settings are grouped into the following categories:
 - **Cache** — `cache_enabled`
 - **Tagging & Numbering** — `tag_mode`, `track_numbering`, `disc_mapping`, `skip_tags`
 - **Naming & Organization** — `naming_pattern`
-- **Artwork & Metadata** — `image_handling`, `artwork_filename`, `collect_all_artwork`, `artwork_subdir`, `info_filename`
+- **Artwork & Metadata** — `image_handling`, `artwork_filename`, `collect_all_artwork`, `artwork_subdir`, `info_filename`, `info_contact_email`, `info_contact_website`
 - **Search & Discovery** — `search_page_size`, `default_format`
 - **Safety & Backups** — `backup_enabled`, `backup_dir`
 - **Library Migration** — `delete_after_migration`, `replace_artwork_on_migration`, `replace_tags_on_migration`

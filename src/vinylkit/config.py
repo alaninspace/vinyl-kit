@@ -69,6 +69,8 @@ def load_config() -> AppConfig:
         backup_dir=Path(data["backup_dir"]) if "backup_dir" in data else None,
         info_filename=data.get("info_filename", "release_info.txt"),
         artwork_filename=data.get("artwork_filename", "folder.jpg"),
+        info_contact_email=data.get("info_contact_email") or None,
+        info_contact_website=data.get("info_contact_website") or None,
         search_page_size=data.get("search_page_size", 5),
         default_format=data.get("default_format", ["Vinyl"]),
         natural_sort=data.get("natural_sort", True),
@@ -140,6 +142,10 @@ def save_config(config: AppConfig) -> None:
         data["backup_dir"] = str(config.backup_dir)
     if config.log_file:
         data["log_file"] = str(config.log_file)
+    if config.info_contact_email:
+        data["info_contact_email"] = config.info_contact_email
+    if config.info_contact_website:
+        data["info_contact_website"] = config.info_contact_website
 
     try:
         with path.open("wb") as f:

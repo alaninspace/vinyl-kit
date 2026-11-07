@@ -99,6 +99,14 @@ def config_show(config_obj: AppConfig) -> None:
                 ("position_overrides", pos_ov_display),
                 ("info_filename", config_obj.info_filename),
                 (
+                    "info_contact_email",
+                    config_obj.info_contact_email or "[dim]Not Set[/dim]",
+                ),
+                (
+                    "info_contact_website",
+                    config_obj.info_contact_website or "[dim]Not Set[/dim]",
+                ),
+                (
                     "skip_tags",
                     (
                         ", ".join(config_obj.skip_tags)
@@ -232,6 +240,11 @@ def _parse_format_list(value: str) -> list[str]:
     return [v.strip() for v in value.split(",")]
 
 
+def _parse_optional_str(value: str) -> str | None:
+    """Return the trimmed value, or None for an empty string (unset)."""
+    return value.strip() or None
+
+
 def _parse_dict(value: str) -> dict[str, str]:
     if value.lower() in ("none", ""):
         return {}
@@ -265,6 +278,8 @@ _CONFIG_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "backup_dir": Path,
     "info_filename": str,
     "artwork_filename": str,
+    "info_contact_email": _parse_optional_str,
+    "info_contact_website": _parse_optional_str,
     "search_page_size": int,
     "default_format": _parse_format_list,
     "natural_sort": _parse_bool,
@@ -293,6 +308,8 @@ def _build_config_set_epilog() -> str:
         "\n\n  vinylkit config set library_root /music/vinyl"
         "\n\n  vinylkit config set tag_mode merge"
         "\n\n  vinylkit config set position_overrides 'THIS:A,THAT:B'"
+        "\n\n  vinylkit config set info_contact_email me@example.com"
+        "\n\n  vinylkit config set info_contact_website ''  (unset)"
         "\n\n  vinylkit config set naming_pattern"
         " '{artist}/{album}/{title}'"
     )

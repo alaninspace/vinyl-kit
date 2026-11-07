@@ -622,6 +622,16 @@ def test_ex_6_6_config_normalize_duplicates(runner):
         assert "True" in result_on.output
 
 
+def test_ex_6_7_config_info_contact(runner):
+    """Covers: vinylkit config set info_contact_email / info_contact_website"""
+    with runner.isolated_filesystem():
+        runner.invoke(cli, ["config", "set", "info_contact_email", "me@example.com"])
+        runner.invoke(cli, ["config", "set", "info_contact_website", "example.com"])
+        result = runner.invoke(cli, ["config", "show"])
+        assert "me@example.com" in result.output
+        assert "example.com" in result.output
+
+
 def test_ex_6_4_config_show(runner):
     """Covers: vinylkit config show"""
     result = runner.invoke(cli, ["config", "show"])
