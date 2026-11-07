@@ -2,6 +2,13 @@
 
 All notable changes to VinylKit will be documented in this file.
 
+## [v0.17.1] - 2026-11-07
+
+### Fixed
+- **macOS Build**: The release build now uses GitHub's `macos-latest` runner. The `macos-14` image it used before has been retired, which stopped v0.17.0 from being published. v0.17.1 contains everything listed under v0.17.0 below.
+
+---
+
 ## [v0.17.0] - 2026-11-07
 
 ### Added

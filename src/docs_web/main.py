@@ -52,7 +52,7 @@ def custom_telemetry(info: Info) -> None:
 
 def get_versions() -> tuple[str, str]:
     """Read the CLI and docs website versions from pyproject.toml."""
-    cli_ver = "0.17.0"
+    cli_ver = "0.17.1"
     docs_ver = "1.0.18"
     candidates = [
         Path(__file__).parent.parent.parent / "pyproject.toml",

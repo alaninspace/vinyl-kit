@@ -17,7 +17,7 @@ jobs:
         include:
           - os: macos
             arch: arm64
-            runner: macos-14
+            runner: macos-latest
             artifact_name: vinylkit-macos-arm64
             archive_ext: .zip
 
