@@ -6,8 +6,9 @@ import json
 import time
 
 import rich_click as click
-from rich.table import Table
+from rich.text import Text
 
+from vinylkit import ui
 from vinylkit.commands import _helpers
 
 
@@ -50,18 +51,18 @@ def cache_list() -> None:
     """List cached Discogs releases."""
     cache_dir = _helpers.get_cache_dir()
     if not cache_dir.exists():
-        _helpers.console.print("[yellow]Cache directory does not exist.[/yellow]")
+        ui.warning("Cache directory does not exist.")
         return
 
     files = sorted(cache_dir.glob("release_*.json"))
     if not files:
-        _helpers.console.print("[yellow]Cache is empty.[/yellow]")
+        ui.warning("Cache is empty.")
         return
 
-    table = Table(title="Cached Releases")
+    table = ui.make_table()
     table.add_column("ID", style="magenta", no_wrap=True)
-    table.add_column("Artist", style="cyan", max_width=30, overflow="ellipsis")
-    table.add_column("Album", style="green", max_width=40, overflow="ellipsis")
+    table.add_column("Artist", max_width=30, overflow="ellipsis", no_wrap=True)
+    table.add_column("Album", max_width=40, overflow="ellipsis", no_wrap=True)
     table.add_column("Age", style="dim", no_wrap=True)
 
     count = 0
@@ -77,16 +78,19 @@ def cache_list() -> None:
             )
             title = data.get("title", "Unknown")
             age = _format_age(f.stat().st_mtime)
-            table.add_row(rid, artist, title, age)
+            table.add_row(rid, Text(artist), Text(str(title)), age)
             count += 1
         except (OSError, json.JSONDecodeError, KeyError):
-            table.add_row("?", "?", f"[red]{f.name} (corrupt)[/red]", "?")
+            table.add_row("?", "?", Text(f"{f.name} (corrupt)", style="red"), "?")
             count += 1
 
-    _helpers.console.print(table)
-    _helpers.console.print(
-        f"\n[bold]{count} cached release(s)[/bold] in [dim]{cache_dir}[/dim]"
-    )
+    ui.heading("Cached Releases")
+    _helpers.console.print()
+    ui.print_table(table)
+    _helpers.console.print()
+    summary = Text(f"{count} cached release(s)", style="bold")
+    summary.append(f" in {cache_dir}", style="dim")
+    _helpers.console.print(summary, highlight=False, soft_wrap=True)
 
 
 _CACHE_CLEAR_EPILOG = (
@@ -108,33 +112,27 @@ def cache_clear(release_id: int | None, yes: bool) -> None:
     """Clear cached Discogs API responses."""
     cache_dir = _helpers.get_cache_dir()
     if not cache_dir.exists():
-        _helpers.console.print("[yellow]Cache directory does not exist.[/yellow]")
+        ui.warning("Cache directory does not exist.")
         return
 
     if release_id is not None:
         target = cache_dir / f"release_{release_id}.json"
         if not target.exists():
-            _helpers.console.print(
-                f"[yellow]No cache entry for release {release_id}.[/yellow]"
-            )
+            ui.warning(f"No cache entry for release {release_id}.")
             return
         target.unlink()
-        _helpers.console.print(
-            f"[bold green]Cleared cache for release {release_id}.[/bold green]"
-        )
+        ui.success(f"Cleared cache for release {release_id}.")
         return
 
     files = list(cache_dir.glob("release_*.json"))
     if not files:
-        _helpers.console.print("[yellow]Cache is already empty.[/yellow]")
+        ui.warning("Cache is already empty.")
         return
 
     if not yes and not click.confirm(f"Delete {len(files)} cached release(s)?"):
-        _helpers.console.print("[yellow]Aborted.[/yellow]")
+        ui.warning("Aborted.")
         return
 
     for f in files:
         f.unlink()
-    _helpers.console.print(
-        f"[bold green]Cleared {len(files)} cached release(s).[/bold green]"
-    )
+    ui.success(f"Cleared {len(files)} cached release(s).")

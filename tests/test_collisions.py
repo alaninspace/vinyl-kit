@@ -41,7 +41,7 @@ def test_tag_collision_abort(runner, tmp_path, mock_discogs):
         input="y\nn\n",
     )
 
-    assert "Warning: 1 destination file(s)/folder(s) already exist" in result.output
+    assert "1 destination file(s)/folder(s) already exist" in result.output
     assert "Move aborted by user" in result.output
     assert dest_file.read_text() == "existing"
 
@@ -74,7 +74,7 @@ def test_tag_collision_overwrite(runner, tmp_path, mock_discogs):
         input="y\ny\n",
     )
 
-    assert "Warning: 1 destination file(s)/folder(s) already exist" in result.output
+    assert "1 destination file(s)/folder(s) already exist" in result.output
     assert "Files moved successfully" in result.output
     assert not (source_dir / "01.mp3").exists()
     assert dest_file.exists()
@@ -223,7 +223,7 @@ def test_batch_no_move_collision_abort(runner, tmp_path, mock_discogs):
         input="n\n",
     )
 
-    assert "Warning: 1 destination file(s)/folder(s) already exist" in result.output
+    assert "1 destination file(s)/folder(s) already exist" in result.output
     assert "Move aborted by user" in result.output
     assert existing.read_text() == "existing"
     assert (album / "A1 - Track 1.mp3").read_text() == "new"

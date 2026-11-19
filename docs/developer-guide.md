@@ -89,6 +89,7 @@ src/
     ├── models.py       # Frozen dataclasses (slots) and enums
     ├── naming.py       # Path generation, template rendering, file moves
     ├── tagging.py      # Mutagen-based MP3 (ID3v2) and FLAC tagging
+    ├── ui.py           # Shared console, status lines, tables, key/value blocks
     └── utils.py        # Backup helpers and filename sanitization
 tests/
     ├── conftest.py                # Shared fixtures (runner, mock_discogs, mp3_file, flac_file)
@@ -109,6 +110,7 @@ tests/
     ├── test_tagging.py            # Tagging logic and scan tests
     ├── test_tagging_integration.py # Real MP3/FLAC tag round-trip tests
     ├── test_tagging_modes.py      # Tag mode (replace/merge) behavior tests
+    ├── test_ui.py                 # Output helpers and resize-safe layout at several widths
     └── test_utils.py              # backup_file, sanitize_filename, ensure_absolute
 docs/
     ├── quickstart.md       # Setup and basic workflow
@@ -152,6 +154,7 @@ All modules use `import rich_click as click` instead of `import click`. This is 
 | `commands/collection.py` | `collection` group with `download` |
 | `commands/config_cmd.py` | `config` group with `show`, `set`, `_CONFIG_CONVERTERS` dict |
 | `commands/cache.py` | `cache` group with `list`, `clear`, `_format_age` helper |
+| `ui.py` | Shared Rich console and output helpers: `success`/`warning`/`error`/`detail` status lines, `heading`, `make_table` + `print_table` (no side borders), `print_section` (key/value block). Nothing is padded to a right-hand border, so output re-wraps cleanly when the terminal is resized |
 | `config.py` | TOML config loading/saving via `tomllib` / `tomli-w`, path resolution via `platformdirs` |
 | `discogs.py` | Discogs API client, OAuth flow, response caching, rate limit header tracking and dynamic throttling |
 | `models.py` | Frozen dataclasses with `slots=True` (e.g. `DiscogsRelease`, `AppConfig`, `AudioFile`) and enums (`TagMode`, `AuthMode`, etc.). Exception: `RateLimitInfo` is intentionally mutable |

@@ -210,12 +210,19 @@ This is the most precise method. It tells Discogs exactly which fields to match,
 
 #### The Search Interface
 
-When you search, VinylKit presents a formatted table with:
+When you search, VinylKit prints a table with:
 
-- **ID**: The Discogs Release ID.
+- **ID**: The Discogs Release ID. In terminals that support hyperlinks (Windows Terminal, iTerm2, most Linux terminals) the ID links to the release page on Discogs. Otherwise the page is `https://www.discogs.com/release/<ID>`.
 - **Title**: Artist and Album name.
-- **Year/Country/Format**: Essential metadata to help you identify the correct pressing.
-- **Link**: A direct web link to the Discogs page for that release.
+- **Cat #/Year/Country/Format**: Metadata to help you identify the correct pressing.
+
+The table fits itself to the terminal. Under 92 columns the Format column is hidden, and under 72 columns Country is hidden too.
+
+#### Terminal Width
+
+Output is laid out for the width of the terminal when the command runs, up to 100 columns. Tables have no side borders and `config show` prints plain key/value lines, so if you resize the window afterwards the text re-wraps like any other text. In a terminal narrower than 64 columns, `config show` prints each value on the line under its setting name.
+
+Status lines start with `✓` (done), `!` (warning) or `✗` (error). When the output isn't UTF-8 (for example when piped to a file on Windows), `✓` and `✗` are written as `ok:` and `error:`.
 
 #### Pagination & Navigation
 

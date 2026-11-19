@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import rich_click as click
-from rich.panel import Panel
-from rich.table import Table
+from rich.text import Text
 
+from vinylkit import ui
 from vinylkit.commands import _helpers
 from vinylkit.config import save_config
 from vinylkit.exceptions import VinylkitError
@@ -32,14 +32,10 @@ _LOGIN_EPILOG = (
 def login(config: AppConfig) -> None:
     """Authenticate with Discogs using OAuth 1.0a."""
     if not config.consumer_key or config.consumer_key == _helpers.DEFAULT_CONSUMER_KEY:
-        _helpers.console.print(
-            "[bold red]Error:[/bold red] You must set your own"
-            " [bold]consumer_key[/bold] and"
-            " [bold]consumer_secret[/bold]"
-            " before logging in."
-        )
-        _helpers.console.print(
-            "See the [bold]Authentication Guide (auth.md)[/bold] for instructions."
+        ui.error(
+            "You must set your own [bold]consumer_key[/bold] and"
+            " [bold]consumer_secret[/bold] before logging in.",
+            "See the Authentication Guide (auth.md) for instructions.",
         )
         return
 
@@ -66,17 +62,13 @@ def login(config: AppConfig) -> None:
         updated["discogs_secret"] = access_token_secret
         new_config = AppConfig(**updated)
         save_config(new_config)
-        _helpers.console.print(
-            "[bold green]Success![/bold green] You are now authenticated with Discogs."
-        )
+        ui.success("You are now authenticated with Discogs.")
 
         client = _helpers.get_client(new_config)
         identity_data = client.get_identity()
-        _helpers.console.print(
-            f"Authenticated as: [bold]{identity_data.get('username')}[/bold]"
-        )
+        ui.detail(f"Authenticated as: {identity_data.get('username')}")
     except VinylkitError as e:
-        _helpers.console.print(f"[bold red]Authentication failed:[/bold red] {e}")
+        ui.error(f"Authentication failed: {e}")
 
 
 @auth.command()
@@ -87,21 +79,15 @@ def identity(config: AppConfig) -> None:
     try:
         identity_data = client.get_identity()
         username = identity_data.get("username")
-        name = identity_data.get("name") or "[dim]Not set[/dim]"
+        name = identity_data.get("name")
         url = identity_data.get("resource_url", "")
-        table = Table(show_header=False, expand=False, pad_edge=False)
-        table.add_column("Key", style="bold cyan", no_wrap=True)
-        table.add_column("Value")
-        table.add_row("Username", f"[bold]{username}[/bold]")
-        table.add_row("Name", name)
-        table.add_row("URL", f"[dim]{url}[/dim]")
-        _helpers.console.print(
-            Panel(
-                table,
-                title="[bold green]Authenticated[/bold green]",
-                expand=False,
-                border_style="green",
-            )
+        ui.print_section(
+            "Authenticated",
+            [
+                ("Username", Text(str(username), style="bold")),
+                ("Name", Text(str(name)) if name else Text("Not set", style="dim")),
+                ("URL", Text(str(url), style="dim")),
+            ],
         )
     except VinylkitError as e:
-        _helpers.console.print(f"[bold red]Failed to get identity:[/bold red] {e}")
+        ui.error(f"Failed to get identity: {e}")

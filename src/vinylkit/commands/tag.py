@@ -10,18 +10,28 @@ from typing import TYPE_CHECKING, Any
 import rich_click as click
 from click.exceptions import Exit as ClickExit
 from loguru import logger
-from rich.panel import Panel
-from rich.table import Table
 from rich.text import Text
 
-from vinylkit import utils
+from vinylkit import ui, utils
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import FileOperationError, TaggingError, VinylkitError
-from vinylkit.models import ANVHandling, AppConfig, ImageHandling, TagMode
+from vinylkit.models import (
+    ANVHandling,
+    AppConfig,
+    ImageHandling,
+    TagMode,
+    TagStatus,
+)
 
 if TYPE_CHECKING:
     from vinylkit.models import DiscogsRelease
 
+
+_STATUS_STYLES = {
+    TagStatus.TAGGED: "green",
+    TagStatus.PARTIAL: "yellow",
+    TagStatus.UNTAGGED: "red",
+}
 
 _SCAN_EPILOG = (
     "[bold]Examples:[/bold]"
@@ -52,27 +62,38 @@ def scan(config: AppConfig, paths: tuple[Path, ...]) -> None:
         scan_paths = [config.library_root]
 
     for scan_path in scan_paths:
-        _helpers.console.print(f"\nScanning: [bold]{scan_path}[/bold]...")
+        _helpers.console.print()
+        ui.heading(f"Scanning: {scan_path}")
 
         files = _helpers.scan_folder(scan_path)
         if not files:
-            _helpers.console.print("[yellow]No supported audio files found.[/yellow]")
+            ui.warning("No supported audio files found.")
             continue
 
-        table = Table(title=f"Inventory for {scan_path.name}")
-        table.add_column("File", style="cyan")
-        table.add_column("Format", style="magenta")
-        table.add_column("Status", style="green")
+        table = ui.make_table()
+        table.add_column("File", overflow="fold")
+        table.add_column("Format", style="magenta", no_wrap=True)
+        table.add_column("Status", no_wrap=True)
 
         for f in files:
             display_name = _helpers.display_relative(f.path, scan_path)
-            table.add_row(str(display_name), f.extension, f.tag_status.name)
+            table.add_row(
+                Text(str(display_name)),
+                f.extension,
+                Text(f.tag_status.name, style=_STATUS_STYLES[f.tag_status]),
+            )
 
-        _helpers.console.print(table)
+        _helpers.console.print()
+        ui.print_table(table)
+        _helpers.console.print()
         _helpers.console.print(
-            f"\n[bold]Total files found:[/bold] [cyan]{len(files)}[/cyan]"
+            f"[bold]Total files found:[/bold] {len(files)}", highlight=False
         )
 
+
+# Search results hide these columns below the given terminal widths.
+_COUNTRY_MIN_WIDTH = 72
+_FORMAT_MIN_WIDTH = 92
 
 _TAG_EPILOG = (
     "[bold]Examples:[/bold]"
@@ -350,14 +371,13 @@ def tag(
         and not auto_move
         and len(paths) > 1
     ):
-        _helpers.console.print(
-            "[yellow]Batch mode: You will be prompted for each folder.[/yellow]"
-        )
+        ui.warning("Batch mode: You will be prompted for each folder.")
 
     client = _helpers.get_client(config)
 
     for path, current_release_id in path_id_pairs:
-        _helpers.console.print(f"\n[bold blue]Processing folder:[/bold blue] {path}")
+        _helpers.console.print()
+        ui.heading(path.name, f"in {path.parent}")
         current_query = query
         current_artist = artist
         current_album = album
@@ -394,9 +414,7 @@ def tag(
             )
 
         except (VinylkitError, OSError) as e:
-            _helpers.console.print(
-                f"[bold red]Tagging failed for {path.name}:[/bold red] {e}"
-            )
+            ui.error(f"Tagging failed for {path.name}: {e}")
 
 
 def _find_id_folder(
@@ -443,11 +461,11 @@ def _resolve_release_folder(path: Path, release_id: int) -> Path:
         return path
     if len(matches) > 1:
         names = ", ".join(f.name for f in matches)
-        _helpers.console.print(
-            f"[yellow]Warning: multiple subfolders match ID"
-            f" {release_id} ({names}); using {matches[0].name}.[/yellow]"
+        ui.warning(
+            f"Multiple subfolders match ID {release_id} ({names});"
+            f" using {matches[0].name}."
         )
-    _helpers.console.print(f"[dim]→ Found release folder: {matches[0].name}[/dim]")
+    ui.detail(f"Found release folder: {matches[0].name}")
     return matches[0]
 
 
@@ -484,19 +502,16 @@ def _batch_tag(
 
             if rid is None:
                 if not interactive_search:
-                    _helpers.console.print(
-                        f"[yellow]Skipping {folder.name}:"
-                        " no Discogs ID found in"
-                        " folder name.[/yellow]"
+                    ui.warning(
+                        f"Skipping {folder.name}: no Discogs ID found in folder name."
                     )
                     skipped += 1
                     continue
 
                 folder_query = _helpers.parse_folder_search_query(folder.name)
 
-                _helpers.console.print(
-                    f"\n[bold blue]Batch Search:[/bold blue] {folder.name}"
-                )
+                _helpers.console.print()
+                ui.heading(folder.name, "search")
 
                 if client is None:
                     client = _helpers.get_client(config)
@@ -517,9 +532,8 @@ def _batch_tag(
                     skipped += 1
                     continue
 
-            _helpers.console.print(
-                f"\n[bold blue]Batch:[/bold blue] {folder.name} (ID {rid})"
-            )
+            _helpers.console.print()
+            ui.heading(folder.name, f"ID {rid}")
 
             try:
                 if client is None:
@@ -531,13 +545,12 @@ def _batch_tag(
 
                 if num_files != num_tracks:
                     artist_str = ", ".join(release.artists)
-                    _helpers.console.print(
-                        f"[bold red]Skipping {folder.name}:[/bold red]"
-                        f"\n  Found {num_files} audio file(s) but Discogs"
-                        f' release "{artist_str} - {release.title}"'
+                    ui.warning(
+                        f"Skipping {folder.name}: found {num_files} audio file(s)"
+                        f' but Discogs release "{artist_str} - {release.title}"'
                         f" has {num_tracks} track(s)."
-                        " Fix the folder contents and retry."
                     )
+                    ui.detail("Fix the folder contents and retry.")
                     skipped += 1
                     continue
 
@@ -559,13 +572,11 @@ def _batch_tag(
                 )
                 succeeded += 1
             except (VinylkitError, OSError) as e:
-                _helpers.console.print(
-                    f"[bold red]Failed {folder.name}:[/bold red] {e}"
-                )
+                ui.error(f"Failed {folder.name}: {e}")
                 failed += 1
 
     total = succeeded + failed + skipped
-    summary = Text()
+    summary = Text("Batch Summary  ", style="bold")
     summary.append(f"{succeeded} succeeded", style="bold green")
     summary.append("  ")
     summary.append(
@@ -577,11 +588,9 @@ def _batch_tag(
         f"{skipped} skipped",
         style="bold yellow" if skipped else "dim",
     )
-    summary.append(f"  ({total} total)")
+    summary.append(f"  ({total} total)", style="not bold")
     _helpers.console.print()
-    _helpers.console.print(
-        Panel(summary, title="[bold]Batch Summary[/bold]", expand=False)
-    )
+    _helpers.console.print(summary, highlight=False, soft_wrap=True)
 
 
 def _search_loop(
@@ -617,7 +626,7 @@ def _search_loop(
             current_query = click.prompt(prompt_msg)
             active_folder_query = None
             if current_query.lower() == "q":
-                _helpers.console.print("[yellow]Aborting tag session.[/yellow]")
+                ui.warning("Aborting tag session.")
                 raise ClickExit(0)
             if current_query == "0":
                 return None
@@ -649,7 +658,7 @@ def _search_loop(
                 return None  # User skipped
             if result == -1:
                 # Quit entire tag session
-                _helpers.console.print("[yellow]Aborting tag session.[/yellow]")
+                ui.warning("Aborting tag session.")
                 raise ClickExit(0)
             return result
 
@@ -715,7 +724,7 @@ def _paginated_search(
         )
 
     if not all_results:
-        _helpers.console.print("[yellow]No results found for query/filters.[/yellow]")
+        ui.warning("No results found for query/filters.")
         return None
 
     page_size = config.search_page_size
@@ -725,20 +734,28 @@ def _paginated_search(
         page_results = all_results[offset : offset + page_size]
         search_term = query or artist or album
         page_num = offset // page_size + 1
-        table_title = (
-            f"\nSearch Results for:"
-            f" [bold cyan]{search_term}[/bold cyan]"
-            f" (Page {page_num})"
-        )
-        table = Table(title=table_title)
-        table.add_column("#", style="dim")
+        title_line = Text("Search Results for: ", style="bold")
+        title_line.append(str(search_term), style="bold cyan")
+        title_line.append(f" (Page {page_num})", style="dim")
+        _helpers.console.print()
+        _helpers.console.print(title_line, highlight=False, soft_wrap=True)
+        _helpers.console.print()
+
+        # Narrow terminals drop the least useful columns instead of
+        # wrapping every row.
+        width = ui.content_width()
+        show_country = width >= _COUNTRY_MIN_WIDTH
+        show_format = width >= _FORMAT_MIN_WIDTH
+        table = ui.make_table()
+        table.add_column("#", style="bold", justify="right", no_wrap=True)
         table.add_column("ID", style="magenta", no_wrap=True)
-        table.add_column("Title", style="cyan")
-        table.add_column("Cat #", style="white", no_wrap=True)
-        table.add_column("Year", style="green", no_wrap=True)
-        table.add_column("Country", style="yellow")
-        table.add_column("Format", style="blue")
-        table.add_column("Link", style="dim", no_wrap=True)
+        table.add_column("Title", overflow="fold", max_width=40)
+        table.add_column("Cat #", overflow="fold", max_width=20)
+        table.add_column("Year", no_wrap=True)
+        if show_country:
+            table.add_column("Country", no_wrap=True)
+        if show_format:
+            table.add_column("Format", style="dim", no_wrap=True)
 
         for i, res in enumerate(page_results, offset + 1):
             title = res.get("title", "Unknown")
@@ -750,13 +767,25 @@ def _paginated_search(
             else:
                 catno = "N/A"
             year = str(res.get("year", "N/A"))
-            country = res.get("country", "N/A")
+            country = str(res.get("country", "N/A"))
             fmt = ", ".join(res.get("format", []))
             rid = str(res.get("id"))
+            # The ID is a terminal hyperlink to the release page.
             url = f"https://www.discogs.com/release/{rid}"
-            table.add_row(str(i), rid, title, catno, year, country, fmt, url)
+            row = [
+                Text(str(i)),
+                Text(rid, style=f"link {url}"),
+                Text(str(title)),
+                Text(catno),
+                Text(year),
+            ]
+            if show_country:
+                row.append(Text(country))
+            if show_format:
+                row.append(Text(fmt))
+            table.add_row(*row)
 
-        _helpers.console.print(table)
+        ui.print_table(table)
 
         options = f"(1-{offset + len(page_results)})"
         prompt_msg = f"\nSelect a release {options}"
@@ -780,9 +809,9 @@ def _paginated_search(
             idx = int(choice)
             if 1 <= idx <= len(all_results):
                 return int(all_results[idx - 1]["id"])
-            _helpers.console.print("[red]Invalid selection.[/red]")
+            ui.error("Invalid selection.")
         except ValueError:
-            _helpers.console.print("[red]Invalid input.[/red]")
+            ui.error("Invalid input.")
 
     # End of results
     return None
@@ -803,13 +832,15 @@ def _resolve_release_anv(
         if rel_none.artists != rel_primary.artists:
             var_str = ", ".join(rel_none.artists)
             prim_str = ", ".join(rel_primary.artists)
-            _helpers.console.print(
-                "\n[bold cyan]Artist Name Variation (ANV) Detected[/bold cyan]"
+            _helpers.console.print()
+            ui.heading("Artist Name Variation (ANV) Detected")
+            ui.print_section(
+                "",
+                [
+                    ("Release Variation", Text(var_str, style="yellow")),
+                    ("Primary Artist", Text(prim_str, style="green")),
+                ],
             )
-            _helpers.console.print(
-                f"  • Release Variation:  [yellow]{var_str}[/yellow]"
-            )
-            _helpers.console.print(f"  • Primary Artist:     [green]{prim_str}[/green]")
             prompt_msg = (
                 "Select artist name for tagging & folder organization:\n"
                 "  1. Primary Artist (Recommended for clean Roon/Plex grouping)\n"
@@ -853,10 +884,11 @@ def _tag_folder(
         release.title,
         release.id,
     )
-    release_display = (
-        f"Loaded Release: [bold]{artist_str} - {release.title}[/bold] ({release.year})"
-    )
-    _helpers.console.print(release_display)
+    release_display = Text("  ")
+    release_display.append(f"{artist_str} - {release.title}", style="bold")
+    release_display.append(f" ({release.year})")
+    release_display.append(f"  Discogs {release.id}", style="dim")
+    _helpers.console.print(release_display, highlight=False, soft_wrap=True)
 
     # Artwork handling
     artwork_data: bytes | None = None
@@ -871,19 +903,13 @@ def _tag_folder(
     audio_files = _helpers.collect_audio_files(path, config.natural_sort)
 
     if not audio_files:
-        _helpers.console.print(
-            f"[yellow]No supported audio files (MP3/FLAC) found in {path}.[/yellow]"
-        )
+        ui.warning(f"No supported audio files (MP3/FLAC) found in {path}.")
         return
 
     if len(audio_files) != len(release.tracklist):
         num_files = len(audio_files)
         num_tracks = len(release.tracklist)
-        _helpers.console.print(
-            f"[yellow]Warning: Found {num_files}"
-            f" files but release has"
-            f" {num_tracks} tracks.[/yellow]"
-        )
+        ui.warning(f"Found {num_files} files but release has {num_tracks} tracks.")
         if not click.confirm("Proceed anyway?"):
             return
 
@@ -897,10 +923,7 @@ def _tag_folder(
                 try:
                     _helpers.backup_file(file_path, config.backup_dir)
                 except OSError as e:
-                    _helpers.console.print(
-                        f"[yellow]Warning: Failed to backup"
-                        f" {file_path.name}: {e}[/yellow]"
-                    )
+                    ui.warning(f"Failed to backup {file_path.name}: {e}")
 
             _helpers.tag_audio_file(
                 file_path,
@@ -915,9 +938,7 @@ def _tag_folder(
             )
             return file_path
         except (VinylkitError, OSError) as e:
-            _helpers.console.print(
-                f"[bold red]Failed to tag {file_path.name}:[/bold red] {e}"
-            )
+            ui.error(f"Failed to tag {file_path.name}: {e}")
             return None
 
     with _helpers.console.status("[bold green]Tagging files..."):
@@ -965,32 +986,12 @@ def _tag_folder(
     rate_str = _helpers.get_rate_limit_str(client)
 
     if dry_run:
-        _helpers.console.print()
-        _helpers.console.print(
-            Panel(
-                f"[bold yellow]No files were modified.[/bold yellow]"
-                f"\n[dim]{path.name}[/dim]",
-                title="[bold yellow]Dry-run complete[/bold yellow]",
-                expand=False,
-                border_style="yellow",
-            )
-        )
+        ui.warning(f"Dry-run complete. No files were modified in {path.name}.")
     else:
-        summary_parts = [
-            f"[green]Tagged {len(tagged_paths)} tracks[/green]",
-            f"[cyan]Saved {artwork_count} artwork file(s)[/cyan]",
-        ]
+        ui.success(f"Tagged {len(tagged_paths)} tracks")
+        ui.success(f"Saved {artwork_count} artwork file(s)")
         if rate_str:
-            summary_parts.append(f"[dim]{rate_str.lstrip(' |')}[/dim]")
-        _helpers.console.print()
-        _helpers.console.print(
-            Panel(
-                "\n".join(summary_parts),
-                title="[bold green]Tagging Complete[/bold green]",
-                expand=False,
-                border_style="green",
-            )
-        )
+            ui.detail(rate_str.lstrip(" |"))
 
         if do_rename:
             try:
@@ -1006,11 +1007,9 @@ def _tag_folder(
                     rename_folder=rename_folder,
                 )
             except VinylkitError as e:
-                _helpers.console.print(
-                    f"[bold red]Rename failed for"
-                    f" {path.name}:[/bold red] {e}"
-                    f"\n[yellow]Note: Files were"
-                    " tagged successfully.[/yellow]"
+                ui.error(
+                    f"Rename failed for {path.name}: {e}",
+                    "Files were tagged successfully.",
                 )
 
 
@@ -1041,7 +1040,8 @@ def _rename_after_tag(
     (batch mode), the source folder is renamed.  Otherwise a new
     subfolder is created inside *path* and files are moved there.
     """
-    _helpers.console.print(f"\n[bold blue]Renaming files in {path.name}...[/bold blue]")
+    _helpers.console.print()
+    ui.heading(f"Renaming files in {path.name}")
 
     # Plan audio file moves
     audio_moves: list[tuple[Path, Path]] = []
@@ -1056,9 +1056,7 @@ def _rename_after_tag(
         audio_moves.append((source, target))
         rel = _helpers.display_relative(target, lib_root)
         track = release.tracklist[i]
-        _helpers.console.print(
-            f"[cyan]{track.position} - {track.title}[/cyan] -> [green]{rel}[/green]"
-        )
+        _helpers.print_move(f"{track.position} - {track.title}", str(rel))
 
     # Pre-flight: detect collisions among targets.
     # We check this early to avoid partial renames on disk.
@@ -1114,7 +1112,7 @@ def _rename_after_tag(
                 )
 
             if not _helpers.check_collisions(folder_moves, folder_dir_moves):
-                _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
+                ui.warning("Move aborted by user.")
                 _helpers.collect_audio_files.cache_clear()
                 return
 
@@ -1142,14 +1140,10 @@ def _rename_after_tag(
                         ", ".join(remaining),
                     )
             display = str(relative_dir).replace("\\", "/")
-            _helpers.console.print(
-                f"\n[bold green]Files renamed into {display}.[/bold green]"
-            )
+            ui.success(f"Files renamed into {display}.")
         else:
             # Single release: files are already renamed in-place above.
-            _helpers.console.print(
-                f"\n[bold green]Files renamed in {path.name}.[/bold green]"
-            )
+            ui.success(f"Files renamed in {path.name}.")
         _helpers.collect_audio_files.cache_clear()
         return
 
@@ -1163,11 +1157,11 @@ def _rename_after_tag(
     if not (
         auto_move or config.auto_move or click.confirm("\nProceed with moving files?")
     ):
-        _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
+        ui.warning("Move aborted by user.")
         return
 
     if not _helpers.check_collisions(moves, dir_moves):
-        _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
+        ui.warning("Move aborted by user.")
         return
 
     # Supplementary file moves (info, artwork) appended by
@@ -1183,7 +1177,7 @@ def _rename_after_tag(
             _helpers.move_file(src, dst, dry_run=False)
         for src, dst in dir_moves:
             _helpers.move_directory(src, dst, dry_run=False)
-        _helpers.console.print("\n[bold green]Files moved successfully.[/bold green]")
+        ui.success("Files moved successfully.")
         # Clear the directory listing cache as the source folder is now empty (or gone)
         _helpers.collect_audio_files.cache_clear()
         if delete_source and path.exists():
@@ -1192,14 +1186,9 @@ def _rename_after_tag(
                     path.rmdir()
                     # Only print if it's actually gone (handles Windows delays/locks)
                     if not path.exists():
-                        _helpers.console.print(
-                            f"[dim]Removed empty source folder: {path.name}[/dim]"
-                        )
+                        ui.detail(f"Removed empty source folder: {path.name}")
                 except OSError as exc:
-                    _helpers.console.print(
-                        f"[yellow]Warning: Could not remove source"
-                        f" folder {path.name}: {exc}[/yellow]"
-                    )
+                    ui.warning(f"Could not remove source folder {path.name}: {exc}")
             else:
                 remaining = sorted(f.name for f in path.iterdir())
                 logger.debug(
@@ -1209,11 +1198,9 @@ def _rename_after_tag(
                     ", ".join(remaining),
                 )
     except VinylkitError as exc:
-        _helpers.console.print(
-            f"\n[bold red]Move to library"
-            f" failed:[/bold red] {exc}"
-            f"\n[yellow]Files were tagged and"
-            f" renamed in {path}.[/yellow]"
+        ui.error(
+            f"Move to library failed: {exc}",
+            f"Files were tagged and renamed in {path}.",
         )
 
 
@@ -1275,7 +1262,8 @@ def rename(
     client = _helpers.get_client(config)
 
     for path in paths:
-        _helpers.console.print(f"\n[bold blue]Processing folder:[/bold blue] {path}")
+        _helpers.console.print()
+        ui.heading(path.name, f"in {path.parent}")
         current_release_id = release_id
 
         try:
@@ -1289,9 +1277,7 @@ def rename(
             audio_files = _helpers.collect_audio_files(path, config.natural_sort)
 
             if not audio_files:
-                _helpers.console.print(
-                    f"[yellow]No audio files found in {path.name}.[/yellow]"
-                )
+                ui.warning(f"No audio files found in {path.name}.")
                 continue
 
             moves: list[tuple[Path, Path]] = []
@@ -1308,10 +1294,7 @@ def rename(
                 moves.append((source, target))
                 rel = _helpers.display_relative(target, lib_root)
                 track = release.tracklist[i]
-                _helpers.console.print(
-                    f"[cyan]{track.position} - {track.title}[/cyan]"
-                    f" -> [green]{rel}[/green]"
-                )
+                _helpers.print_move(f"{track.position} - {track.title}", str(rel))
 
             _helpers.check_duplicate_targets(moves)
 
@@ -1321,19 +1304,8 @@ def rename(
             )
 
             if dry_run:
-                _helpers.console.print()
-                _helpers.console.print(
-                    Panel(
-                        "[bold yellow]Dry-run: No files were"
-                        " moved.[/bold yellow]"
-                        f"\n[dim]{path.name}[/dim]"
-                        "\n\nUse [bold]--commit[/bold] to apply"
-                        " these changes.",
-                        title="[bold yellow]Dry-run[/bold yellow]",
-                        expand=False,
-                        border_style="yellow",
-                    )
-                )
+                ui.warning(f"Dry-run: No files were moved in {path.name}.")
+                ui.detail("Use --commit to apply these changes.")
                 continue
 
             if click.confirm(f"\nProceed with moving files in {path.name}?"):
@@ -1342,14 +1314,9 @@ def rename(
                         _helpers.move_file(src, dst, dry_run=False)
                     for src, dst in dir_moves:
                         _helpers.move_directory(src, dst, dry_run=False)
-                    _helpers.console.print(
-                        f"\n[bold green]Files in {path.name}"
-                        " moved successfully.[/bold green]"
-                    )
+                    ui.success(f"Files in {path.name} moved successfully.")
                 else:
-                    _helpers.console.print("\n[yellow]Move aborted by user.[/yellow]")
+                    ui.warning("Move aborted by user.")
 
         except VinylkitError as e:
-            _helpers.console.print(
-                f"[bold red]Rename failed for {path.name}:[/bold red] {e}"
-            )
+            ui.error(f"Rename failed for {path.name}: {e}")

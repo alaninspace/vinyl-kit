@@ -2,6 +2,22 @@
 
 All notable changes to VinylKit will be documented in this file.
 
+## [v0.18.0] - 2026-11-19
+
+### Changed
+- **Output No Longer Breaks When the Terminal Is Resized**: Tables and panels used to be drawn with a right-hand border, so every row was padded to the full table width. Making the window narrower after a command ran re-wrapped each row and left border characters and blank lines everywhere. Tables now have a header rule and no side borders, result panels are plain status lines, and nothing is padded past its last character. Output is laid out up to 100 columns wide.
+- **`config show` Layout**: Settings print as plain key/value lines under each section heading instead of a bordered table. Under 64 columns each value goes on the line below its setting name.
+- **Search Results Table**: The Link column is gone. The ID is a terminal hyperlink to the release page instead. The Format column is hidden under 92 columns and Country under 72, so narrow terminals get one line per result.
+- **Consistent Status Lines**: Messages start with `✓` (done), `!` (warning) or `✗` (error) across all commands, replacing the mix of "Success!", "Warning:" and "Error:" prefixes, coloured lines and boxes. Some errors now print a second line saying what to do next. `✓` and `✗` are written as `ok:` and `error:` when the output isn't UTF-8.
+- **Tag Run Output**: Each folder starts with a heading (folder name and where it is), then the release on its own line with its Discogs ID. The "Tagging Complete", "Dry-run", "Batch Summary" and "Migration complete" boxes are now status lines. A few messages were reworded, so scripts that match on the old text need updating.
+- **Help Screens**: Option and command groups in `-h` output are borderless.
+
+### Fixed
+- **Collection Download Overwrite Prompt**: The prompt showed literal `[yellow]` markup tags around the text.
+- **Brackets in Values**: Square brackets in config values, release titles and file names are always printed as-is in tables and `config show`.
+
+---
+
 ## [v0.17.1] - 2026-11-07
 
 ### Fixed

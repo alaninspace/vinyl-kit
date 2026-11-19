@@ -183,7 +183,7 @@ def test_tag_filtered_search_real_collection_example(
 
     assert result.exit_code == 0
     assert "Search Results for: Faithless" in result.output
-    assert "Loaded Release: Faithless - Insomnia" in result.output
+    assert "Faithless - Insomnia" in result.output
     assert "Files moved successfully" in result.output
 
 

@@ -110,7 +110,7 @@ def test_position_override_cli_commands(runner: CliRunner) -> None:
     """Verify config override set / list / remove commands work cleanly."""
     res_set = runner.invoke(cli, ["config", "override", "set", "THIS", "A"])
     assert res_set.exit_code == 0
-    assert "Successfully set position override: THIS -> A" in res_set.output
+    assert "Set position override: THIS -> A" in res_set.output
 
     res_set2 = runner.invoke(cli, ["config", "override", "set", "THAT", "B"])
     assert res_set2.exit_code == 0
@@ -124,7 +124,7 @@ def test_position_override_cli_commands(runner: CliRunner) -> None:
 
     res_rem = runner.invoke(cli, ["config", "override", "remove", "THIS"])
     assert res_rem.exit_code == 0
-    assert "Successfully removed position override for THIS" in res_rem.output
+    assert "Removed position override for THIS" in res_rem.output
 
     res_list2 = runner.invoke(cli, ["config", "override", "list"])
     assert res_list2.exit_code == 0

@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import rich_click as click
-from rich.panel import Panel
 
+from vinylkit import ui
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import VinylkitError
 
@@ -40,7 +40,7 @@ def collection_download(config: AppConfig) -> None:
             username = identity_resp.get("username")
 
         if not username:
-            _helpers.console.print("[red]Error: Could not determine username.[/red]")
+            ui.error("Could not determine username.")
             return
 
         with _helpers.console.status(
@@ -49,9 +49,7 @@ def collection_download(config: AppConfig) -> None:
             releases = client.get_collection_releases(username)
 
         if not releases:
-            _helpers.console.print(
-                "[yellow]No releases found in your collection.[/yellow]"
-            )
+            ui.warning("No releases found in your collection.")
             return
 
         date_prefix = datetime.now().strftime("%Y-%m-%d")
@@ -59,10 +57,10 @@ def collection_download(config: AppConfig) -> None:
         filepath = Path.cwd() / filename
 
         if filepath.exists() and not click.confirm(
-            f"[yellow]Warning: {filename} already exists. Overwrite?[/yellow]",
+            f"{filename} already exists. Overwrite?",
             default=False,
         ):
-            _helpers.console.print("[yellow]Download aborted.[/yellow]")
+            ui.warning("Download aborted.")
             return
 
         with filepath.open("w", newline="", encoding="utf-8") as f:
@@ -109,17 +107,8 @@ def collection_download(config: AppConfig) -> None:
                 )
 
         _helpers.console.print()
-        _helpers.console.print(
-            Panel(
-                f"Collection saved to [cyan]{filename}[/cyan]"
-                f"\nTotal releases: [bold]{len(releases)}[/bold]",
-                title="[bold green]Success![/bold green]",
-                expand=False,
-                border_style="green",
-            )
-        )
+        ui.success(f"Collection saved to [cyan]{filename}[/cyan]")
+        ui.detail(f"Total releases: {len(releases)}")
 
     except (VinylkitError, OSError) as e:
-        _helpers.console.print(
-            f"[bold red]Failed to download collection:[/bold red] {e}"
-        )
+        ui.error(f"Failed to download collection: {e}")

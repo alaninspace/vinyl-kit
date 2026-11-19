@@ -544,7 +544,7 @@ def test_migrate_existing_destination_declined_keeps_source(
     )
 
     assert result.exit_code == 0
-    assert "Warning: 1 destination file(s)/folder(s) already exist" in result.output
+    assert "1 destination file(s)/folder(s) already exist" in result.output
     assert existing.read_text() == "first copy"
     assert (album_dir / "01.mp3").read_text() == "second copy"
     log_content = (dest / "00-Migration-Results.txt").read_text()

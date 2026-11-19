@@ -178,34 +178,26 @@ vinylkit tag --id 4008,13299
 What you'll see:
 
 ```text
-Processing folder: D:\Recordings\4008-The-Chemical-Brothers-Hey-Boy-Hey-Girl
-Loaded Release: The Chemical Brothers - Hey Boy Hey Girl (1999)
+4008-The-Chemical-Brothers-Hey-Boy-Hey-Girl  in D:\Recordings
+  The Chemical Brothers - Hey Boy Hey Girl (1999)  Discogs 4008
+✓ Tagged 3 tracks
+✓ Saved 6 artwork file(s)
 
-╭─── Tagging Complete ────╮
-│ Tagged 3 tracks         │
-│ Saved 6 artwork file(s) │
-╰─────────────────────────╯
+Renaming files in 4008-The-Chemical-Brothers-Hey-Boy-Hey-Girl
+  A - Hey Boy Hey Girl (Extended Version) -> The Chemical Brothers/1999 - Hey Boy Hey Girl [Astralwerks]/A - Hey Boy Hey Girl (Extended Version).flac
+  B1 - Flashback -> The Chemical Brothers/1999 - Hey Boy Hey Girl [Astralwerks]/B1 - Flashback.flac
+  B2 - Scale -> The Chemical Brothers/1999 - Hey Boy Hey Girl [Astralwerks]/B2 - Scale.flac
+✓ Files moved successfully.
 
-Renaming files in 4008-The-Chemical-Brothers-Hey-Boy-Hey-Girl...
-A - Hey Boy Hey Girl (Extended Version) -> The Chemical Brothers/1999 - Hey Boy Hey Girl [Astralwerks]/A - Hey Boy Hey Girl (Extended Version).flac
-B1 - Flashback -> The Chemical Brothers/1999 - Hey Boy Hey Girl [Astralwerks]/B1 - Flashback.flac
-B2 - Scale -> The Chemical Brothers/1999 - Hey Boy Hey Girl [Astralwerks]/B2 - Scale.flac
+13299-The-Chemical-Brothers-Loops-Of-Fury  in D:\Recordings
+  The Chemical Brothers - Loops Of Fury (1996)  Discogs 13299
+✓ Tagged 4 tracks
+✓ Saved 5 artwork file(s)
 
-Files moved successfully.
-
-Processing folder: D:\Recordings\13299-The-Chemical-Brothers-Loops-Of-Fury
-Loaded Release: The Chemical Brothers - Loops Of Fury (1996)
-
-╭─── Tagging Complete ────╮
-│ Tagged 4 tracks         │
-│ Saved 5 artwork file(s) │
-╰─────────────────────────╯
-
-Renaming files in 13299-The-Chemical-Brothers-Loops-Of-Fury...
-A1 - Loops Of Fury -> The Chemical Brothers/1996 - Loops Of Fury [Astralwerks]/A1 - Loops Of Fury.flac
-...
-
-Files moved successfully.
+Renaming files in 13299-The-Chemical-Brothers-Loops-Of-Fury
+  A1 - Loops Of Fury -> The Chemical Brothers/1996 - Loops Of Fury [Astralwerks]/A1 - Loops Of Fury.flac
+  ...
+✓ Files moved successfully.
 ```
 
 ### 3. Check Your Library

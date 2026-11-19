@@ -35,7 +35,7 @@ def test_ex_1_1_basic_id_tagging(runner, tmp_path, mock_discogs):
     )
     result = runner.invoke(cli, ["tag", str(tmp_path), "--id", "19983"])
     assert result.exit_code == 0
-    assert "Loaded Release: Green Velvet - Flash" in result.output
+    assert "Green Velvet - Flash" in result.output
 
 
 def test_ex_1_2_id_rename_automove(runner, tmp_path, mock_discogs):
@@ -306,7 +306,7 @@ def test_ex_4_2_inbox_tag(runner, tmp_path, mock_discogs, mocker):
         cli, ["tag", "--artist", "Underworld", "--album", "Born Slippy"], input="1\ny\n"
     )
     assert result.exit_code == 0
-    assert "Processing folder:" in result.output
+    assert "Underworld - Born Slippy" in result.output
 
 
 def test_ex_4_3_dry_run(runner, tmp_path, mock_discogs, mocker):
@@ -340,7 +340,7 @@ def test_ex_4_4_batch_processing(runner, tmp_path, mock_discogs):
         cli, ["tag", str(f1), str(f2), "--rename"], input="1\ny\n2\ny\n"
     )
     assert result.exit_code == 0
-    assert result.output.count("Processing folder:") == 2
+    assert result.output.count("A - T (") == 2
 
 
 ## 4b. Batch Mode Examples
@@ -979,7 +979,7 @@ def test_ex_anv_handling_primary_flag(runner, tmp_path, mock_discogs):
         ],
     )
     assert result.exit_code == 0
-    assert "Loaded Release: Gappa G & Hyper Hypa" in result.output
+    assert "Gappa G & Hyper Hypa" in result.output
 
 
 def test_ex_use_primary_artist_alias_flag(runner, tmp_path, mock_discogs):
@@ -999,7 +999,7 @@ def test_ex_use_primary_artist_alias_flag(runner, tmp_path, mock_discogs):
         ],
     )
     assert result.exit_code == 0
-    assert "Loaded Release: Gappa G & Hyper Hypa" in result.output
+    assert "Gappa G & Hyper Hypa" in result.output
 
 
 def test_ex_position_overrides_examples(runner):

@@ -7,10 +7,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import rich_click as click
-from rich.panel import Panel
-from rich.table import Table
+from rich.text import Text
 
-from vinylkit import __version__
+from vinylkit import __version__, ui
 from vinylkit.commands._helpers import console
 from vinylkit.config import get_config_path, save_config
 from vinylkit.models import (
@@ -25,6 +24,10 @@ from vinylkit.models import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+
+_NOT_SET = Text("Not Set", style="dim")
+_DEFAULT = Text("Default", style="dim")
 
 
 @click.group(name="config")
@@ -43,29 +46,25 @@ def config_show(config_obj: AppConfig) -> None:
     """Display the current configuration."""
     path = get_config_path()
     if not path.exists():
-        console.print("[yellow]Config file does not exist. Showing defaults.[/yellow]")
+        ui.warning("Config file does not exist. Showing defaults.")
 
-    console.print(
-        Panel(
-            f"[bold]VinylKit[/bold] v{__version__}"
-            f"\n[bold]Config Path:[/bold] [dim]{path}[/dim]",
-            expand=False,
-            border_style="dim",
-        )
-    )
+    ui.heading(f"VinylKit v{__version__}")
+    header = Text("Config Path: ", style="dim")
+    header.append(str(path))
+    console.print(header, highlight=False, soft_wrap=True)
 
     default_fmt = (
         ", ".join(config_obj.default_format) if config_obj.default_format else "None"
     )
-    key_display = "****" if config_obj.consumer_key else "[dim]Not Set[/dim]"
-    token_display = "****" if config_obj.discogs_token else "[dim]Not Set[/dim]"
+    key_display = "****" if config_obj.consumer_key else _NOT_SET
+    token_display = "****" if config_obj.discogs_token else _NOT_SET
     pos_ov_display = (
         ", ".join(f"{k} -> {v}" for k, v in config_obj.position_overrides.items())
         if config_obj.position_overrides
         else "None"
     )
 
-    sections: list[tuple[str, list[tuple[str, str]]]] = [
+    sections: list[tuple[str, list[tuple[str, str | Text]]]] = [
         (
             "General",
             [
@@ -75,7 +74,7 @@ def config_show(config_obj: AppConfig) -> None:
                     (
                         str(config_obj.recordings_root)
                         if config_obj.recordings_root
-                        else "[dim]Not Set[/dim]"
+                        else _NOT_SET
                     ),
                 ),
                 ("auto_move", str(config_obj.auto_move)),
@@ -100,11 +99,11 @@ def config_show(config_obj: AppConfig) -> None:
                 ("info_filename", config_obj.info_filename),
                 (
                     "info_contact_email",
-                    config_obj.info_contact_email or "[dim]Not Set[/dim]",
+                    config_obj.info_contact_email or _NOT_SET,
                 ),
                 (
                     "info_contact_website",
-                    config_obj.info_contact_website or "[dim]Not Set[/dim]",
+                    config_obj.info_contact_website or _NOT_SET,
                 ),
                 (
                     "skip_tags",
@@ -143,11 +142,7 @@ def config_show(config_obj: AppConfig) -> None:
                 ),
                 (
                     "backup_dir",
-                    (
-                        str(config_obj.backup_dir)
-                        if config_obj.backup_dir
-                        else "[dim]Not Set[/dim]"
-                    ),
+                    (str(config_obj.backup_dir) if config_obj.backup_dir else _NOT_SET),
                 ),
             ],
         ),
@@ -195,11 +190,7 @@ def config_show(config_obj: AppConfig) -> None:
                 ("log_to_file", str(config_obj.log_to_file)),
                 (
                     "log_file",
-                    (
-                        str(config_obj.log_file)
-                        if config_obj.log_file
-                        else "[dim]Default[/dim]"
-                    ),
+                    (str(config_obj.log_file) if config_obj.log_file else _DEFAULT),
                 ),
                 ("log_rotation", config_obj.log_rotation),
                 ("log_retention", str(config_obj.log_retention)),
@@ -215,19 +206,15 @@ def config_show(config_obj: AppConfig) -> None:
         ),
     ]
 
-    table = Table(show_header=True, show_lines=False, pad_edge=False)
-    table.add_column("Setting", style="bold cyan", no_wrap=True)
-    table.add_column("Value", overflow="fold")
-
-    for i, (section_title, rows) in enumerate(sections):
-        if i > 0:
-            table.add_row("", "")
-        table.add_section()
-        table.add_row(f"[bold magenta]{section_title}[/bold magenta]", "")
-        for key, value in rows:
-            table.add_row(f"  {key}", value)
-
-    console.print(table)
+    for section_title, rows in sections:
+        console.print()
+        ui.print_section(
+            section_title,
+            [
+                (key, value if isinstance(value, Text) else Text(str(value)))
+                for key, value in rows
+            ],
+        )
 
 
 def _parse_bool(value: str) -> bool:
@@ -322,7 +309,10 @@ def _build_config_set_epilog() -> str:
 def config_set(config_obj: AppConfig, key: str, value: str) -> None:
     """Set a configuration value."""
     if key not in _CONFIG_CONVERTERS:
-        console.print(f"[red]Unknown configuration key: {key}[/red]")
+        ui.error(
+            f"Unknown configuration key: {key}",
+            "Run 'vinylkit config set -h' to list the valid keys.",
+        )
         return
 
     converter = _CONFIG_CONVERTERS[key]
@@ -333,7 +323,7 @@ def config_set(config_obj: AppConfig, key: str, value: str) -> None:
 
     new_config = AppConfig(**new_data)
     save_config(new_config)
-    console.print(f"[bold green]Successfully set {key} to {value}[/bold green]")
+    ui.success(f"Set {key} to {value}")
 
 
 @config_group.group(name="override")
@@ -351,10 +341,7 @@ def override_set(config_obj: AppConfig, old_side: str, new_side: str) -> None:
     overrides[old_side.upper()] = new_side.upper()
     new_config = dataclasses.replace(config_obj, position_overrides=overrides)
     save_config(new_config)
-    console.print(
-        f"[bold green]Successfully set position override: "
-        f"{old_side.upper()} -> {new_side.upper()}[/bold green]"
-    )
+    ui.success(f"Set position override: {old_side.upper()} -> {new_side.upper()}")
 
 
 @override_group.command(name="remove")
@@ -368,11 +355,9 @@ def override_remove(config_obj: AppConfig, old_side: str) -> None:
         del overrides[key]
         new_config = dataclasses.replace(config_obj, position_overrides=overrides)
         save_config(new_config)
-        console.print(
-            f"[bold green]Successfully removed position override for {key}[/bold green]"
-        )
+        ui.success(f"Removed position override for {key}")
     else:
-        console.print(f"[yellow]No position override found for {key}[/yellow]")
+        ui.warning(f"No position override found for {key}")
 
 
 @override_group.command(name="list")
@@ -380,14 +365,16 @@ def override_remove(config_obj: AppConfig, old_side: str) -> None:
 def override_list(config_obj: AppConfig) -> None:
     """List all current position overrides."""
     if not config_obj.position_overrides:
-        console.print("[yellow]No position overrides configured.[/yellow]")
+        ui.warning("No position overrides configured.")
         return
-    table = Table(title="Position Overrides")
+    ui.heading("Position Overrides")
+    console.print()
+    table = ui.make_table()
     table.add_column("Original Discogs Side", style="cyan")
     table.add_column("Mapped Side Letter", style="green")
     for k, v in config_obj.position_overrides.items():
-        table.add_row(k, v)
-    console.print(table)
+        table.add_row(Text(k), Text(v))
+    ui.print_table(table)
 
 
 @config_group.command(name="reset")
@@ -401,10 +388,7 @@ def config_reset(yes: bool) -> None:
     """Reset configuration to factory defaults."""
     path = get_config_path()
     if not path.exists():
-        console.print(
-            "[yellow]No custom configuration file found. "
-            "Already at factory defaults.[/yellow]"
-        )
+        ui.warning("No custom configuration file found. Already at factory defaults.")
         return
 
     if not yes and not click.confirm(
@@ -412,14 +396,11 @@ def config_reset(yes: bool) -> None:
         "and reset all settings to defaults?",
         default=False,
     ):
-        console.print("[yellow]Reset cancelled.[/yellow]")
+        ui.warning("Reset cancelled.")
         return
 
     try:
         path.unlink()
-        console.print(
-            "[bold green]Successfully reset configuration to "
-            "factory defaults.[/bold green]"
-        )
+        ui.success("Reset configuration to factory defaults.")
     except OSError as e:
-        console.print(f"[red]Failed to delete configuration file: {e}[/red]")
+        ui.error(f"Failed to delete configuration file: {e}")

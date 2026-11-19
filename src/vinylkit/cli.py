@@ -14,10 +14,8 @@ from typing import TYPE_CHECKING
 import rich_click as click
 from loguru import logger
 from platformdirs import user_log_dir
-from rich.panel import Panel
 
-from vinylkit import __version__
-from vinylkit.commands._helpers import console
+from vinylkit import __version__, ui
 from vinylkit.commands.auth import auth
 from vinylkit.commands.cache import cache
 from vinylkit.commands.collection import collection
@@ -38,6 +36,13 @@ click.rich_click.SHOW_ARGUMENTS = True
 click.rich_click.GROUP_ARGUMENTS_OPTIONS = True
 click.rich_click.STYLE_ERRORS_SUGGESTION = "bold italic"
 click.rich_click.ERRORS_SUGGESTION = "Try the -h flag for more information."
+# Borderless help: bordered panels leave stray border characters behind
+# when the terminal is resized after the help is printed.
+click.rich_click.STYLE_OPTIONS_PANEL_BOX = "BLANK"
+click.rich_click.STYLE_COMMANDS_PANEL_BOX = "BLANK"
+click.rich_click.STYLE_ERRORS_PANEL_BOX = "BLANK"
+click.rich_click.STYLE_OPTIONS_PANEL_TITLE_STYLE = "bold"
+click.rich_click.STYLE_COMMANDS_PANEL_TITLE_STYLE = "bold"
 
 click.rich_click.COMMAND_GROUPS = {
     "vinylkit": [
@@ -211,18 +216,13 @@ def main() -> None:
     try:
         cli(obj=None)
     except VinylkitError as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
+        ui.error(str(e))
         sys.exit(1)
     except Exception as e:
-        console.print(
-            Panel(
-                f"[bold red]Unexpected Error:[/bold red] {e}"
-                "\n\n[dim]This may be a bug."
-                " Please report it at"
-                " https://github.com/alaninspace/vinyl-kit/issues[/dim]",
-                border_style="red",
-                expand=False,
-            )
+        ui.error(
+            f"Unexpected error: {e}",
+            "This may be a bug. Please report it at"
+            " https://github.com/alaninspace/vinyl-kit/issues",
         )
         logger.exception("An unexpected error occurred")
         sys.exit(1)

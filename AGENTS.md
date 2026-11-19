@@ -75,6 +75,7 @@ All `ruff` and `mypy` checks MUST pass with **zero warnings and zero errors**. N
 - DO NOT use bare strings for tag names; use `TagName` members.
 - DO NOT write test data directly to the host OS; strictly use `pytest`'s `tmp_path`.
 - DO NOT use standard `logging`; strictly use `loguru`.
+- DO NOT print `rich.panel.Panel` or bordered `rich.table.Table` output; use the `ui.py` helpers. Bordered output breaks when the terminal is resized (`tests/test_ui.py` checks this).
 - DO NOT suppress exceptions or use blanket `# type: ignore` directives to bypass the zero-warning policy.
 </anti_patterns>
 
@@ -99,6 +100,7 @@ CLI command (click, ctx.obj=AppConfig)
 - **`models.py`**: Centralises frozen dataclasses and enums. All models are strictly `@dataclass(slots=True, frozen=True)` (except `RateLimitInfo`).
 - **`naming.py`**: Generates path templates and safely orchestrates file and directory moves. Destructive operations (rename, move, delete) default to dry-run or require confirmation.
 - **`tagging.py`**: Manages MP3 (ID3v2) and FLAC (Vorbis) tagging via `mutagen`, embeds/saves artwork, and executes vinyl position logic.
+- **`ui.py`**: Shared Rich console and output helpers. Print status with `ui.success`, `ui.warning`, `ui.error` and `ui.detail`; build tables with `ui.make_table` and print them with `ui.print_table`; print key/value blocks with `ui.print_section`. Pass user data (paths, titles, config values) to tables as `rich.text.Text` so square brackets aren't read as markup.
 - **`utils.py`**: Provides file backup and filename sanitisation (NFC normalisation, illegal character removal, UTF-8 truncation).
 - **`exceptions.py`**: Custom exception hierarchy. Catch specific types (e.g., `OSError`, `DiscogsAPIError`), never bare `Exception`.
 

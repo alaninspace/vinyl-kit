@@ -8,9 +8,9 @@ from pathlib import Path
 
 import rich_click as click
 from loguru import logger
-from rich.panel import Panel
+from rich.text import Text
 
-from vinylkit import utils
+from vinylkit import ui, utils
 from vinylkit.commands import _helpers
 from vinylkit.exceptions import VinylkitError
 from vinylkit.models import AppConfig, DiscogsRelease, ImageHandling, TagMode
@@ -116,7 +116,7 @@ def migrate(
     ]
 
     if not any(f.is_dir() for f in source.iterdir()):
-        _helpers.console.print("[yellow]No folders found to migrate.[/yellow]")
+        ui.warning("No folders found to migrate.")
         return
 
     processed: set[str] = set()
@@ -135,11 +135,12 @@ def migrate(
         total = completed + len(remaining)
         pct = round(completed / total * 100)
 
-        _helpers.console.print(
-            f"\n[bold blue]\\[{completed + 1}/{total}] "
-            f"Migrating:[/bold blue] {folder.name} "
-            f"[dim]({pct}%)[/dim]"
+        progress = Text(
+            f"[{completed + 1}/{total}] Migrating: {folder.name}", style="bold"
         )
+        progress.append(f"  ({pct}%)", style="dim")
+        _helpers.console.print()
+        _helpers.console.print(progress, highlight=False, soft_wrap=True)
 
         processed.add(folder.name)
         completed += 1
@@ -149,9 +150,7 @@ def migrate(
             reason = (
                 f"ID {rid} not in filter list" if rid is not None else "no embedded ID"
             )
-            _helpers.console.print(
-                f"[yellow]Skipping {folder.name} ({reason})[/yellow]"
-            )
+            ui.warning(f"Skipping {folder.name} ({reason})")
             continue
 
         while rid is None:
@@ -161,7 +160,7 @@ def migrate(
                 type=str,
             )
             if choice.lower() == "q":
-                _helpers.console.print("[yellow]Migration cancelled.[/yellow]")
+                ui.warning("Migration cancelled.")
                 return
             if choice.lower() == "s":
                 log_entries.append(f"SKIPPED: {folder.name} (User skipped)")
@@ -169,7 +168,7 @@ def migrate(
             if choice.isdigit():
                 rid = int(choice)
             else:
-                _helpers.console.print("[red]Invalid input.[/red]")
+                ui.error("Invalid input.")
 
         if rid is None:
             continue
@@ -188,7 +187,7 @@ def migrate(
                 log_entries=log_entries,
             )
         except (VinylkitError, OSError) as e:
-            _helpers.console.print(f"[red]Failed to migrate {folder.name}: {e}[/red]")
+            ui.error(f"Failed to migrate {folder.name}: {e}")
             log_entries.append(f"FAILED: {folder.name} ({e})")
             log_entries.append("")
 
@@ -210,24 +209,11 @@ def migrate(
         destination.mkdir(parents=True, exist_ok=True)
         log_file.write_text("\n".join(log_entries), encoding="utf-8")
         _helpers.console.print()
-        _helpers.console.print(
-            Panel(
-                "[bold green]Migration complete![/bold green]"
-                f"\nResults in [cyan]{log_file.name}[/cyan]",
-                expand=False,
-                border_style="green",
-            )
-        )
+        ui.success("Migration complete!")
+        ui.detail(f"Results in {log_file.name}")
     else:
         _helpers.console.print()
-        _helpers.console.print(
-            Panel(
-                "Dry-run complete. Migration log would have been saved.",
-                title="[bold yellow]Dry-run[/bold yellow]",
-                expand=False,
-                border_style="yellow",
-            )
-        )
+        ui.warning("Dry-run complete. Migration log would have been saved.")
 
 
 def _migrate_folder(
@@ -255,9 +241,7 @@ def _migrate_folder(
     audio_files = _helpers.collect_audio_files(folder, config.natural_sort)
 
     if not audio_files:
-        _helpers.console.print(
-            f"[yellow]No audio files found in {folder.name}[/yellow]"
-        )
+        ui.warning(f"No audio files found in {folder.name}")
         log_entries.append(f"SKIPPED: {folder.name} (No audio files)")
         return
 
@@ -289,9 +273,7 @@ def _migrate_folder(
     _helpers.check_duplicate_targets(copies)
 
     if dry_run:
-        _helpers.console.print(
-            "[yellow]Dry-run: Migration steps logged to memory.[/yellow]"
-        )
+        ui.detail("Dry-run: Migration steps logged to memory.")
         log_entries.append("  (Dry-run: No files were moved or modified)")
         log_entries.append("")
         return
@@ -300,7 +282,7 @@ def _migrate_folder(
     # release) would be overwritten, and --delete would then remove the
     # only other copy.
     if not _helpers.check_collisions(copies, []):
-        _helpers.console.print(f"[yellow]Skipped: {folder.name}[/yellow]")
+        ui.warning(f"Skipped: {folder.name}")
         log_entries.append(f"SKIPPED: {folder.name} (Destination files already exist)")
         log_entries.append("")
         return
@@ -350,41 +332,35 @@ def _migrate_folder(
             )
         except OSError as exc:
             remaining = None
-            _helpers.console.print(
-                f"[yellow]Warning: Could not clean up {folder.name}: {exc}[/yellow]"
-            )
+            ui.warning(f"Could not clean up {folder.name}: {exc}")
             log_entries.append(f"  Source cleanup failed: {exc}")
         if remaining == []:
-            _helpers.console.print(
-                f"[green]Migrated and deleted: {folder.name}[/green]"
-            )
+            ui.success(f"Migrated and deleted: {folder.name}")
         else:
-            _helpers.console.print(f"[green]Migrated: {folder.name}[/green]")
+            ui.success(f"Migrated: {folder.name}")
         if remaining:
             shown = ", ".join(remaining[:5])
             more = f" and {len(remaining) - 5} more" if len(remaining) > 5 else ""
-            _helpers.console.print(
-                f"[yellow]Kept {folder.name}: {len(remaining)} item(s) were not"
-                f" migrated ({shown}{more}).[/yellow]"
+            ui.warning(
+                f"Kept {folder.name}: {len(remaining)} item(s) were not"
+                f" migrated ({shown}{more})."
             )
             log_entries.append(f"  Source kept, not migrated: {', '.join(remaining)}")
     else:
-        _helpers.console.print(f"[green]Migrated: {folder.name}[/green]")
+        ui.success(f"Migrated: {folder.name}")
 
     rate_str = _helpers.get_rate_limit_str(client)
     if do_replace_tags:
         summary = (
-            f"  [cyan]Tagged {len(planned_moves)} tracks"
-            f", saved {artwork_count} artwork files[/cyan]"
-            f"[dim]{rate_str}[/dim]"
+            f"Tagged {len(planned_moves)} tracks"
+            f", saved {artwork_count} artwork files{rate_str}"
         )
     else:
         summary = (
-            f"  [cyan]Copied {len(planned_moves)} files"
-            f", saved {artwork_count} artwork files[/cyan]"
-            f"[dim]{rate_str}[/dim]"
+            f"Copied {len(planned_moves)} files"
+            f", saved {artwork_count} artwork files{rate_str}"
         )
-    _helpers.console.print(summary)
+    ui.detail(summary)
 
     log_entries.append(
         f"  [Rate Limit] {_helpers.describe_throttle_strategy(client.rate_limit_info)}"
@@ -477,9 +453,8 @@ def _build_mapping(
     if len(tagged_map) == len(audio_files):
         mapping.extend((tagged_map[idx], idx) for idx in sorted(tagged_map.keys()))
     else:
-        _helpers.console.print(
-            f"\n[yellow]Automatic mapping failed for {folder.name}:[/yellow]"
-        )
+        _helpers.console.print()
+        ui.warning(f"Automatic mapping failed for {folder.name}:")
         _helpers.console.print(f"  Source files: {len(audio_files)}")
         _helpers.console.print(f"  Discogs tracks: {len(release.tracklist)}")
         if unmatched_tags:
@@ -504,7 +479,7 @@ def _build_mapping(
                 f"File count ({len(audio_files)}) mismatch with "
                 f"Discogs tracks ({len(release.tracklist)})"
             )
-            _helpers.console.print(f"[yellow]{msg}[/yellow]")
+            ui.warning(msg)
             log_entries.append(f"SKIPPED: {folder.name} ({msg})")
             return None
 

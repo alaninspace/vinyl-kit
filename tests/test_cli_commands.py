@@ -183,7 +183,7 @@ class TestConfigCommands:
             ["config", "set", "naming_pattern", "{artist}/{album}/{title}"],
         )
         assert result.exit_code == 0
-        assert "Successfully set" in result.output
+        assert "Set naming_pattern" in result.output
 
         # Verify it persists
         show = runner.invoke(cli, ["config", "show"])
@@ -236,7 +236,7 @@ class TestConfigCommands:
 
         result = runner.invoke(cli, ["config", "reset", "-y"])
         assert result.exit_code == 0
-        assert "Successfully reset configuration" in result.output
+        assert "Reset configuration" in result.output
         assert not config_file.exists()
 
 
@@ -464,7 +464,7 @@ class TestBatchTag:
 
         assert result.exit_code == 0
         assert mock_discogs.search_releases.called
-        assert "Batch Search:" in clean_output
+        assert "Artist - Album  search" in clean_output
         assert "1 succeeded" in clean_output
 
     def test_batch_incompatible_with_id(self, runner, tmp_path) -> None:
@@ -879,7 +879,7 @@ class TestTagSubfolderResolution:
             ["tag", str(parent), "--id", "107536", "--no-move"],
         )
         assert result.exit_code == 0, result.output
-        assert "multiple subfolders match ID" in result.output
+        assert "Multiple subfolders match ID" in result.output
 
     def test_id_oserror_is_caught_cleanly(
         self, runner, tmp_path, mock_discogs, mocker

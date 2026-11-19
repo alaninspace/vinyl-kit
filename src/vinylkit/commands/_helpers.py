@@ -14,8 +14,9 @@ from typing import TYPE_CHECKING, Any
 
 import rich_click as click
 from loguru import logger
-from rich.console import Console
+from rich.text import Text
 
+from vinylkit import ui
 from vinylkit.discogs import (
     DiscogsClient,
     describe_throttle_strategy,
@@ -64,8 +65,8 @@ __all__ = [
     "write_release_info",
 ]
 
-# Shared Rich console
-console = Console()
+# Shared Rich console (lives in vinylkit.ui with the output helpers)
+console = ui.console
 
 # Default Discogs API credentials
 DEFAULT_CONSUMER_KEY = "placeholder_key"
@@ -263,6 +264,15 @@ def display_relative(path: Path, root: Path) -> Path:
         return path
 
 
+def print_move(source: str, target: str) -> None:
+    """Print one planned ``source -> target`` line of a rename or move."""
+    line = Text("  ")
+    line.append(source, style="cyan")
+    line.append(" -> ", style="dim")
+    line.append(target, style="green")
+    console.print(line, highlight=False, soft_wrap=True)
+
+
 def check_duplicate_targets(moves: list[tuple[Path, Path]]) -> None:
     """Raise :class:`FileOperationError` if two planned moves share a target.
 
@@ -299,14 +309,12 @@ def check_collisions(
     if not collisions:
         return True
 
-    console.print(
-        f"\n[bold yellow]Warning: {len(collisions)} destination"
-        " file(s)/folder(s) already exist:[/bold yellow]"
-    )
+    console.print()
+    ui.warning(f"{len(collisions)} destination file(s)/folder(s) already exist:")
     for c in collisions[:10]:
-        console.print(f"  [yellow]! {c}[/yellow]")
+        ui.detail(str(c))
     if len(collisions) > 10:
-        console.print(f"  [yellow]... and {len(collisions) - 10} more[/yellow]")
+        ui.detail(f"... and {len(collisions) - 10} more")
 
     return click.confirm("\nOverwrite existing files/folders?", default=False)
 
@@ -331,7 +339,7 @@ def plan_supplementary_moves(
         if info_file != info_target:
             moves.append((info_file, info_target))
             rel = display_relative(info_target, lib_root)
-            console.print(f"[cyan]{info_file.name}[/cyan] -> [green]{rel}[/green]")
+            print_move(info_file.name, str(rel))
 
     # Artwork file
     artwork_file = path / config.artwork_filename
@@ -340,7 +348,7 @@ def plan_supplementary_moves(
         if artwork_file != artwork_target:
             moves.append((artwork_file, artwork_target))
             rel = display_relative(artwork_target, lib_root)
-            console.print(f"[cyan]{artwork_file.name}[/cyan] -> [green]{rel}[/green]")
+            print_move(artwork_file.name, str(rel))
 
     # Artwork subdirectory
     artwork_subdir = path / config.artwork_subdir
@@ -349,9 +357,7 @@ def plan_supplementary_moves(
         if artwork_subdir != artwork_subdir_target:
             dir_moves.append((artwork_subdir, artwork_subdir_target))
             rel = display_relative(artwork_subdir_target, lib_root)
-            console.print(
-                f"[cyan]{artwork_subdir.name}/[/cyan] -> [green]{rel}/[/green]"
-            )
+            print_move(f"{artwork_subdir.name}/", f"{rel}/")
 
     return dir_moves
 
@@ -426,16 +432,10 @@ def download_artwork(
                     all_images_data.append(img_data)
                 except DiscogsAPIError as exc:
                     if not silent:
-                        console.print(
-                            "[yellow]Warning: Failed"
-                            " to download additional"
-                            f" artwork: {exc}[/yellow]"
-                        )
+                        ui.warning(f"Failed to download additional artwork: {exc}")
     except DiscogsAPIError as exc:
         if not silent:
-            console.print(
-                f"[yellow]Warning: Failed to download artwork: {exc}[/yellow]"
-            )
+            ui.warning(f"Failed to download artwork: {exc}")
     return artwork_data, all_images_data
 
 

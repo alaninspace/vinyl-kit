@@ -29,13 +29,13 @@ Record your vinyl into a folder as `01.flac`, `02.flac`… Run one command, and 
 <p class="see-it-label"><strong>2 · Run</strong> one command</p>
 <pre>&gt; vinylkit tag --id 4008,13299
 &nbsp;
-Processing folder: …\4008-…-Hey-Boy-Hey-Girl
-Tagged 3 tracks
-Files moved successfully.
+4008-…-Hey-Boy-Hey-Girl
+✓ Tagged 3 tracks
+✓ Files moved successfully.
 &nbsp;
-Processing folder: …\13299-…-Loops-Of-Fury
-Tagged 4 tracks
-Files moved successfully.</pre>
+13299-…-Loops-Of-Fury
+✓ Tagged 4 tracks
+✓ Files moved successfully.</pre>
 </td>
 </tr>
 <tr>
